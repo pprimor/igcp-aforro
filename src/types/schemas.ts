@@ -65,5 +65,23 @@ export const cohortRateInputSchema = z
     path: ['asOfDate'],
   });
 
+export const currentRateInputSchema = z.object({
+  series: seriesCodeSchema.optional(),
+  asOfDate: isoDateSchema.optional(),
+});
+
+export const rateTableInputSchema = z
+  .object({
+    series: seriesCodeSchema.optional(),
+    fromMonth: isoMonthSchema,
+    toMonth: isoMonthSchema,
+  })
+  .refine((data) => data.fromMonth <= data.toMonth, {
+    message: 'fromMonth must be on or before toMonth',
+    path: ['toMonth'],
+  });
+
 export type SimulateInputSchema = z.infer<typeof simulateInputSchema>;
 export type CohortRateInputSchema = z.infer<typeof cohortRateInputSchema>;
+export type CurrentRateInputSchema = z.infer<typeof currentRateInputSchema>;
+export type RateTableInputSchema = z.infer<typeof rateTableInputSchema>;

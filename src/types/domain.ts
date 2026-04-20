@@ -124,7 +124,34 @@ export interface CohortRateResult {
   readonly asOfDate: IsoDate;
   readonly quarterStartDate: IsoDate;
   readonly quarterEndDate: IsoDate;
+  readonly quarterIndex: number;
+  readonly yearsSinceSubscription: number;
   readonly baseRatePct: string;
   readonly premiumTier: PremiumTier;
   readonly annualRatePct: string;
+}
+
+/**
+ * The IGCP-published monthly base rate for a series — the building block both
+ * `getCurrentRate` and `getRateTable` return. `month` is the calendar month for
+ * which the rate is published; `fixingDate` is the antepenultimate TARGET2
+ * business day of the previous month on which the 10-day Euribor 3M average
+ * was struck.
+ */
+export interface MonthlyBaseRate {
+  readonly series: SeriesCode;
+  readonly month: IsoMonth;
+  readonly fixingDate: IsoDate;
+  readonly basePct: string;
+}
+
+export interface CurrentRateInput {
+  readonly series?: SeriesCode;
+  readonly asOfDate?: IsoDate;
+}
+
+export interface RateTableInput {
+  readonly series?: SeriesCode;
+  readonly fromMonth: IsoMonth;
+  readonly toMonth: IsoMonth;
 }
