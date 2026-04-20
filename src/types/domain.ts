@@ -95,14 +95,41 @@ export interface SimulateResult {
   readonly subscriptionDate: IsoDate;
   readonly asOfDate: IsoDate;
   readonly units: number;
+  /** Effective IRS rate applied this run, formatted to 4 decimals. */
   readonly irsRate: string;
+  /**
+   * Principal + sum of capitalized **gross** interest. Excludes any partial
+   * interest accrued since the last capitalization (see
+   * {@link accruedSinceLastCapitalization}).
+   */
   readonly currentValueGross: string;
+  /**
+   * Principal + sum of capitalized **net** interest (i.e. the running
+   * balance after every capitalization), matching what a holder would see on
+   * an IGCP statement on the as-of date. Excludes accrued.
+   */
   readonly currentValueNet: string;
   readonly totalInterestGross: string;
   readonly totalInterestNet: string;
   readonly totalIrsWithheld: string;
   readonly matured: boolean;
   readonly maturityDate: IsoDate;
+  /**
+   * Gross interest accumulated since the last capitalization, when
+   * `asOfDate` falls strictly inside an open quarter; `"0.00"` otherwise.
+   *
+   * **This is a library convention, not an IGCP-published number.** It is
+   * computed as `balance × quarterlyRate × elapsedDays / totalDays`
+   * (calendar-day pro-rata of the would-be quarterly interest), quantized to
+   * cents with banker's rounding. IRS is **not** withheld on this amount —
+   * withholding only occurs at capitalization, so callers projecting a
+   * "value if redeemed today" should subtract the expected withholding
+   * themselves (`accrued × irsRate`).
+   *
+   * Surface this as a separate informational field rather than folding it
+   * into `currentValue*` / `totalInterest*` so audit trails against IGCP
+   * statements stay clean.
+   */
   readonly accruedSinceLastCapitalization: string;
   readonly seriesMetadata: SeriesMetadata;
   readonly schedule?: readonly ScheduleRow[];

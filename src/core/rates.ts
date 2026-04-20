@@ -5,7 +5,6 @@ import type {
   IsoDate,
   IsoMonth,
   MonthlyBaseRate,
-  PremiumTier,
   RateTableInput,
   SeriesCode,
   SeriesMetadata,
@@ -16,8 +15,15 @@ import {
   rateTableInputSchema,
 } from '../types/schemas.js';
 import { type BaseRateOptions, computeBaseRate } from './baseRate.js';
+import {
+  floorYearsBetween,
+  pad2,
+  parseIsoDateParts,
+  shiftMonths,
+  todayIsoUtc,
+} from './dateMath.js';
 import { formatPercent, toBig } from './money.js';
-import { getSeries } from './series.js';
+import { getSeries, premiumTierForYear } from './series.js';
 
 /**
  * Annual-rate composition for Série F (and any future series following the
@@ -40,20 +46,6 @@ import { getSeries } from './series.js';
 
 const DEFAULT_SERIES: SeriesCode = 'F';
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
-function todayIsoUtc(): IsoDate {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${pad2(now.getUTCMonth() + 1)}-${pad2(now.getUTCDate())}`;
-}
-
-function parseIsoDateParts(date: IsoDate): { year: number; month: number; day: number } {
-  const [y, m, d] = date.split('-').map(Number);
-  return { year: y as number, month: m as number, day: d as number };
-}
-
 function parseIsoMonthParts(month: IsoMonth): { year: number; month: number } {
   const [y, m] = month.split('-').map(Number);
   return { year: y as number, month: m as number };
@@ -61,46 +53,6 @@ function parseIsoMonthParts(month: IsoMonth): { year: number; month: number } {
 
 function formatIsoMonth(year: number, month: number): IsoMonth {
   return `${year}-${pad2(month)}`;
-}
-
-/**
- * Returns the Date-equivalent of `(year, month + months)` together with the
- * preserved-or-rolled day-of-month. Per IGCP Série F: when the original day
- * does not exist in the target month (e.g. 2024-08-31 + 1 month → September
- * has only 30 days), the date rolls forward to the first day of the *next*
- * month rather than clamping to the last day of the target month.
- */
-function shiftMonths(date: IsoDate, months: number): IsoDate {
-  const { year, month, day } = parseIsoDateParts(date);
-  const totalM0 = month - 1 + months;
-  let newY = year + Math.floor(totalM0 / 12);
-  let newM = (((totalM0 % 12) + 12) % 12) + 1;
-  const lastDayOfTarget = new Date(Date.UTC(newY, newM, 0)).getUTCDate();
-  if (day <= lastDayOfTarget) {
-    return `${newY}-${pad2(newM)}-${pad2(day)}`;
-  }
-  newM += 1;
-  if (newM > 12) {
-    newM = 1;
-    newY += 1;
-  }
-  return `${newY}-${pad2(newM)}-01`;
-}
-
-/**
- * Anniversary-based whole years between two dates. Returns `0` when `to` is
- * earlier than the first anniversary of `from`. Negative or out-of-order
- * inputs are floored to `0` to keep callers from accidentally indexing a
- * negative premium tier.
- */
-function floorYearsBetween(from: IsoDate, to: IsoDate): number {
-  const f = parseIsoDateParts(from);
-  const t = parseIsoDateParts(to);
-  let years = t.year - f.year;
-  if (t.month < f.month || (t.month === f.month && t.day < f.day)) {
-    years -= 1;
-  }
-  return Math.max(0, years);
 }
 
 /**
@@ -120,18 +72,6 @@ function quartersElapsed(subscriptionDate: IsoDate, asOfDate: IsoDate): number {
     monthsDiff -= 1;
   }
   return Math.max(0, Math.floor(monthsDiff / 3));
-}
-
-function premiumTierForYear(series: SeriesMetadata, year: number): PremiumTier {
-  for (const tier of series.premiumTiers) {
-    if (year >= tier.fromYear && year <= tier.toYear) {
-      return tier;
-    }
-  }
-  throw new Error(
-    `No premium tier defined for year ${year} of ${series.name} ` +
-      `(supported range 1..${series.maturityYears})`,
-  );
 }
 
 /** Inclusive list of `YYYY-MM` strings between `from` and `to`. */

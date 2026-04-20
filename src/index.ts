@@ -1,5 +1,6 @@
 export const VERSION = '2026.420.0';
 
+export { simulate } from './core/calculator.js';
 export { getCurrentRate, getRateForCohort, getRateTable } from './core/rates.js';
 export { Series, getSeries, listSeries } from './core/series.js';
 export type {

@@ -66,3 +66,24 @@ export function getSeries(code: SeriesCode): SeriesMetadata {
   }
   return metadata;
 }
+
+/**
+ * Resolves the permanence-premium tier that applies to the given
+ * `contractYear` (1-indexed: year 1 = subscription → 1st anniversary,
+ * year 2 = 1st → 2nd, etc.). Lives next to the tier definitions so any new
+ * series added to {@link SERIES_REGISTRY} inherits the same lookup.
+ *
+ * @throws {Error} when no tier covers `contractYear` — guards against
+ *   accidentally indexing past maturity.
+ */
+export function premiumTierForYear(series: SeriesMetadata, contractYear: number): PremiumTier {
+  for (const tier of series.premiumTiers) {
+    if (contractYear >= tier.fromYear && contractYear <= tier.toYear) {
+      return tier;
+    }
+  }
+  throw new Error(
+    `No premium tier defined for year ${contractYear} of ${series.name} ` +
+      `(supported range 1..${series.maturityYears})`,
+  );
+}
