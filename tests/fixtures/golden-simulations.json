@@ -1,0 +1,283 @@
+{
+  "_meta": {
+    "description": "Golden quarterly-compounding scenarios for the Aforro Serie F simulator. Each entry locks the full SimulateResult (minus the static seriesMetadata block) so any drift in calendar, baseRate, premium-tier or rounding logic is caught by tests/calculator.test.ts.",
+    "generator": "simulate() at the time of fixture creation; not cross-checked against the IGCP web simulator (that is the job of compare/igcp-simulator.ts).",
+    "rateConvention": "percent strings -> 3 dp; rate strings -> 5 dp; money strings -> 2 dp (banker rounding throughout)."
+  },
+  "scenarios": [
+    {
+      "id": "q1-flat-cap",
+      "description": "1000 EUR subscribed 2024-03-15, one quarter completed at the cap-flat 2.500% base rate, no premium (year 1)",
+      "input": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "units": 1000,
+        "asOfDate": "2024-06-15"
+      },
+      "expected": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "asOfDate": "2024-06-15",
+        "units": 1000,
+        "irsRate": "0.2800",
+        "currentValueGross": "1006.25",
+        "currentValueNet": "1004.50",
+        "totalInterestGross": "6.25",
+        "totalInterestNet": "4.50",
+        "totalIrsWithheld": "1.75",
+        "matured": false,
+        "maturityDate": "2039-03-15",
+        "accruedSinceLastCapitalization": "0.00"
+      }
+    },
+    {
+      "id": "q2-flat-cap",
+      "description": "Same cohort, two quarters completed; tests compounding inside the cap-flat band",
+      "input": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "units": 1000,
+        "asOfDate": "2024-09-15"
+      },
+      "expected": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "asOfDate": "2024-09-15",
+        "units": 1000,
+        "irsRate": "0.2800",
+        "currentValueGross": "1012.53",
+        "currentValueNet": "1009.02",
+        "totalInterestGross": "12.53",
+        "totalInterestNet": "9.02",
+        "totalIrsWithheld": "3.51",
+        "matured": false,
+        "maturityDate": "2039-03-15",
+        "accruedSinceLastCapitalization": "0.00"
+      }
+    },
+    {
+      "id": "two-quarters-2025-rate-drop",
+      "description": "1000 EUR subscribed 2025-03-15, two quarters straddling the post-cap rate decline (2.500% -> 2.070%)",
+      "input": {
+        "series": "F",
+        "subscriptionDate": "2025-03-15",
+        "units": 1000,
+        "asOfDate": "2025-09-15"
+      },
+      "expected": {
+        "series": "F",
+        "subscriptionDate": "2025-03-15",
+        "asOfDate": "2025-09-15",
+        "units": 1000,
+        "irsRate": "0.2800",
+        "currentValueGross": "1011.45",
+        "currentValueNet": "1008.24",
+        "totalInterestGross": "11.45",
+        "totalInterestNet": "8.24",
+        "totalIrsWithheld": "3.21",
+        "matured": false,
+        "maturityDate": "2040-03-15",
+        "accruedSinceLastCapitalization": "0.00"
+      }
+    },
+    {
+      "id": "mid-quarter-accrual",
+      "description": "asOf falls in the middle of an open quarter; accruedSinceLastCapitalization is reported separately and not folded into totals",
+      "input": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "units": 1000,
+        "asOfDate": "2024-08-01"
+      },
+      "expected": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "asOfDate": "2024-08-01",
+        "units": 1000,
+        "irsRate": "0.2800",
+        "currentValueGross": "1006.25",
+        "currentValueNet": "1004.50",
+        "totalInterestGross": "6.25",
+        "totalInterestNet": "4.50",
+        "totalIrsWithheld": "1.75",
+        "matured": false,
+        "maturityDate": "2039-03-15",
+        "accruedSinceLastCapitalization": "3.21"
+      }
+    },
+    {
+      "id": "irs-override-zero",
+      "description": "1000 EUR with custom IRS=0 (e.g. tax-exempt cohort) -- every gross cent flows to net",
+      "input": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "units": 1000,
+        "asOfDate": "2024-09-15",
+        "irsRate": 0
+      },
+      "expected": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "asOfDate": "2024-09-15",
+        "units": 1000,
+        "irsRate": "0.0000",
+        "currentValueGross": "1012.54",
+        "currentValueNet": "1012.54",
+        "totalInterestGross": "12.54",
+        "totalInterestNet": "12.54",
+        "totalIrsWithheld": "0.00",
+        "matured": false,
+        "maturityDate": "2039-03-15",
+        "accruedSinceLastCapitalization": "0.00"
+      }
+    },
+    {
+      "id": "max-units-q1",
+      "description": "Account upper bound 100,000 EUR for one quarter -- sanity-checks scale with no rounding drift",
+      "input": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "units": 100000,
+        "asOfDate": "2024-06-15"
+      },
+      "expected": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "asOfDate": "2024-06-15",
+        "units": 100000,
+        "irsRate": "0.2800",
+        "currentValueGross": "100625.00",
+        "currentValueNet": "100450.00",
+        "totalInterestGross": "625.00",
+        "totalInterestNet": "450.00",
+        "totalIrsWithheld": "175.00",
+        "matured": false,
+        "maturityDate": "2039-03-15",
+        "accruedSinceLastCapitalization": "0.00"
+      }
+    },
+    {
+      "id": "min-units-q1",
+      "description": "Account lower bound 100 EUR for one quarter -- exercises sub-euro IRS rounding",
+      "input": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "units": 100,
+        "asOfDate": "2024-06-15"
+      },
+      "expected": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "asOfDate": "2024-06-15",
+        "units": 100,
+        "irsRate": "0.2800",
+        "currentValueGross": "100.62",
+        "currentValueNet": "100.45",
+        "totalInterestGross": "0.62",
+        "totalInterestNet": "0.45",
+        "totalIrsWithheld": "0.17",
+        "matured": false,
+        "maturityDate": "2039-03-15",
+        "accruedSinceLastCapitalization": "0.00"
+      }
+    },
+    {
+      "id": "cohort-into-year-2-with-schedule",
+      "description": "Subscribed 2024-03-15, asOf 2025-06-15: 5 quarters complete; quarter 5 is the first under the +0.25% permanence premium (year 2)",
+      "input": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "units": 5000,
+        "asOfDate": "2025-06-15",
+        "includeSchedule": true
+      },
+      "expected": {
+        "series": "F",
+        "subscriptionDate": "2024-03-15",
+        "asOfDate": "2025-06-15",
+        "units": 5000,
+        "irsRate": "0.2800",
+        "currentValueGross": "5160.84",
+        "currentValueNet": "5115.80",
+        "totalInterestGross": "160.84",
+        "totalInterestNet": "115.80",
+        "totalIrsWithheld": "45.04",
+        "matured": false,
+        "maturityDate": "2039-03-15",
+        "accruedSinceLastCapitalization": "0.00",
+        "schedule": [
+          {
+            "quarterEndDate": "2024-06-15",
+            "annualRate": "0.02500",
+            "quarterlyRate": "0.00625",
+            "interestGross": "31.25",
+            "irsWithheld": "8.75",
+            "interestNet": "22.50",
+            "balanceAfter": "5022.50",
+            "premiumTier": {
+              "fromYear": 1,
+              "toYear": 1,
+              "ratePct": "0.00"
+            }
+          },
+          {
+            "quarterEndDate": "2024-09-15",
+            "annualRate": "0.02500",
+            "quarterlyRate": "0.00625",
+            "interestGross": "31.39",
+            "irsWithheld": "8.79",
+            "interestNet": "22.60",
+            "balanceAfter": "5045.10",
+            "premiumTier": {
+              "fromYear": 1,
+              "toYear": 1,
+              "ratePct": "0.00"
+            }
+          },
+          {
+            "quarterEndDate": "2024-12-15",
+            "annualRate": "0.02500",
+            "quarterlyRate": "0.00625",
+            "interestGross": "31.53",
+            "irsWithheld": "8.83",
+            "interestNet": "22.70",
+            "balanceAfter": "5067.80",
+            "premiumTier": {
+              "fromYear": 1,
+              "toYear": 1,
+              "ratePct": "0.00"
+            }
+          },
+          {
+            "quarterEndDate": "2025-03-15",
+            "annualRate": "0.02500",
+            "quarterlyRate": "0.00625",
+            "interestGross": "31.67",
+            "irsWithheld": "8.87",
+            "interestNet": "22.80",
+            "balanceAfter": "5090.60",
+            "premiumTier": {
+              "fromYear": 1,
+              "toYear": 1,
+              "ratePct": "0.00"
+            }
+          },
+          {
+            "quarterEndDate": "2025-06-15",
+            "annualRate": "0.02750",
+            "quarterlyRate": "0.00688",
+            "interestGross": "35.00",
+            "irsWithheld": "9.80",
+            "interestNet": "25.20",
+            "balanceAfter": "5115.80",
+            "premiumTier": {
+              "fromYear": 2,
+              "toYear": 5,
+              "ratePct": "0.25"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

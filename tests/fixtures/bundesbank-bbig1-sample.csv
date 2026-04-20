@@ -1,0 +1,17 @@
+"",BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z,BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z_FLAGS
+"",Money market rates / EURIBOR (R)  three-month funds / Daily quotations / ST0316,
+Comment (in english),"Euribor (R) daily rates are calculated by the European Money Markets Institute (EMMI). Data are fee liable and are therefore published with the delay of one working day.",
+Decimals,3,
+Time format code,P1D,
+category,ZRGM,
+unit,% p.a.,
+unit multiplier,One,
+last update,2026-04-17 13:47:50,
+2026-04-09,2.221,
+2026-04-10,2.219,
+2026-04-11,.,No value available
+2026-04-12,.,No value available
+2026-04-13,2.204,
+2026-04-14,2.243,
+2026-04-15,2.240,
+2026-04-16,2.238,
