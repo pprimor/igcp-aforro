@@ -8,21 +8,25 @@ import { getSeries } from './series.js';
  * Série F monthly base-rate computation.
  *
  * For a given `(year, month)` (the month for which the base rate applies),
- * IGCP's published methodology is:
+ * IGCP's published methodology — codified in Portaria n.º 149-A/2023, of
+ * 2 June 2023 (Diário da República, 1.ª série, n.º 107, suplemento) — is:
  *
  *   1. Determine the **fixing date**: the antepenultimate (third-from-last)
  *      TARGET2 business day of the *previous* calendar month.
- *   2. Take the Euribor 3M fixings for the **10 business days ending on the
- *      fixing date** (inclusive).
+ *   2. Take the Euribor 3M fixings for the **10 TARGET2 business days
+ *      strictly preceding the fixing date** ("os 10 dias úteis anteriores"),
+ *      i.e. `[fixingDate − 10 business days, fixingDate − 1 business day]`
+ *      inclusive. The fixing date itself is **not** part of the averaging
+ *      window — it only anchors which 10 prior observations are averaged.
  *   3. Compute the arithmetic mean and round it to **3 decimal places** using
  *      banker's rounding (`ROUND_HALF_EVEN`).
  *   4. Clamp the result into `[0%, 2.5%]`.
  *
- * The bundled dataset (`src/data/euribor3m.json`) only contains
- * TARGET2 business days for which Bundesbank actually published a fixing —
+ * The bundled dataset (`src/data/euribor3m.json`) only contains TARGET2
+ * business days for which Bundesbank actually published a fixing —
  * "no value available" rows and TARGET2 holidays are filtered out at fetch
  * time. We therefore implement step 2 as "the 10 most recent observations
- * with `date <= fixingDate`", which is equivalent under that invariant and
+ * with `date < fixingDate`", which is equivalent under that invariant and
  * additionally tolerant of the rare day Bundesbank skips a publication.
  */
 
@@ -64,7 +68,10 @@ export interface BaseRateResult {
   readonly month: number;
   /** Antepenultimate TARGET2 business day of `(year, month - 1)`. */
   readonly fixingDate: IsoDate;
-  /** The 10 Euribor 3M observations that contributed to the average. */
+  /**
+   * The 10 Euribor 3M observations that contributed to the average — the
+   * business days strictly preceding {@link fixingDate}.
+   */
   readonly observations: readonly RateEntry[];
   /** Arithmetic mean of {@link observations}, before rounding or clamping. */
   readonly rawAveragePct: string;
@@ -147,17 +154,24 @@ export function computeBaseRate(
     );
   }
 
-  const lastIndex = findLastIndexAtOrBefore(observations, fixingDate);
-  if (lastIndex < windowSize - 1) {
+  // Per Portaria 149-A/2023 the window is the 10 business days *strictly
+  // preceding* the fixing date, so we anchor at `fixingDate - 1` and walk
+  // back `windowSize` observations from there.
+  const fixingIndex = findLastIndexAtOrBefore(observations, fixingDate);
+  const lastWindowIndex =
+    fixingIndex >= 0 && observations[fixingIndex]?.date === fixingDate
+      ? fixingIndex - 1
+      : fixingIndex;
+  if (lastWindowIndex < windowSize - 1) {
     const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
     throw new Error(
       `Insufficient Euribor 3M data to compute base rate for ${targetMonth}: ` +
-        `fixing date ${fixingDate} requires ${windowSize} observations on or before that ` +
-        `date but only ${lastIndex + 1} are available in the bundled dataset`,
+        `fixing date ${fixingDate} requires ${windowSize} observations strictly before that ` +
+        `date but only ${lastWindowIndex + 1} are available in the bundled dataset`,
     );
   }
 
-  const window = observations.slice(lastIndex - windowSize + 1, lastIndex + 1);
+  const window = observations.slice(lastWindowIndex - windowSize + 1, lastWindowIndex + 1);
 
   let sum = new Big(0);
   for (const entry of window) {
