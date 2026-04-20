@@ -1,0 +1,270 @@
+name: Release
+
+# Manually-triggered release: bumps the CalVer (YYYY.MMDD.PATCH) version,
+# publishes to npm, and deploys the Astro Starlight docs + the precomputed
+# `rates.json` artifact (current + versioned snapshot) to GitHub Pages.
+#
+# `bumpKind` semantics (see igcp-aforro_library_e6bcf217.plan.md):
+#   - today      -> `<UTC year>.<MMDD-as-int>.0` (e.g. 2026-04-20 -> 2026.420.0).
+#                   Use this for the regular monthly Euribor refresh release.
+#   - patch      -> Same date segment as the current package.json version,
+#                   patch incremented by 1. Use for same-day hot-fixes
+#                   (2026.420.0 -> 2026.420.1).
+#   - prerelease -> `<today>.0-rc.<N>`, published with the npm dist-tag `next`
+#                   so consumers don't pick it up by default.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bumpKind:
+        description: How to compute the next version
+        required: true
+        type: choice
+        default: today
+        options:
+          - today
+          - patch
+          - prerelease
+      dryRun:
+        description: Run all steps except npm publish, git push, and Pages deploy
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write       # tag + push + GitHub Release
+  id-token: write       # npm provenance + Pages deploy
+  pages: write          # Pages deploy
+
+jobs:
+  release:
+    name: Build, version, publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      npmTag: ${{ steps.version.outputs.npmTag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need full history so `git tag` can verify uniqueness and the
+          # auto-generated GitHub Release notes can diff against the
+          # previous tag.
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Compute next version
+        id: version
+        env:
+          BUMP_KIND: ${{ inputs.bumpKind }}
+        run: |
+          set -euo pipefail
+          # Heredoc is single-quoted ('EOF') so bash performs no expansion;
+          # node sees the script verbatim, which keeps JS template literals
+          # and regex backslashes readable.
+          node --input-type=module <<'EOF'
+            import { readFileSync, appendFileSync } from 'node:fs';
+
+            const bumpKind = process.env.BUMP_KIND;
+            const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+            const current = pkg.version;
+
+            const now = new Date();
+            const y = now.getUTCFullYear();
+            const mmdd = (now.getUTCMonth() + 1) * 100 + now.getUTCDate();
+            const todayBase = `${y}.${mmdd}`;
+
+            const stableCurrent = current.split('-')[0];
+            const [cy, cmd, cp] = stableCurrent.split('.');
+            const currentBase = `${cy}.${cmd}`;
+            const currentPatch = Number(cp);
+
+            let next;
+            let npmTag = 'latest';
+            if (bumpKind === 'today') {
+              if (currentBase === todayBase && !current.includes('-')) {
+                next = `${todayBase}.${currentPatch + 1}`;
+              } else {
+                next = `${todayBase}.0`;
+              }
+            } else if (bumpKind === 'patch') {
+              next = `${currentBase}.${currentPatch + 1}`;
+            } else if (bumpKind === 'prerelease') {
+              let rc = 0;
+              const m = current.match(/-rc\.(\d+)$/);
+              if (m && stableCurrent === `${todayBase}.0`) {
+                rc = Number(m[1]) + 1;
+              }
+              next = `${todayBase}.0-rc.${rc}`;
+              npmTag = 'next';
+            } else {
+              throw new Error(`unknown bumpKind: ${bumpKind}`);
+            }
+
+            const tag = `v${next}`;
+            appendFileSync(process.env.GITHUB_OUTPUT, `version=${next}\n`);
+            appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
+            appendFileSync(process.env.GITHUB_OUTPUT, `npmTag=${npmTag}\n`);
+            console.log(`current=${current} -> next=${next} (tag=${tag}, npm=${npmTag})`);
+          EOF
+
+      - name: Bump package.json
+        run: |
+          set -euo pipefail
+          pnpm version "${{ steps.version.outputs.version }}" --no-git-tag-version
+
+      - name: Sync VERSION constant in src/index.ts
+        # `src/index.ts` exports a hardcoded VERSION used by the static
+        # rates.json artifact. Keep it in lockstep with package.json so the
+        # published library and the Pages-served rates.json agree.
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+            import { readFileSync, writeFileSync } from 'node:fs';
+            const path = 'src/index.ts';
+            const next = process.env.VERSION;
+            const before = readFileSync(path, 'utf8');
+            const after = before.replace(
+              /export const VERSION = '[^']+';/,
+              `export const VERSION = '${next}';`,
+            );
+            if (before === after) {
+              throw new Error(`Failed to update VERSION in ${path}; pattern did not match.`);
+            }
+            writeFileSync(path, after);
+          EOF
+
+      - name: Commit and tag
+        if: ${{ !inputs.dryRun }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json src/index.ts
+          git commit -m "release: ${VERSION}"
+          git tag -a "${TAG}" -m "Release ${VERSION}"
+          git push origin HEAD --tags
+
+      - name: Publish to npm
+        if: ${{ !inputs.dryRun }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          pnpm publish --access public --no-git-checks --tag "${{ steps.version.outputs.npmTag }}" --provenance
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dryRun }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PRERELEASE_FLAG: ${{ steps.version.outputs.npmTag == 'next' && '--prerelease' || '' }}
+        run: |
+          set -euo pipefail
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --generate-notes \
+            ${PRERELEASE_FLAG}
+
+  pages:
+    name: Deploy docs + rates.json to Pages
+    needs: release
+    if: ${{ !inputs.dryRun }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout (release tag)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build library (needed for typedoc API reference)
+        run: pnpm build
+
+      - name: Rebuild rates.json against the released version
+        # build-rates-json.ts reads VERSION from src/index.ts, which in turn
+        # is sourced from package.json — already bumped by the release job.
+        run: pnpm build:rates-json
+
+      - name: Install docs dependencies
+        working-directory: docs
+        run: pnpm install --frozen-lockfile
+
+      - name: Build docs site
+        working-directory: docs
+        env:
+          # Pages serves under https://<owner>.github.io/<repo>/. The
+          # docs `astro.config.mjs` reads BASE_PATH for this.
+          BASE_PATH: /${{ github.event.repository.name }}/
+        run: pnpm build
+
+      - name: Stage Pages artifact (docs + rates.json + versioned snapshot)
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p docs/dist/v/${VERSION}
+          cp public/rates.json docs/dist/rates.json
+          cp public/rates.json docs/dist/v/${VERSION}/rates.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/dist
+
+      - name: Deploy to Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,199 @@
+name: Data refresh
+
+# Daily refresh of the bundled Euribor 3M dataset (Bundesbank BBIG1) and
+# the IGCP-published Série F base-rate fixture used by golden tests.
+#
+# Cron schedule rationale (see igcp-aforro_euribor_followups_c8d4f1a2.plan.md):
+# GitHub Actions interprets `cron:` in UTC and ignores `TZ`. To stay at
+# 08:00 Lisbon all year despite Portugal's DST shift between WET (UTC+0,
+# winter) and WEST (UTC+1, summer), we register both. The job body is a
+# no-op when Bundesbank has not republished, so firing twice on
+# shoulder-season days is harmless.
+#
+# Job logic:
+# 1. Run fetch-euribor.ts in incremental mode (always-full-series fetch,
+#    client-side merge — the Bundesbank endpoint silently ignores
+#    startPeriod/endPeriod on this dataflow).
+# 2. Run fetch-igcp-base-rates.ts for the current month (idempotent;
+#    no-op when the value already matches the fixture).
+# 3. Run `pnpm test` so a drift between our formula and a freshly-
+#    published IGCP base rate fails the workflow loudly (the resulting
+#    PR is still opened, but with `needs-review` so a human inspects).
+# 4. Open / update a PR via peter-evans/create-pull-request when there
+#    is a working-tree diff in the data files; skip silently otherwise.
+# 5. Freshness gate (independent of the diff): fail the job if the
+#    latest Euribor observation is older than today - 5 calendar days.
+#    That tolerates a Friday + long weekend + a German holiday; longer
+#    silences are real upstream problems worth a human eyeball.
+
+on:
+  schedule:
+    # Winter: 08:00 UTC == 08:00 WET   (late Oct -> late Mar)
+    - cron: '0 8 * * *'
+    # Summer: 07:00 UTC == 08:00 WEST  (late Mar -> late Oct)
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      forcePr:
+        description: Open the PR even when no data files changed (debug)
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  refresh:
+    name: Fetch Euribor + IGCP, open PR on drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Europe/Lisbon
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch Euribor (incremental)
+        # The `--` separator forwards args through pnpm to the underlying
+        # `tsx scripts/fetch-euribor.ts`. The script's parser expects the
+        # value as a separate argument (see scripts/fetch-euribor.ts).
+        run: pnpm fetch:euribor -- --mode incremental
+
+      - name: Fetch IGCP base rate (current month)
+        run: pnpm fetch:igcp-base-rates -- --month current
+
+      - name: Read refresh metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          if [ ! -f src/data/_meta.json ]; then
+            echo "src/data/_meta.json missing after fetch" >&2
+            exit 1
+          fi
+          latest=$(node -p "JSON.parse(require('fs').readFileSync('src/data/_meta.json','utf8')).euribor.latestObservation")
+          upstream=$(node -p "JSON.parse(require('fs').readFileSync('src/data/_meta.json','utf8')).euribor.upstreamLastUpdate ?? 'unknown'")
+          today=$(date -u +%F)
+          {
+            echo "latest=${latest}"
+            echo "upstream=${upstream}"
+            echo "today=${today}"
+            echo "month=$(date -u +%Y-%m)"
+          } >> "$GITHUB_OUTPUT"
+          echo "Latest observation: ${latest} (upstream last update: ${upstream}, today: ${today})"
+
+      - name: Freshness gate (latest observation must be within 5 days)
+        env:
+          LATEST: ${{ steps.meta.outputs.latest }}
+          TODAY: ${{ steps.meta.outputs.today }}
+        run: |
+          set -euo pipefail
+          # GNU date arithmetic on the runner — diff in seconds, divide.
+          latest_ts=$(date -u -d "${LATEST}" +%s)
+          today_ts=$(date -u -d "${TODAY}" +%s)
+          age_days=$(( (today_ts - latest_ts) / 86400 ))
+          echo "Euribor latestObservation is ${age_days} day(s) behind today"
+          if [ "${age_days}" -gt 5 ]; then
+            echo "::error title=Stale Euribor data::latestObservation=${LATEST} is ${age_days} days behind today (>5d SLO)."
+            exit 1
+          fi
+
+      - name: Detect data file changes
+        id: diff
+        run: |
+          set -euo pipefail
+          # Restrict the diff probe to the files our fetchers can write.
+          # `git status --porcelain` returns empty when there is nothing.
+          changed=$(git status --porcelain -- \
+            src/data/euribor3m.json \
+            src/data/_meta.json \
+            raw/euribor \
+            tests/fixtures/igcpPublishedBaseRates.json \
+            raw/igcp || true)
+          if [ -n "${changed}" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Changed files:"
+            echo "${changed}"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No data file changes."
+          fi
+
+      - name: Run golden tests (gate before opening PR)
+        id: tests
+        if: ${{ steps.diff.outputs.changed == 'true' || inputs.forcePr }}
+        continue-on-error: true
+        run: pnpm test
+
+      - name: Pick PR labels
+        if: ${{ steps.diff.outputs.changed == 'true' || inputs.forcePr }}
+        id: labels
+        env:
+          TESTS_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          set -euo pipefail
+          if [ "${TESTS_OUTCOME}" = "success" ]; then
+            echo "labels=data-refresh" >> "$GITHUB_OUTPUT"
+          else
+            echo "labels=data-refresh,needs-review" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update PR
+        if: ${{ steps.diff.outputs.changed == 'true' || inputs.forcePr }}
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: data-refresh/${{ steps.meta.outputs.month }}
+          base: main
+          delete-branch: true
+          commit-message: |
+            data: refresh Euribor + IGCP for ${{ steps.meta.outputs.month }}
+
+            Latest Euribor observation: ${{ steps.meta.outputs.latest }}
+            Upstream last update: ${{ steps.meta.outputs.upstream }}
+            Tests: ${{ steps.tests.outcome }}
+          title: 'data: refresh Euribor + IGCP for ${{ steps.meta.outputs.month }}'
+          labels: ${{ steps.labels.outputs.labels }}
+          body: |
+            Automated daily data refresh.
+
+            **Latest Euribor observation:** `${{ steps.meta.outputs.latest }}`
+            **Bundesbank `last update`:** `${{ steps.meta.outputs.upstream }}`
+            **Today (UTC):** `${{ steps.meta.outputs.today }}`
+            **Golden test outcome:** `${{ steps.tests.outcome }}`
+
+            Files this PR may touch:
+            - `src/data/euribor3m.json`
+            - `src/data/_meta.json`
+            - `raw/euribor/<YYYY-MM>.csv`
+            - `tests/fixtures/igcpPublishedBaseRates.json`
+            - `raw/igcp/<YYYY-MM>.html`
+
+            If the `needs-review` label is present, `pnpm test` failed against
+            the refreshed data — typically the IGCP-published base rate
+            disagrees with what `computeBaseRate()` derives from Euribor.
+            Investigate before merging.
+
+      - name: Fail job if tests failed
+        if: ${{ steps.tests.outcome == 'failure' }}
+        run: |
+          echo "::error title=Golden tests failed against refreshed data::See the create-pull-request step for the PR with the needs-review label."
+          exit 1
