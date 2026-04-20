@@ -1,4 +1,4 @@
-﻿"",BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z,BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z_FLAGS
+"",BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z,BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z_FLAGS
 "",Money market rates / EURIBOR (R)  three-month funds / Daily quotations / ST0316,
 Comment (in english),"Euribor (R) daily rates are calculated by the European Money Markets Institute (EMMI). Data are fee liable and are therefore published with the delay of one working day. Publication does not establish an entitlement to provision of the rates. The Deutsche Bundesbank reserves the right to cease publishing the information on its website in future. All data are supplied without liability. No explicit or implicit assurances or guarantees are made as to the up-to-dateness, accuracy, timeliness, completeness, marketability or suitability of the data as interest rates or reference interest rates. Neither the European Money Markets Institute (EMMI), nor Euribor EBF, nor Euribor ACI, nor the Euribor Panel Banks, nor the Euribor Steering Committee, nor the European Central Bank, nor Reuters, nor the Deutsche Bundesbank can be held liable for any irregularity or inaccuracy, incompleteness or late provision of the rates. Please be aware that commercial use of these data is only possible with a licence agreement with the European Money Markets Institute (EMMI). Information on its terms of use are available under the link below. https://www.emmi-benchmarks.eu/terms-of-use  https://www.emmi-benchmarks.eu/benchmarks/euribor/",
 Decimals,3,
@@ -6,7 +6,7 @@ Time format code,P1D,
 category,ZRGM,
 unit,% p.a.,
 unit multiplier,One,
-last update,2026-04-17 13:47:50,
+last update,2026-04-20 19:54:38,
 1998-12-30,3.248,
 1998-12-31,3.245,
 1999-01-01,.,No value available
@@ -9977,3 +9977,4 @@ last update,2026-04-17 13:47:50,
 2026-04-14,2.243,
 2026-04-15,2.240,
 2026-04-16,2.238,
+2026-04-17,2.204,
