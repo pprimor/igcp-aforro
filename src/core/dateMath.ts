@@ -1,4 +1,4 @@
-import type { IsoDate } from '../types/domain.js';
+import type { IsoDate, IsoMonth } from '../types/domain.js';
 
 /**
  * Pure ISO-8601 date arithmetic, kept separate from `calendar.ts` (which
@@ -39,6 +39,48 @@ export function parseIsoDateParts(date: IsoDate): {
 } {
   const [y, m, d] = date.split('-').map(Number);
   return { year: y as number, month: m as number, day: d as number };
+}
+
+/**
+ * Splits an ISO month (`YYYY-MM`) into its numeric year and month
+ * components. Same trust assumption as {@link parseIsoDateParts}.
+ */
+export function parseIsoMonthParts(month: IsoMonth): { year: number; month: number } {
+  const [y, m] = month.split('-').map(Number);
+  return { year: y as number, month: m as number };
+}
+
+/** Formats `(year, month)` as a zero-padded `YYYY-MM` string. */
+export function formatIsoMonth(year: number, month: number): IsoMonth {
+  return `${year}-${pad2(month)}`;
+}
+
+/** Returns the `YYYY-MM` portion of an ISO date. */
+export function isoMonthOf(date: IsoDate): IsoMonth {
+  return date.slice(0, 7);
+}
+
+/**
+ * Inclusive list of `YYYY-MM` strings between `from` and `to`. Returns
+ * an empty array when `to < from` (rather than throwing) so callers can
+ * pass forward-looking ranges without having to special-case the empty
+ * case at every site.
+ */
+export function enumerateMonths(from: IsoMonth, to: IsoMonth): IsoMonth[] {
+  const start = parseIsoMonthParts(from);
+  const end = parseIsoMonthParts(to);
+  const months: IsoMonth[] = [];
+  let y = start.year;
+  let m = start.month;
+  while (y < end.year || (y === end.year && m <= end.month)) {
+    months.push(formatIsoMonth(y, m));
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return months;
 }
 
 /**

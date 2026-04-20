@@ -3,7 +3,6 @@ import type {
   CohortRateResult,
   CurrentRateInput,
   IsoDate,
-  IsoMonth,
   MonthlyBaseRate,
   RateTableInput,
   SeriesCode,
@@ -16,9 +15,11 @@ import {
 } from '../types/schemas.js';
 import { type BaseRateOptions, computeBaseRate } from './baseRate.js';
 import {
+  enumerateMonths,
   floorYearsBetween,
-  pad2,
+  formatIsoMonth,
   parseIsoDateParts,
+  parseIsoMonthParts,
   shiftMonths,
   todayIsoUtc,
 } from './dateMath.js';
@@ -46,15 +47,6 @@ import { getSeries, premiumTierForYear } from './series.js';
 
 const DEFAULT_SERIES: SeriesCode = 'F';
 
-function parseIsoMonthParts(month: IsoMonth): { year: number; month: number } {
-  const [y, m] = month.split('-').map(Number);
-  return { year: y as number, month: m as number };
-}
-
-function formatIsoMonth(year: number, month: number): IsoMonth {
-  return `${year}-${pad2(month)}`;
-}
-
 /**
  * Index of the quarter that contains `asOfDate`, where quarter 0 starts on
  * `subscriptionDate`. Quarters are 3-month intervals anchored to the
@@ -72,24 +64,6 @@ function quartersElapsed(subscriptionDate: IsoDate, asOfDate: IsoDate): number {
     monthsDiff -= 1;
   }
   return Math.max(0, Math.floor(monthsDiff / 3));
-}
-
-/** Inclusive list of `YYYY-MM` strings between `from` and `to`. */
-function enumerateMonths(from: IsoMonth, to: IsoMonth): IsoMonth[] {
-  const start = parseIsoMonthParts(from);
-  const end = parseIsoMonthParts(to);
-  const months: IsoMonth[] = [];
-  let y = start.year;
-  let m = start.month;
-  while (y < end.year || (y === end.year && m <= end.month)) {
-    months.push(formatIsoMonth(y, m));
-    m += 1;
-    if (m > 12) {
-      m = 1;
-      y += 1;
-    }
-  }
-  return months;
 }
 
 function toMonthlyBaseRate(
