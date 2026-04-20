@@ -1,21 +1,329 @@
 # igcp-aforro
 
-TypeScript library and CLI for simulating Portuguese **IGCP Aforro (Série F)** Treasury Certificates.
+[![npm version](https://img.shields.io/npm/v/igcp-aforro.svg?logo=npm)](https://www.npmjs.com/package/igcp-aforro)
+[![CI](https://github.com/primor/igcp-aforro/actions/workflows/ci.yml/badge.svg)](https://github.com/primor/igcp-aforro/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Node ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](https://nodejs.org/)
+[![Types: TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg?logo=typescript&logoColor=white)](./src/index.ts)
+[![Docs](https://img.shields.io/badge/docs-online-8a2be2.svg)](https://primor.github.io/igcp-aforro/)
 
-> Status: scaffold. The public API, CLI, and data ingestion pipelines land in subsequent commits per the plan.
+Deterministic, decimal-safe TypeScript library and CLI for simulating Portuguese **IGCP Aforro Série F** Treasury Certificates. Drop-in for JS/TS apps; ships with a CLI and a static `rates.json` artifact for non-JS consumers.
 
-## Install
+---
+
+## About
+
+[Certificados de Aforro Série F](https://www.igcp.pt/) are Portuguese state-issued retail savings instruments. Their remuneration is the sum of:
+
+- a **monthly base rate** derived from the 10-business-day average of the Euribor 3M, struck on the antepenultimate TARGET2 business day of the previous month, clamped to `[0%, 2.5%]` and rounded to 3 decimals;
+- a **permanence-premium tier** that depends on how many contract years have elapsed since subscription;
+- with **quarterly capitalization** and **28% IRS withholding** applied at each capitalization.
+
+This package reproduces that math end-to-end, with all monetary fields returned as decimal strings (via [`big.js`](https://github.com/MikeMcl/big.js/) with banker's rounding) so results survive `JSON.stringify` and cross-language boundaries without floating-point drift.
+
+`igcp-aforro` is **not affiliated with IGCP** and does not constitute financial advice. See [Methodology and legal notice](#methodology-and-legal-notice).
+
+## Features
+
+- **Pure calculator** — no network, no state, no globals. The Euribor 3M dataset is bundled in the package.
+- **Decimal-safe** — every money/rate field is a `big.js`-quantized decimal string, banker's-rounded at each cent.
+- **Validated inputs** — Zod-checked at the public boundary; the library throws on out-of-window subscriptions, invalid units, or impossible as-of dates.
+- **Cohort-aware rate lookup** — resolve the annual rate that applies to a given subscription on a given quarter, with the base + premium components surfaced for auditability.
+- **CLI included** — `aforro simulate | current | rates | cohort` with stable `--json` output for scripting.
+- **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate, precomputed and published to GitHub Pages for Python / Java / Excel users.
+- **Golden-tested** — every IGCP-published monthly base rate since the inaugural June 2023 cohort is asserted in CI.
+- **TypeScript-first** — full `.d.ts` typings, ESM + CJS dual bundles, Node ≥ 20.
+
+## Installation
+
+As a library:
 
 ```bash
 pnpm add igcp-aforro
+# or
+npm install igcp-aforro
+# or
+yarn add igcp-aforro
 ```
 
-## CLI
+As a global CLI:
 
 ```bash
 pnpm add -g igcp-aforro
 aforro --help
 ```
+
+`igcp-aforro` ships ESM and CJS bundles plus full `.d.ts` typings.
+
+## Quickstart
+
+### Library
+
+```ts
+import { simulate, Series } from 'igcp-aforro';
+
+const result = simulate({
+  series: Series.F,
+  subscriptionDate: '2024-03-15',
+  units: 1000,
+  asOfDate: '2026-04-19',
+  includeSchedule: true,
+});
+
+console.log(result.currentValueNet);   // e.g. "1078.42"
+console.log(result.totalInterestNet);  // e.g. "78.42"
+console.log(result.matured);           // false
+console.log(result.schedule?.length);  // 8 quarters since subscription
+```
+
+All money and rate fields come back as **decimal strings** (e.g. `"1078.42"`, `"0.02750"`). Feed them into `Big` (or your own decimal library) on the consumer side; never coerce them with `Number()` if you care about precision.
+
+### CLI
+
+```bash
+aforro simulate --subscribed 2024-03-15 --units 1000 --schedule
+aforro current
+aforro rates --from 2023-06 --to 2026-04
+aforro cohort --subscribed 2024-03 --as-of 2026-04
+```
+
+Every command accepts `--json` for machine-readable output:
+
+```bash
+aforro simulate --subscribed 2024-03-15 --units 1000 --json | jq .currentValueNet
+```
+
+## Usage examples
+
+### Look up rates without running a full simulation
+
+```ts
+import { getCurrentRate, getRateForCohort, getRateTable } from 'igcp-aforro';
+
+getCurrentRate({ series: 'F' });
+// → { series: 'F', month: '2026-04', fixingDate: '2026-03-27', basePct: '2.500' }
+
+getRateForCohort({
+  series: 'F',
+  subscriptionDate: '2024-03-15',
+  asOfDate: '2026-04-19',
+});
+// → {
+//     series: 'F',
+//     subscriptionDate: '2024-03-15',
+//     asOfDate: '2026-04-19',
+//     quarterStartDate: '2026-03-15',
+//     quarterEndDate: '2026-06-15',
+//     quarterIndex: 8,
+//     yearsSinceSubscription: 2,
+//     baseRatePct: '2.500',
+//     premiumTier: { fromYear: 2, toYear: 5, ratePct: '0.25' },
+//     annualRatePct: '2.750',
+//   }
+
+getRateTable({ series: 'F', fromMonth: '2023-06', toMonth: '2026-04' });
+// → MonthlyBaseRate[]
+```
+
+### Inspect the per-quarter capitalization schedule
+
+```ts
+import { simulate, Series } from 'igcp-aforro';
+
+const { schedule } = simulate({
+  series: Series.F,
+  subscriptionDate: '2024-03-15',
+  units: 1000,
+  asOfDate: '2026-04-19',
+  includeSchedule: true,
+});
+
+for (const row of schedule ?? []) {
+  console.log(
+    row.quarterEndDate,
+    row.annualRate,         // "0.02750"
+    row.interestGross,      // "6.88"
+    row.irsWithheld,        // "1.93"
+    row.interestNet,        // "4.95"
+    row.balanceAfter,       // "1004.95"
+    row.premiumTier.ratePct // "0.25"
+  );
+}
+```
+
+### Override the IRS withholding rate
+
+The default is the 28% Portuguese personal-income-tax rate on interest. Override it for non-resident scenarios or sensitivity analysis:
+
+```ts
+simulate({
+  series: 'F',
+  subscriptionDate: '2024-03-15',
+  units: 1000,
+  irsRate: 0.10,
+});
+```
+
+### Project an "if I redeemed today" value
+
+`accruedSinceLastCapitalization` reports the gross interest accrued since the last capitalization on a calendar-day pro-rata basis. IRS is **not** withheld on this amount (withholding only happens at capitalization), so subtract it yourself:
+
+```ts
+import Big from 'big.js';
+import { simulate } from 'igcp-aforro';
+
+const r = simulate({
+  series: 'F',
+  subscriptionDate: '2024-03-15',
+  units: 1000,
+  asOfDate: '2026-04-19',
+});
+
+const accruedNet = Big(r.accruedSinceLastCapitalization)
+  .times(Big(1).minus(r.irsRate));
+const projectedNet = Big(r.currentValueNet).plus(accruedNet);
+```
+
+## API reference
+
+```ts
+import {
+  simulate,
+  getCurrentRate,
+  getRateForCohort,
+  getRateTable,
+  Series,
+  getSeries,
+  listSeries,
+  VERSION,
+} from 'igcp-aforro';
+
+import type {
+  SeriesCode,
+  SeriesMetadata,
+  PremiumTier,
+  RateEntry,
+  ScheduleRow,
+  SimulateInput,
+  SimulateResult,
+  CohortRateInput,
+  CohortRateResult,
+  CurrentRateInput,
+  RateTableInput,
+  MonthlyBaseRate,
+  IsoDate,
+  IsoMonth,
+} from 'igcp-aforro';
+```
+
+| Export | Kind | What it does |
+| --- | --- | --- |
+| `simulate(input)` | function | Quarterly-compounding simulator. Returns `SimulateResult` (optionally with `schedule`). |
+| `getCurrentRate(input?)` | function | IGCP-published monthly base rate for the current (or given) month, plus its `fixingDate`. |
+| `getRateForCohort(input)` | function | Composite annual rate for a cohort × quarter, with base + premium components surfaced. |
+| `getRateTable(input)` | function | Monthly base rates between `fromMonth` and `toMonth` (inclusive). |
+| `Series` | enum-like | `Series.F` — the series code constants. |
+| `getSeries(code)` | function | Returns the static `SeriesMetadata` for a series. |
+| `listSeries()` | function | Returns the list of series codes the library supports. |
+| `VERSION` | string | Library CalVer (`YYYY.MMDD.PATCH`). |
+
+Full type signatures and TSDoc are generated into the docs site at <https://primor.github.io/igcp-aforro/api/>.
+
+## Static `rates.json` for non-JS users
+
+Python, Java, Excel, and spreadsheet users can skip the npm package entirely and consume a precomputed JSON snapshot of every monthly base rate and every cohort-anchored annual rate.
+
+- **Latest**: <https://primor.github.io/igcp-aforro/rates.json>
+- **Per-release snapshot**: `https://primor.github.io/igcp-aforro/v/<calver>/rates.json` (e.g. `v/2026.420.0/rates.json`)
+
+The file is regenerated after every release and after every Euribor / IGCP base-rate refresh PR is merged.
+
+Top-level shape:
+
+```json
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-04-20T08:00:00Z",
+  "libraryVersion": "2026.420.0",
+  "euriborSourceMeta": {
+    "lastRefreshedAt": "2026-04-19T07:42:11Z",
+    "source": "Deutsche Bundesbank time-series API",
+    "sourceUrl": "https://api.statistiken.bundesbank.de/rest/download/BBIG1/...",
+    "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z"
+  },
+  "series": {
+    "F": {
+      "metadata": { "...": "..." },
+      "monthlyBaseRates": [
+        { "month": "2024-03", "fixingDate": "2024-02-27", "basePct": "3.892" }
+      ],
+      "cohortRates": [
+        {
+          "subscribed": "2024-03",
+          "subscriptionDate": "2024-03-01",
+          "quarterIndex": 8,
+          "quarterStartDate": "2026-03-01",
+          "quarterEndDate": "2026-06-01",
+          "yearsSinceSubscription": 2,
+          "basePct": "2.500",
+          "premiumTierYearsRange": "2-5",
+          "premiumPct": "0.25",
+          "annualRatePct": "2.750"
+        }
+      ]
+    }
+  }
+}
+```
+
+Minimal Python compounder using only `rates.json`:
+
+```python
+import json, urllib.request
+from decimal import Decimal, ROUND_HALF_EVEN
+
+data = json.load(urllib.request.urlopen('https://primor.github.io/igcp-aforro/rates.json'))
+rows = [r for r in data['series']['F']['cohortRates'] if r['subscribed'] == '2024-03']
+
+balance = Decimal('1000')
+irs = Decimal('0.28')
+
+for r in rows:
+    annual = Decimal(r['annualRatePct']) / Decimal('100')
+    quarterly = annual / 4
+    gross = (balance * quarterly).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
+    withheld = (gross * irs).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
+    balance += gross - withheld
+
+print(balance)
+```
+
+The full schema, day-of-month caveat, and field-by-field documentation live at <https://primor.github.io/igcp-aforro/rates-json/>.
+
+## Methodology and legal notice
+
+### Methodology
+
+The library reproduces the IGCP technical sheet for **Certificados de Aforro Série F** (Portaria n.º 149-A/2023). In summary:
+
+1. The **monthly base rate** for month `M` is the arithmetic mean of the Euribor 3M fixings over the 10 TARGET2 business days ending at the antepenultimate business day of month `M-1`, rounded to 3 decimals (banker's rounding) and clamped to `[0%, 2.5%]`.
+2. The **annual rate** for a cohort × quarter is `baseRate(quarterStartMonth) + premium(contractYear)`, where `premium` follows the IGCP-published tier table (year 1: 0.00%, years 2–5: +0.25%, 6–9: +0.50%, 10–11: +1.00%, 12–13: +1.50%, 14–15: +1.75%).
+3. **Quarterly capitalization**: each quarter, `interestGross = balance × annualRate / 4` is quantized to cents (banker's rounding); `irsWithheld = interestGross × 28%` is quantized the same way; `interestNet = interestGross − irsWithheld` is added to the balance.
+4. **Quarter anchoring**: quarters start on the subscription's day-of-month, shifted by 3-month multiples. When the day doesn't exist in the target month (e.g. subscription on 31 Jan → next quarter would land on 31 Apr), the date rolls forward to the first day of the following month per the IGCP spec.
+5. **Validations**: subscriptions before `2023-06-01` are rejected; units must be in `[100, 100000]`; `asOfDate` must be on or after `subscriptionDate`. Past `subscriptionDate + 15 years`, the simulation stops at maturity and reports `matured: true`.
+
+The Portuguese-language methodology page maps every rule above to the source file that implements it: <https://primor.github.io/igcp-aforro/methodology/>.
+
+### Legal notice
+
+This is an **independent open-source project**. It is not affiliated with, endorsed by, or sponsored by:
+
+- the [Agência de Gestão da Tesouraria e da Dívida Pública — IGCP, E.P.E.](https://www.igcp.pt/), nor the Portuguese State;
+- the [European Money Markets Institute (EMMI)](https://www.emmi-benchmarks.eu/), administrator of the EURIBOR® benchmark.
+
+The package bundles daily EURIBOR® 3-month fixings sourced from the [Deutsche Bundesbank time-series API](https://api.statistiken.bundesbank.de/) (series `BBIG1`), which redistributes EMMI EURIBOR® data under non-commercial terms. **EURIBOR®** is a registered trademark of EMMI. Users that intend to use this library — or its bundled rates — for commercial purposes should review EMMI's [terms of use](https://www.emmi-benchmarks.eu/) and obtain any licence EMMI requires for their use case. Redistribution of the bundled fixings outside of this package may also require a separate EMMI licence.
+
+Output produced by `simulate()` is a **calculator-quality estimate**, not an official IGCP statement. In any case of divergence between this library's output and IGCP's published values or your account statement, **the IGCP-published values prevail**. Nothing in this library or its documentation constitutes financial, legal, or tax advice.
 
 ## Development
 
@@ -24,8 +332,24 @@ pnpm install
 pnpm build
 pnpm test
 pnpm lint
+pnpm typecheck
+```
+
+Refresh the bundled Euribor dataset (developer-only; the cron in `.github/workflows/data-refresh.yml` does this automatically):
+
+```bash
+pnpm fetch:euribor
+pnpm fetch:igcp-base-rates
+```
+
+Run the comparison suite against IGCP's public simulator:
+
+```bash
+pnpm compare:igcp
 ```
 
 ## License
 
-[MIT](./LICENSE)
+[MIT](./LICENSE) © igcp-aforro contributors.
+
+EURIBOR® is a registered trademark of [EMMI](https://www.emmi-benchmarks.eu/) and is used here for descriptive purposes only.
