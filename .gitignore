@@ -1,6 +1,9 @@
 node_modules/
 dist/
-public/
+# Repo-root only: precomputed `rates.json` artifact published to GitHub Pages.
+# Scoped with a leading slash so `docs/public/` (favicon, OG images, etc.) is
+# still tracked.
+/public/
 coverage/
 .DS_Store
 *.log
@@ -12,6 +15,7 @@ coverage/
 docs/.astro/
 docs/dist/
 docs/node_modules/
+docs/src/content/docs/api/
 
 .tsbuildinfo
 *.tsbuildinfo
