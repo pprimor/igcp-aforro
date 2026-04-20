@@ -81,6 +81,23 @@ export interface ScheduleRow {
   readonly premiumTier: PremiumTier;
 }
 
+/**
+ * Inputs accepted by {@link simulate}.
+ *
+ * - `series` — series identifier; see {@link SeriesCode}.
+ * - `subscriptionDate` — the ISO-8601 date the certificate was subscribed.
+ *   Must be on or after the series' `subscriptionStartDate`.
+ * - `units` — principal in EUR (1 unit = €1). Must respect the series'
+ *   `[minUnits, maxUnits]` window.
+ * - `asOfDate` — optional ISO-8601 date the simulation should report against;
+ *   defaults to today (UTC).
+ * - `includeSchedule` — when `true`, populates
+ *   {@link SimulateResult.schedule} with one row per completed quarter.
+ *   Defaults to `false`.
+ * - `irsRate` — optional override for the IRS withholding rate applied at
+ *   each capitalization (e.g. `0.28` for 28%). Defaults to the series'
+ *   `defaultIrsRate`.
+ */
 export interface SimulateInput {
   readonly series: SeriesCode;
   readonly subscriptionDate: IsoDate;
@@ -90,6 +107,13 @@ export interface SimulateInput {
   readonly irsRate?: number;
 }
 
+/**
+ * Result returned by {@link simulate}.
+ *
+ * Every monetary field is a banker's-rounded decimal string in EUR; rate
+ * fields are decimal strings expressed as fractions (e.g. `"0.02750"` for
+ * 2.75% per annum). The shape is JSON-serializable as-is.
+ */
 export interface SimulateResult {
   readonly series: SeriesCode;
   readonly subscriptionDate: IsoDate;
@@ -145,6 +169,17 @@ export interface CohortRateInput {
   readonly asOfDate?: IsoDate;
 }
 
+/**
+ * Result returned by `getRateForCohort`.
+ *
+ * Surfaces both the composite annual rate (`annualRatePct`) and its
+ * components (`baseRatePct`, `premiumTier`) along with the quarter window
+ * they apply to, so callers can audit how the rate was derived without
+ * re-running the math themselves.
+ *
+ * Percentage fields are decimal strings expressed as percent values, e.g.
+ * `"2.750"` means 2.75% per annum.
+ */
 export interface CohortRateResult {
   readonly series: SeriesCode;
   readonly subscriptionDate: IsoDate;
@@ -172,11 +207,24 @@ export interface MonthlyBaseRate {
   readonly basePct: string;
 }
 
+/**
+ * Inputs accepted by `getCurrentRate`.
+ *
+ * Both fields are optional: `series` defaults to `'F'` (the only series in
+ * scope for v1) and `asOfDate` defaults to today (UTC).
+ */
 export interface CurrentRateInput {
   readonly series?: SeriesCode;
   readonly asOfDate?: IsoDate;
 }
 
+/**
+ * Inputs accepted by `getRateTable`.
+ *
+ * Returns one {@link MonthlyBaseRate} per calendar month in
+ * `[fromMonth, toMonth]` (inclusive) for which the bundled Euribor 3M
+ * dataset can resolve a fixing. `series` defaults to `'F'`.
+ */
 export interface RateTableInput {
   readonly series?: SeriesCode;
   readonly fromMonth: IsoMonth;
