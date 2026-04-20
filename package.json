@@ -1,0 +1,72 @@
+{
+  "name": "igcp-aforro",
+  "version": "2026.420.0",
+  "description": "TypeScript library and CLI for simulating Portuguese IGCP Aforro (Série F) Treasury Certificates: deterministic quarterly compounding with Euribor 3M-derived base rates and permanence-tier premiums.",
+  "license": "MIT",
+  "author": "",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "aforro": "./dist/cli.js"
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.28.1",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "fetch:euribor": "tsx scripts/fetch-euribor.ts",
+    "fetch:igcp-base-rates": "tsx scripts/fetch-igcp-base-rates.ts",
+    "build:rates-json": "tsx scripts/build-rates-json.ts",
+    "compare:igcp": "tsx compare/igcp-simulator.ts",
+    "prepublishOnly": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
+  },
+  "keywords": [
+    "igcp",
+    "aforro",
+    "portugal",
+    "treasury",
+    "certificates",
+    "euribor",
+    "serie-f",
+    "finance",
+    "simulator"
+  ],
+  "dependencies": {
+    "big.js": "^6.2.2",
+    "cac": "^6.7.14",
+    "zod": "^3.23.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "msw"]
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/big.js": "^6.2.2",
+    "@types/node": "^22.10.0",
+    "execa": "^9.5.2",
+    "msw": "^2.6.6",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
