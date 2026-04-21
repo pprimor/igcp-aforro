@@ -19,11 +19,7 @@
   "bin": {
     "aforro": "./dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "engines": {
     "node": ">=20"
   },
@@ -60,11 +56,7 @@
     "zod": "^3.23.8"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "@biomejs/biome",
-      "esbuild",
-      "msw"
-    ]
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "msw"]
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

@@ -246,9 +246,7 @@ export function mergeFixture(existing: FixtureFile, newRow: FixtureRate): MergeR
       return { fixture: existing, changed: false, inserted: false };
     }
     throw new Error(
-      `IGCP rate for ${newRow.month} (Série ${newRow.series}) changed: ` +
-        `fixture=${previous.basePct} igcp=${newRow.basePct}. ` +
-        'Refusing to overwrite a published rate; review manually before updating the fixture.',
+      `IGCP rate for ${newRow.month} (Série ${newRow.series}) changed: fixture=${previous.basePct} igcp=${newRow.basePct}. Refusing to overwrite a published rate; review manually before updating the fixture.`,
     );
   }
 
