@@ -1,11 +1,11 @@
 # igcp-aforro
 
 [![npm version](https://img.shields.io/npm/v/igcp-aforro.svg?logo=npm)](https://www.npmjs.com/package/igcp-aforro)
-[![CI](https://github.com/primor/igcp-aforro/actions/workflows/ci.yml/badge.svg)](https://github.com/primor/igcp-aforro/actions/workflows/ci.yml)
+[![CI](https://github.com/pprimor/igcp-aforro/actions/workflows/ci.yml/badge.svg)](https://github.com/pprimor/igcp-aforro/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Node ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](https://nodejs.org/)
 [![Types: TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg?logo=typescript&logoColor=white)](./src/index.ts)
-[![Docs](https://img.shields.io/badge/docs-online-8a2be2.svg)](https://primor.github.io/igcp-aforro/)
+[![Docs](https://img.shields.io/badge/docs-online-8a2be2.svg)](https://pprimor.github.io/igcp-aforro/)
 
 Deterministic, decimal-safe TypeScript library and CLI for simulating Portuguese **IGCP Aforro Série F** Treasury Certificates. Drop-in for JS/TS apps; ships with a CLI and a static `rates.json` artifact for non-JS consumers.
 
@@ -227,14 +227,14 @@ import type {
 | `listSeries()` | function | Returns the list of series codes the library supports. |
 | `VERSION` | string | Library CalVer (`YYYY.MMDD.PATCH`). |
 
-Full type signatures and TSDoc are generated into the docs site at <https://primor.github.io/igcp-aforro/api/>.
+Full type signatures and TSDoc are generated into the docs site at <https://pprimor.github.io/igcp-aforro/api/>.
 
 ## Static `rates.json` for non-JS users
 
 Python, Java, Excel, and spreadsheet users can skip the npm package entirely and consume a precomputed JSON snapshot of every monthly base rate and every cohort-anchored annual rate.
 
-- **Latest**: <https://primor.github.io/igcp-aforro/rates.json>
-- **Per-release snapshot**: `https://primor.github.io/igcp-aforro/v/<calver>/rates.json` (e.g. `v/2026.420.0/rates.json`)
+- **Latest**: <https://pprimor.github.io/igcp-aforro/rates.json>
+- **Per-release snapshot**: `https://pprimor.github.io/igcp-aforro/v/<calver>/rates.json` (e.g. `v/2026.420.0/rates.json`)
 
 The file is regenerated after every release and after every Euribor / IGCP base-rate refresh PR is merged.
 
@@ -282,7 +282,7 @@ Minimal Python compounder using only `rates.json`:
 import json, urllib.request
 from decimal import Decimal, ROUND_HALF_EVEN
 
-data = json.load(urllib.request.urlopen('https://primor.github.io/igcp-aforro/rates.json'))
+data = json.load(urllib.request.urlopen('https://pprimor.github.io/igcp-aforro/rates.json'))
 rows = [r for r in data['series']['F']['cohortRates'] if r['subscribed'] == '2024-03']
 
 balance = Decimal('1000')
@@ -298,7 +298,7 @@ for r in rows:
 print(balance)
 ```
 
-The full schema, day-of-month caveat, and field-by-field documentation live at <https://primor.github.io/igcp-aforro/rates-json/>.
+The full schema, day-of-month caveat, and field-by-field documentation live at <https://pprimor.github.io/igcp-aforro/rates-json/>.
 
 ## Methodology and legal notice
 
@@ -312,7 +312,7 @@ The library reproduces the IGCP technical sheet for **Certificados de Aforro Sé
 4. **Quarter anchoring**: quarters start on the subscription's day-of-month, shifted by 3-month multiples. When the day doesn't exist in the target month (e.g. subscription on 31 Jan → next quarter would land on 31 Apr), the date rolls forward to the first day of the following month per the IGCP spec.
 5. **Validations**: subscriptions before `2023-06-01` are rejected; units must be in `[100, 100000]`; `asOfDate` must be on or after `subscriptionDate`. Past `subscriptionDate + 15 years`, the simulation stops at maturity and reports `matured: true`.
 
-The Portuguese-language methodology page maps every rule above to the source file that implements it: <https://primor.github.io/igcp-aforro/methodology/>.
+The Portuguese-language methodology page maps every rule above to the source file that implements it: <https://pprimor.github.io/igcp-aforro/methodology/>.
 
 ### Legal notice
 
