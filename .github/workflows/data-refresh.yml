@@ -73,13 +73,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Fetch Euribor (incremental)
-        # The `--` separator forwards args through pnpm to the underlying
-        # `tsx scripts/fetch-euribor.ts`. The script's parser expects the
-        # value as a separate argument (see scripts/fetch-euribor.ts).
-        run: pnpm fetch:euribor -- --mode incremental
+        # pnpm 10 forwards trailing args directly to the script, so no
+        # `--` separator is needed (and including one would be passed
+        # through verbatim and rejected by parseArgs in fetch-euribor.ts).
+        run: pnpm fetch:euribor --mode incremental
 
       - name: Fetch IGCP base rate (current month)
-        run: pnpm fetch:igcp-base-rates -- --month current
+        run: pnpm fetch:igcp-base-rates --month current
 
       - name: Read refresh metadata
         id: meta
