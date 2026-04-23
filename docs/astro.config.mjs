@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import preact from '@astrojs/preact';
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import { createStarlightTypeDocPlugin } from 'starlight-typedoc';
@@ -6,6 +7,7 @@ import { createStarlightTypeDocPlugin } from 'starlight-typedoc';
 const [starlightTypeDoc, typeDocSidebarGroup] = createStarlightTypeDocPlugin();
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+const aforroEntry = fileURLToPath(new URL('../src/index.ts', import.meta.url));
 
 export default defineConfig({
   site: 'https://igcp-aforro.dev',
@@ -21,7 +23,15 @@ export default defineConfig({
     // `/api` and `/api/` to the same route, so only one entry is needed.
     '/api': '/api/readme/',
   },
+  vite: {
+    resolve: {
+      alias: {
+        'igcp-aforro': aforroEntry,
+      },
+    },
+  },
   integrations: [
+    preact(),
     starlight({
       title: 'igcp-aforro',
       description:
