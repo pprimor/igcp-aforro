@@ -1,13 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="igcp-aforro logo">
-  <rect width="64" height="64" rx="12" fill="#0b7285" />
+  <clipPath id="rounded">
+    <rect width="64" height="64" rx="12" />
+  </clipPath>
+  <g clip-path="url(#rounded)">
+    <rect width="64" height="64" fill="#002D72" />
+    <rect y="58" width="64" height="6" fill="#C8102E" />
+  </g>
   <text
     x="50%"
-    y="50%"
+    y="47%"
     text-anchor="middle"
     dominant-baseline="central"
     font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif"
     font-weight="700"
     font-size="34"
     fill="#ffffff"
-  >¬F</text>
+  >&#172;F</text>
 </svg>

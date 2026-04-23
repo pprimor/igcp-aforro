@@ -36,6 +36,7 @@ export default defineConfig({
       title: 'igcp-aforro',
       description:
         'TypeScript library and CLI for simulating Portuguese IGCP Aforro (Série F) Treasury Certificates.',
+      favicon: '/favicon.svg',
       customCss: ['./src/styles/igcp.css'],
       social: [
         {
