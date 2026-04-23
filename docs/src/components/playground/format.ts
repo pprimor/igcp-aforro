@@ -66,3 +66,32 @@ export function projectNet(gross: string, irsRate: number): string {
   if (!Number.isFinite(n)) return '0.00';
   return (n * (1 - irsRate)).toFixed(2);
 }
+
+/**
+ * Whole UTC days between two `YYYY-MM-DD` ISO dates. Returns `null` if either
+ * input cannot be parsed, so callers can fall back gracefully.
+ */
+export function daysBetween(fromIso: string, toIso: string): number | null {
+  const from = Date.parse(`${fromIso}T00:00:00Z`);
+  const to = Date.parse(`${toIso}T00:00:00Z`);
+  if (Number.isNaN(from) || Number.isNaN(to)) return null;
+  return Math.round((to - from) / 86_400_000);
+}
+
+/**
+ * Coarse human-friendly duration ("2y 3m", "11m", "5d"). Approximates a month
+ * as 30.4375 days and a year as 365.25 days — accurate enough for a hero
+ * "matures in …" badge, never claims more precision than the user expects.
+ */
+export function formatDuration(days: number): string {
+  if (!Number.isFinite(days) || days <= 0) return '0d';
+  const years = Math.floor(days / 365.25);
+  const remAfterYears = days - years * 365.25;
+  const months = Math.floor(remAfterYears / 30.4375);
+  if (years > 0) return months > 0 ? `${years}y ${months}m` : `${years}y`;
+  if (months > 0) {
+    const remDays = Math.floor(remAfterYears - months * 30.4375);
+    return remDays > 0 ? `${months}m ${remDays}d` : `${months}m`;
+  }
+  return `${Math.floor(days)}d`;
+}
