@@ -76,6 +76,7 @@ export default defineConfig({
       ],
       sidebar: [
         { label: 'Quickstart', slug: 'quickstart' },
+        { label: 'Playground', slug: 'playground' },
         { label: 'CLI reference', slug: 'cli' },
         { label: 'rates.json schema', slug: 'rates-json' },
         { label: 'Methodology (PT)', slug: 'methodology' },

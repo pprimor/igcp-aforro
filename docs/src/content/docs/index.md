@@ -8,6 +8,9 @@ hero:
     - text: Quickstart
       link: /quickstart/
       icon: right-arrow
+    - text: Try in browser
+      link: /playground/
+      icon: right-arrow
     - text: API reference
       link: /api/
       variant: minimal
