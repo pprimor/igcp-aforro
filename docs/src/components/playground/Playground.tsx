@@ -1,5 +1,5 @@
+import { type SimulateInput, type SimulateResult, simulate } from 'igcp-aforro';
 import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
-import { simulate, type SimulateInput, type SimulateResult } from 'igcp-aforro';
 import {
   daysBetween,
   formatDuration,
@@ -342,11 +342,7 @@ export default function Playground() {
               </div>
             </header>
             <dl class="aforro-pg-grid">
-              <SummaryItem
-                label="Current value (net)"
-                value={result.currentValueNet}
-                accent
-              />
+              <SummaryItem label="Current value (net)" value={result.currentValueNet} accent />
               <SummaryItem label="Current value (gross)" value={result.currentValueGross} />
               <SummaryItem label="Total interest (net)" value={result.totalInterestNet} />
               <SummaryItem label="Total IRS withheld" value={result.totalIrsWithheld} />
@@ -421,9 +417,7 @@ export default function Playground() {
                   </tbody>
                 </table>
               </div>
-              <p class="aforro-pg-note">
-                Highlighted row is the most recent capitalization.
-              </p>
+              <p class="aforro-pg-note">Highlighted row is the most recent capitalization.</p>
             </section>
           )}
 

@@ -29,7 +29,7 @@
   --aforro-color-accent-warm: #c8102e;
 }
 
-:root[data-theme='light'] {
+:root[data-theme="light"] {
   --sl-color-accent-low: #cfd9eb;
   --sl-color-accent: #002d72;
   --sl-color-accent-high: #001b46;
