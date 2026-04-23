@@ -221,7 +221,7 @@ export default function Playground() {
   const lastQuarterIndex = result?.schedule ? result.schedule.length - 1 : -1;
 
   return (
-    <div class="aforro-pg">
+    <div class="aforro-pg not-content">
       <style>{STYLES}</style>
 
       <form class="aforro-pg-form" onSubmit={(e) => e.preventDefault()}>
@@ -485,6 +485,29 @@ const STYLES = `
   gap: 1.25rem;
   color: var(--sl-color-text);
 }
+.aforro-pg p,
+.aforro-pg dl,
+.aforro-pg dt,
+.aforro-pg dd,
+.aforro-pg h3 {
+  margin: 0;
+}
+.aforro-pg code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.aforro-pg-grid-item code,
+.aforro-pg-card p code {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--sl-color-text) 8%, transparent);
+  font-size: 0.78rem;
+}
+.aforro-pg-pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
 .aforro-pg-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -590,6 +613,9 @@ const STYLES = `
   margin: 0 0 0.75rem;
   font-size: 1.05rem;
 }
+.aforro-pg-card p + p {
+  margin-top: 0.5rem;
+}
 .aforro-pg-meta {
   display: inline-flex;
   flex-wrap: wrap;
@@ -655,13 +681,13 @@ const STYLES = `
   font-size: 1.2rem;
 }
 .aforro-pg-grid-item code {
-  font-size: 0.78rem;
-  opacity: 0.7;
+  align-self: flex-start;
+  opacity: 0.85;
 }
-.aforro-pg-note {
+.aforro-pg-card .aforro-pg-note {
   font-size: 0.82rem;
   opacity: 0.75;
-  margin: 0.5rem 0 0;
+  margin-top: 0.75rem;
 }
 .aforro-pg-table-wrap {
   overflow-x: auto;
@@ -720,6 +746,9 @@ const STYLES = `
   align-items: center;
   margin-bottom: 0.75rem;
 }
+.aforro-pg-snippet-head h3 {
+  margin: 0;
+}
 .aforro-pg-snippet-controls {
   display: inline-flex;
   flex-wrap: wrap;
@@ -728,46 +757,61 @@ const STYLES = `
 }
 .aforro-pg-tabs {
   display: inline-flex;
+  gap: 0.15rem;
+  padding: 0.2rem;
   border: 1px solid var(--sl-color-hairline, var(--sl-color-gray-5));
-  border-radius: 0.35rem;
-  overflow: hidden;
+  border-radius: 0.5rem;
+  background: var(--sl-color-bg);
 }
 .aforro-pg-tab {
-  padding: 0.3rem 0.7rem;
+  padding: 0.25rem 0.7rem;
   background: transparent;
   color: var(--sl-color-text);
   border: 0;
+  border-radius: 0.35rem;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.2;
   cursor: pointer;
+  opacity: 0.75;
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
 }
 .aforro-pg-tab:hover {
-  background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+  opacity: 1;
+  background: color-mix(in srgb, var(--sl-color-text) 8%, transparent);
 }
 .aforro-pg-tab.is-active {
-  background: var(--sl-color-accent);
-  color: var(--sl-color-white, #fff);
+  background: color-mix(in srgb, var(--sl-color-accent) 18%, transparent);
+  color: var(--sl-color-text);
+  font-weight: 600;
+  opacity: 1;
+}
+.aforro-pg-tab.is-active:hover {
+  background: color-mix(in srgb, var(--sl-color-accent) 22%, transparent);
 }
 .aforro-pg-tab:focus-visible {
   outline: 2px solid var(--sl-color-accent);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
 .aforro-pg-copy {
-  padding: 0.3rem 0.75rem;
+  padding: 0.35rem 0.85rem;
   border: 1px solid var(--sl-color-hairline, var(--sl-color-gray-5));
-  border-radius: 0.35rem;
+  border-radius: 0.5rem;
   background: var(--sl-color-bg-nav);
   color: var(--sl-color-text);
   cursor: pointer;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.2;
 }
 .aforro-pg-copy:hover {
   background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
 }
 .aforro-pg-copy:focus-visible {
   outline: 2px solid var(--sl-color-accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 .aforro-pg-pre {
   margin: 0;
