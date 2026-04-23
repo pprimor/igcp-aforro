@@ -1,0 +1,63 @@
+/*
+ * IGCP-inspired theme overrides for Starlight.
+ *
+ * Re-skins Starlight by overriding its documented CSS custom properties so the
+ * docs site picks up IGCP navy as the primary brand color, with the warm red
+ * reserved for badges and error states where it carries semantic weight.
+ *
+ * See https://starlight.astro.build/guides/css-and-tailwind/#theming
+ */
+
+:root {
+  --sl-color-accent-low: #102a5e;
+  --sl-color-accent: #1d54a8;
+  --sl-color-accent-high: #cfd9eb;
+
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #e6ecf5;
+  --sl-color-gray-2: #c4cee0;
+  --sl-color-gray-3: #8a98b4;
+  --sl-color-gray-4: #57658a;
+  --sl-color-gray-5: #2f3c5d;
+  --sl-color-gray-6: #1a243d;
+  --sl-color-black: #0b1220;
+
+  --sl-color-bg-nav: #0f172a;
+  --sl-color-bg-sidebar: #0b1220;
+
+  --aforro-color-brand: #002d72;
+  --aforro-color-accent-warm: #c8102e;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #cfd9eb;
+  --sl-color-accent: #002d72;
+  --sl-color-accent-high: #001b46;
+
+  --sl-color-white: #0b1220;
+  --sl-color-gray-1: #1a243d;
+  --sl-color-gray-2: #2f3c5d;
+  --sl-color-gray-3: #57658a;
+  --sl-color-gray-4: #8a98b4;
+  --sl-color-gray-5: #c4cee0;
+  --sl-color-gray-6: #e6ecf5;
+  --sl-color-gray-7: #f3f5fa;
+  --sl-color-black: #ffffff;
+
+  --sl-color-bg-nav: #f3f5fa;
+  --sl-color-bg-sidebar: #f7f8fb;
+}
+
+/*
+ * Route the warm red to the surfaces where IGCP brand red carries meaning:
+ * the "matured" badge and error states in the playground.
+ */
+.aforro-pg-badge-matured {
+  background: var(--aforro-color-accent-warm);
+}
+
+.aforro-pg-error,
+.aforro-pg-card-error {
+  color: var(--aforro-color-accent-warm);
+  border-color: var(--aforro-color-accent-warm);
+}
