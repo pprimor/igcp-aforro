@@ -52,6 +52,7 @@ import { cac } from 'cac';
 
 import { simulate } from '../src/core/calculator.js';
 import { todayIsoUtc } from '../src/core/dateMath.js';
+import { getSeries } from '../src/core/series.js';
 import type { SeriesCode } from '../src/types/domain.js';
 
 const IGCP_API_URL = 'https://www.igcp.pt/pt/api/simulator-value/query';
@@ -99,8 +100,10 @@ interface Scenario {
  *   subscription month (November 2017), giving a clean ≥1-year history of
  *   Euribor 3M fixings before the first fixing-window we exercise.
  *
- * The end date is two months before `today`, so every cohort has at
- * least one completed quarterly capitalization to compare against.
+ * The end date is two months before `today`, capped by any series-specific
+ * subscription close date, so every cohort has at least one completed
+ * quarterly capitalization to compare against and only valid subscription
+ * months are sent to IGCP.
  */
 const SERIES_WINDOW_START: Readonly<Record<SeriesCode, { year: number; month: number }>> = {
   E: { year: 2018, month: 1 },
@@ -131,15 +134,20 @@ export function buildScenarios(
   const [yearStr, monthStr] = today.split('-');
   const todayYear = Number(yearStr);
   const todayMonth = Number(monthStr);
+  const latestComparableMonth = monthIndex(todayYear, todayMonth) - 2;
 
   const codes: readonly SeriesCode[] = series === 'both' ? ['E', 'F'] : [series];
 
   const scenarios: Scenario[] = [];
   for (const code of codes) {
+    const metadata = getSeries(code);
     const start = SERIES_WINDOW_START[code];
+    const end = metadata.subscriptionEndDate
+      ? Math.min(latestComparableMonth, monthIndexFromDate(metadata.subscriptionEndDate))
+      : latestComparableMonth;
     let year = start.year;
     let month = start.month;
-    while (year < todayYear || (year === todayYear && month <= todayMonth - 2)) {
+    while (monthIndex(year, month) <= end) {
       const subscriptionMonth = `${year}-${pad2(month)}`;
       scenarios.push({
         id: `${code}:${subscriptionMonth}`,
@@ -155,6 +163,15 @@ export function buildScenarios(
   }
 
   return scenarios;
+}
+
+function monthIndex(year: number, month: number): number {
+  return year * 12 + month;
+}
+
+function monthIndexFromDate(date: string): number {
+  const [year, month] = date.split('-');
+  return monthIndex(Number(year), Number(month));
 }
 
 /**
@@ -606,7 +623,12 @@ async function main(): Promise<void> {
     });
 
   cli.help();
-  cli.parse();
+
+  const argv = process.argv.slice();
+  if (argv[2] === '--') {
+    argv.splice(2, 1);
+  }
+  cli.parse(argv);
 }
 
 const isMainModule =
