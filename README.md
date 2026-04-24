@@ -7,16 +7,16 @@
 [![Types: TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg?logo=typescript&logoColor=white)](./src/index.ts)
 [![Docs](https://img.shields.io/badge/docs-online-8a2be2.svg)](https://pprimor.github.io/igcp-aforro/)
 
-Deterministic, decimal-safe TypeScript library and CLI for simulating Portuguese **IGCP Aforro Série F** Treasury Certificates. Drop-in for JS/TS apps; ships with a CLI and a static `rates.json` artifact for non-JS consumers.
+Deterministic, decimal-safe TypeScript library and CLI for simulating Portuguese **IGCP Aforro Série E and Série F** Treasury Certificates. Drop-in for JS/TS apps; ships with a CLI and a static `rates.json` artifact for non-JS consumers.
 
 ---
 
 ## About
 
-[Certificados de Aforro Série F](https://www.igcp.pt/) are Portuguese state-issued retail savings instruments. Their remuneration is the sum of:
+[Certificados de Aforro](https://www.igcp.pt/) are Portuguese state-issued retail savings instruments. This library covers the two most recent series — **Série E** (subscriptions open from 1 Nov 2017 to 1 Jun 2023, 10-year maturity) and **Série F** (subscriptions open from 1 Jun 2023 onwards, 15-year maturity). Their remuneration is the sum of:
 
-- a **monthly base rate** derived from the 10-business-day average of the Euribor 3M, struck on the antepenultimate TARGET2 business day of the previous month, clamped to `[0%, 2.5%]` and rounded to 3 decimals;
-- a **permanence-premium tier** that depends on how many contract years have elapsed since subscription;
+- a **monthly base rate** derived from the 10-business-day average of the Euribor 3M, struck on the antepenultimate TARGET2 business day of the previous month, then rounded to 3 decimals (banker's). Série F clamps the result to `[0%, 2.5%]`; Série E adds a `+1pp` spread to the rounded mean and clamps to `[0%, 3.5%]`;
+- a **permanence-premium tier** that depends on how many contract years have elapsed since subscription (different tier tables per series);
 - with **quarterly capitalization** and **28% IRS withholding** applied at each capitalization.
 
 This package reproduces that math end-to-end, with all monetary fields returned as decimal strings (via [`big.js`](https://github.com/MikeMcl/big.js/) with banker's rounding) so results survive `JSON.stringify` and cross-language boundaries without floating-point drift.
@@ -30,8 +30,8 @@ This package reproduces that math end-to-end, with all monetary fields returned 
 - **Validated inputs** — Zod-checked at the public boundary; the library throws on out-of-window subscriptions, invalid units, or impossible as-of dates.
 - **Cohort-aware rate lookup** — resolve the annual rate that applies to a given subscription on a given quarter, with the base + premium components surfaced for auditability.
 - **CLI included** — `aforro simulate | current | rates | cohort` with stable `--json` output for scripting.
-- **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate, precomputed and published to GitHub Pages for Python / Java / Excel users.
-- **Golden-tested** — every IGCP-published monthly base rate since the inaugural June 2023 cohort is asserted in CI.
+- **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate (for both Série E and Série F), precomputed and published to GitHub Pages for Python / Java / Excel users.
+- **Golden-tested** — every IGCP-published monthly base rate since the inaugural June 2023 Série F cohort is asserted in CI; Série E base rates are validated against the IGCP technical sheet's E3+1% formula.
 - **TypeScript-first** — full `.d.ts` typings, ESM + CJS dual bundles, Node ≥ 20.
 
 ## Installation
@@ -222,7 +222,7 @@ import type {
 | `getCurrentRate(input?)` | function | IGCP-published monthly base rate for the current (or given) month, plus its `fixingDate`. |
 | `getRateForCohort(input)` | function | Composite annual rate for a cohort × quarter, with base + premium components surfaced. |
 | `getRateTable(input)` | function | Monthly base rates between `fromMonth` and `toMonth` (inclusive). |
-| `Series` | enum-like | `Series.F` — the series code constants. |
+| `Series` | enum-like | `Series.E`, `Series.F` — the series code constants. |
 | `getSeries(code)` | function | Returns the static `SeriesMetadata` for a series. |
 | `listSeries()` | function | Returns the list of series codes the library supports. |
 | `VERSION` | string | Library CalVer (`YYYY.MMDD.PATCH`). |
@@ -252,6 +252,7 @@ Top-level shape:
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z"
   },
   "series": {
+    "E": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "F": {
       "metadata": { "...": "..." },
       "monthlyBaseRates": [
@@ -304,13 +305,18 @@ The full schema, day-of-month caveat, and field-by-field documentation live at <
 
 ### Methodology
 
-The library reproduces the IGCP technical sheet for **Certificados de Aforro Série F** (Portaria n.º 149-A/2023). In summary:
+The library reproduces the IGCP technical sheets for **Certificados de Aforro Série E** (Portaria n.º 329-A/2017, closed by Portaria n.º 149-A/2023) and **Série F** (Portaria n.º 149-A/2023). In summary:
 
-1. The **monthly base rate** for month `M` is the arithmetic mean of the Euribor 3M fixings over the 10 TARGET2 business days ending at the antepenultimate business day of month `M-1`, rounded to 3 decimals (banker's rounding) and clamped to `[0%, 2.5%]`.
-2. The **annual rate** for a cohort × quarter is `baseRate(quarterStartMonth) + premium(contractYear)`, where `premium` follows the IGCP-published tier table (year 1: 0.00%, years 2–5: +0.25%, 6–9: +0.50%, 10–11: +1.00%, 12–13: +1.50%, 14–15: +1.75%).
+1. The **monthly base rate** for month `M` is the arithmetic mean of the Euribor 3M fixings over the 10 TARGET2 business days ending at the antepenultimate business day of month `M-1`, rounded to 3 decimals (banker's rounding). For Série F the rounded mean is clamped to `[0%, 2.5%]`. For Série E a `+1pp` spread is added to the rounded mean (`E3 + 1%`) and the result is clamped to `[0%, 3.5%]`.
+2. The **annual rate** for a cohort × quarter is `baseRate(quarterStartMonth) + premium(contractYear)`, where `premium` follows the IGCP-published tier table:
+   - **Série F** — year 1: 0.00%, years 2–5: +0.25%, 6–9: +0.50%, 10–11: +1.00%, 12–13: +1.50%, 14–15: +1.75%.
+   - **Série E** — year 1: 0.00%, years 2–5: +0.50%, 6–10: +1.00%.
 3. **Quarterly capitalization**: each quarter, `interestGross = balance × annualRate / 4` is quantized to cents (banker's rounding); `irsWithheld = interestGross × 28%` is quantized the same way; `interestNet = interestGross − irsWithheld` is added to the balance.
 4. **Quarter anchoring**: quarters start on the subscription's day-of-month, shifted by 3-month multiples. When the day doesn't exist in the target month (e.g. subscription on 31 Jan → next quarter would land on 31 Apr), the date rolls forward to the first day of the following month per the IGCP spec.
-5. **Validations**: subscriptions before `2023-06-01` are rejected; units must be in `[100, 100000]`; `asOfDate` must be on or after `subscriptionDate`. Past `subscriptionDate + 15 years`, the simulation stops at maturity and reports `matured: true`.
+5. **Validations** (per series, read from `SeriesMetadata`):
+   - **Série F** — subscriptions on or after `2023-06-01`; units in `[100, 100000]`; matures at `subscriptionDate + 15 years`.
+   - **Série E** — subscriptions in `[2017-11-01, 2023-06-01]` (closed to new subscriptions); units in `[100, 250000]`; matures at `subscriptionDate + 10 years`.
+   - In both cases `asOfDate` must be on or after `subscriptionDate`. Past maturity, the simulation stops and reports `matured: true`.
 
 The Portuguese-language methodology page maps every rule above to the source file that implements it: <https://pprimor.github.io/igcp-aforro/methodology/>.
 

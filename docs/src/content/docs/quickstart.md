@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Install igcp-aforro, simulate a Série F cohort, and inspect the schedule.
+description: Install igcp-aforro, simulate a Série E or Série F cohort, and inspect the schedule.
 ---
 
 ## Install
@@ -30,6 +30,19 @@ console.log(result.matured);
 console.log(result.schedule?.length);
 ```
 
+Pass `series: Series.E` (or the string `'E'`) to simulate a Série E cohort instead. Série E has a different base-rate formula (`E3 + 1%`, clamped to `[0%, 3.5%]`), different premium tiers, a 10-year maturity, and a `[2017-11-01, 2023-06-01]` subscription window:
+
+```ts
+import { simulate, Series } from 'igcp-aforro';
+
+simulate({
+  series: Series.E,
+  subscriptionDate: '2018-01-15',
+  units: 1000,
+  asOfDate: '2026-04-19',
+});
+```
+
 All money and rate fields come back as **decimal strings** (e.g. `"1078.42"`, `"0.02750"`). They are produced by `big.js` with banker's rounding (`ROUND_HALF_EVEN`) at every cent quantization, so you can:
 
 - compare results across runs and machines without floating-point drift,
@@ -57,13 +70,17 @@ getRateTable({ series: 'F', fromMonth: '2023-06', toMonth: '2026-04' });
 
 ## Validation rules
 
-`simulate()` validates inputs with Zod and throws on:
+`simulate()` validates inputs with Zod against the metadata of the chosen series and throws on:
 
-- `subscriptionDate < 2023-06-01` (Série F's launch month),
-- `units < 100` or `units > 100000`,
+- a `subscriptionDate` outside the series' subscription window:
+  - **Série F** — strictly on or after `2023-06-01`;
+  - **Série E** — within `[2017-11-01, 2023-06-01]` (closed to new subscriptions);
+- `units` outside the series' `[minUnits, maxUnits]` range:
+  - **Série F** — `[100, 100000]`;
+  - **Série E** — `[100, 250000]`;
 - `asOfDate < subscriptionDate`.
 
-Past `subscriptionDate + 15 years` the simulation stops at maturity and returns `matured: true`.
+Past `subscriptionDate + maturityYears` (15 for Série F, 10 for Série E) the simulation stops at maturity and returns `matured: true`.
 
 ## Next steps
 

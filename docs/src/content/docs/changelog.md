@@ -9,7 +9,7 @@ The canonical changelog is the [GitHub Releases page](https://github.com/primor/
 
 ## Unreleased
 
-- _No changes yet._
+- **Série E support**. The library now covers Certificados de Aforro Série E (Portaria n.º 329-A/2017, closed by Portaria n.º 149-A/2023) end-to-end, alongside Série F. Pass `series: 'E'` (or `Series.E`) to `simulate()`, `getCurrentRate()`, `getRateForCohort()`, and `getRateTable()`, or `--series E` to any `aforro` CLI command. Série E uses the `E3 + 1%` base-rate formula clamped to `[0%, 3.5%]`, a 10-year maturity, premium tiers of `+0.50%` (years 2–5) and `+1.00%` (years 6–10), and a `[100, 250000]` unit range. The `rates.json` artifact now ships both `series.E` and `series.F` blocks; `schemaVersion` stays at `1` (adding a new series is non-breaking).
 
 ## `2026.420.0`
 

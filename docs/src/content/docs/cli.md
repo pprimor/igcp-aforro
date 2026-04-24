@@ -12,7 +12,7 @@ aforro --help
 
 ## `aforro simulate`
 
-Simulate an IGCP Aforro Série F cohort up to an as-of date.
+Simulate an IGCP Aforro Série E or Série F cohort up to an as-of date.
 
 ```bash
 aforro simulate \
@@ -28,11 +28,11 @@ aforro simulate \
 | Flag | Description |
 | --- | --- |
 | `--subscribed <date>` | Subscription date (`YYYY-MM-DD`). Required. |
-| `--units <n>` | Principal in EUR; integer in `[100, 100000]`. Required. |
+| `--units <n>` | Principal in EUR; integer in the series' `[minUnits, maxUnits]` range (Série F: `[100, 100000]`; Série E: `[100, 250000]`). Required. |
 | `--as-of <date>` | As-of date (`YYYY-MM-DD`). Defaults to today (UTC). |
 | `--schedule` | Include the per-quarter capitalization schedule. |
 | `--irs <rate>` | Override IRS withholding rate (e.g. `0.28`). Defaults to series default. |
-| `--series <code>` | Series code. Defaults to `F`. |
+| `--series <code>` | Series code. Accepts `E` or `F`. Defaults to `F`. |
 | `--json` | Emit JSON instead of the pretty layout. |
 
 ## `aforro current`
@@ -40,7 +40,7 @@ aforro simulate \
 Print the IGCP-published monthly base rate for the current (or given) month.
 
 ```bash
-aforro current [--series F] [--as-of 2026-04-19] [--json]
+aforro current [--series E|F] [--as-of 2026-04-19] [--json]
 ```
 
 Includes the `fixingDate` so you can audit the value back to a single Euribor 3M observation in `src/data/euribor3m.json`.
@@ -50,7 +50,7 @@ Includes the `fixingDate` so you can audit the value back to a single Euribor 3M
 Print monthly base rates between `--from` and `--to` (inclusive).
 
 ```bash
-aforro rates --from 2023-06 --to 2026-04 [--series F] [--json]
+aforro rates --from 2023-06 --to 2026-04 [--series E|F] [--json]
 ```
 
 Months are accepted as `YYYY-MM`. The output is one row per resolvable month — months without a bundled fixing are skipped.
@@ -63,7 +63,7 @@ Resolve the annual rate that applies to a cohort for a given quarter.
 aforro cohort \
   --subscribed 2024-03 \
   --as-of 2026-04 \
-  [--series F] \
+  [--series E|F] \
   [--json]
 ```
 
