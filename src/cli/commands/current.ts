@@ -12,9 +12,9 @@ export interface CurrentCliOptions {
 /**
  * Entry point invoked by `cac` when the user runs `aforro current`.
  *
- * Surfaces the IGCP-published Série F monthly base rate for the requested
- * (or current) month, along with its source fixing date so the value is
- * auditable end-to-end.
+ * Surfaces the IGCP-published monthly base rate for the requested series
+ * (defaults to Série F) and the requested (or current) month, along with
+ * its source fixing date so the value is auditable end-to-end.
  */
 export function runCurrent(options: CurrentCliOptions): Promise<void> {
   return runCommand(() => {

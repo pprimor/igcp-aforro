@@ -1,15 +1,18 @@
 #!/usr/bin/env tsx
 /**
- * Precompute a single, self-contained `rates.json` artifact for every
- * Série F cohort and every published month, then write it to
+ * Precompute a single, self-contained `rates.json` artifact covering
+ * every series registered in {@link listSeries} (currently Série E and
+ * Série F), with one block per series enumerating every published month
+ * and every anchored-quarter cohort, then write it to
  * `public/rates.json` (the path GitHub Pages ships from).
  *
  * The artifact exists so non-JS consumers (Python, Java, Excel,
  * spreadsheets) can use the same numbers the npm library returns
  * without re-implementing the IGCP methodology themselves: they fetch
- * one JSON file, look up `series.F.monthlyBaseRates[month]` for the
- * monthly rate or `series.F.cohortRates` filtered by their cohort and
- * quarter for the composite annual rate.
+ * one JSON file, pick the series block (`series.E` or `series.F`),
+ * then look up `monthlyBaseRates[month]` for the monthly base rate or
+ * `cohortRates` filtered by cohort and quarter for the composite
+ * annual rate.
  *
  * The script is invoked by:
  *   - the release workflow (after a version bump and npm publish)
@@ -17,7 +20,8 @@
  *   - developers running `pnpm build:rates-json`
  *
  * Schema (versioned via `schemaVersion` so future shape changes are
- * detectable downstream):
+ * detectable downstream). The shape is identical for every series; the
+ * Série F block is shown for illustration:
  *
  *   {
  *     "schemaVersion": 1,
@@ -25,6 +29,7 @@
  *     "libraryVersion": "YYYY.MMDD.PATCH",
  *     "euriborSourceMeta": { ...src/data/_meta.json["euribor"] },
  *     "series": {
+ *       "E": { "metadata": { ...SeriesMetadata }, "monthlyBaseRates": [...], "cohortRates": [...] },
  *       "F": {
  *         "metadata": { ...SeriesMetadata },
  *         "monthlyBaseRates": [
