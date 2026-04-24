@@ -23,6 +23,7 @@ A presente biblioteca **não substitui** as comunicações oficiais do IGCP nem 
 | Subscrição máxima | 100.000 unidades | 250.000 unidades | `SeriesMetadata.maxUnits` |
 | Janela de subscrição | A partir de 1 de junho de 2023 | 1 de novembro de 2017 a 1 de junho de 2023 (encerrada) | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
 | Capitalização | Trimestral, automática | Trimestral, automática | `SeriesMetadata.capitalizationFrequency` |
+| Precisão da cotação | 5 casas decimais | 5 casas decimais | `SeriesMetadata.unitQuoteDecimals` |
 | Retenção de IRS | 28% sobre os juros, na capitalização | 28% sobre os juros, na capitalização | `SeriesMetadata.defaultIrsRate`, sobreponível via `simulate({ irsRate })` |
 
 ## Taxa-base mensal
@@ -72,18 +73,34 @@ A função `premiumTierForYear(series, contractYear)` resolve a faixa aplicável
 
 ## Capitalização trimestral e retenção de IRS
 
-A cada fim de trimestre `Q`:
+A cada fim de trimestre `Q`, `simulate()` mantém a posição líquida como uma **cotação por unidade**, não como um saldo em euros de alta precisão:
 
 1. Resolve-se a **taxa anual** aplicável ao trimestre, com base no `quarterStartDate` (mês de referência da taxa-base) e na **idade contratual** do cohort à data desse início.
 2. Calcula-se a **taxa trimestral** como `taxa_anual / 4`.
-3. Calcula-se o **juro bruto** do trimestre como `saldo × taxa_trimestral`, em **alta precisão decimal** (sem arredondar a cêntimos).
-4. Calcula-se o **IRS retido** como `juro_bruto × 28%`, também em alta precisão.
-5. O **juro líquido** (`bruto − IRS`) é capitalizado em alta precisão, atualizando o `saldo` e iniciando o trimestre seguinte.
+3. Calcula-se o juro bruto por unidade como `cotacao_unidade × taxa_trimestral`.
+4. Aplica-se a retenção de IRS ao juro por unidade para obter o juro líquido por unidade.
+5. A nova cotação é `cotacao_unidade + juro_liquido_por_unidade`, arredondada a **5 casas decimais** com a regra **half-even**.
 
-O ciclo está em [`src/core/calculator.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calculator.ts) e usa `big.js` (alias `Big`) para garantir aritmética decimal exata. O saldo é mantido em alta precisão durante todas as capitalizações; a quantização a cêntimos (arredondamento bancário) só acontece no momento de serializar os campos para `string` decimal. Esta semântica reproduz exatamente o que o portal **aforro.net** apresenta para certificados em carteira.
+O ciclo está em [`src/core/calculator.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calculator.ts) e usa `big.js` (alias `Big`) para garantir aritmética decimal exata. A cotação inicial é `1.00000`; depois de cada capitalização concluída, `currentUnitQuote` transporta a cotação líquida arredondada. O valor líquido apresentado é sempre:
+
+```
+currentValueNet = round(units × currentUnitQuote, 2)
+```
+
+Esta semântica reproduz o que o portal **aforro.net** apresenta para certificados em carteira, ao cêntimo, independentemente do número de unidades.
+
+Em paralelo, os valores de juro bruto e IRS são contabilizados em euros reais ao nível da posição:
+
+```
+interestGross = round(units × cotacao_anterior × taxa_trimestral, 2)
+irsWithheld = round(interestGross × irsRate, 2)
+interestNet = interestGross - irsWithheld
+```
+
+Isto reflete a retenção efetiva em euros e mantém `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet` reconciliáveis com o `schedule`.
 
 :::note[Snapshots do schedule]
-As linhas do `schedule` são *snapshots* independentes, cada uma arredondada a cêntimos a partir do mesmo saldo de alta precisão para fins de visualização. Por isso, a identidade `interestNet = interestGross − irsWithheld` em cada linha — bem como o somatório das linhas vs. os totais — pode divergir em até ±1 cêntimo em horizontes longos. Os totais (`currentValueNet`, `totalInterestGross`, `totalIrsWithheld`, `totalInterestNet`) são derivados de uma única passagem de alta precisão e, por isso, são a referência canónica.
+Cada linha do `schedule` expõe `unitQuoteAfter`, a cotação líquida depois dessa capitalização, já arredondada a 5 casas decimais. `balanceAfter` é `round(units × unitQuoteAfter, 2)`. Como `interestGross`, `irsWithheld` e `interestNet` são também arredondados a cêntimos no próprio trimestre, o somatório das linhas reconcilia exatamente com os totais `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet`.
 :::
 
 ## Trimestres ancorados ao dia da subscrição
@@ -98,7 +115,7 @@ Quando `asOfDate` cai estritamente dentro de um trimestre aberto, `simulate()` r
 accrued = saldo × taxa_trimestral × dias_decorridos / dias_totais
 ```
 
-quantizado a cêntimos com arredondamento bancário. **Este número é uma convenção da biblioteca, não uma grandeza publicada pelo IGCP**: a retenção de IRS *não* é aplicada (só ocorre na capitalização). Quem quiser estimar um "valor de resgate hoje" deve subtrair `accrued × IRS` por sua conta.
+em que `saldo` é `units × currentUnitQuote`, quantizado a cêntimos com arredondamento bancário. **Este número é uma convenção da biblioteca, não uma grandeza publicada pelo IGCP**: a retenção de IRS *não* é aplicada (só ocorre na capitalização). Quem quiser estimar um "valor de resgate hoje" deve subtrair `accrued × IRS` por sua conta.
 
 ## Validações
 

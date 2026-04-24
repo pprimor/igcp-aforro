@@ -27,6 +27,7 @@ This package reproduces that math end-to-end, with all monetary fields returned 
 
 - **Pure calculator** — no network, no state, no globals. The Euribor 3M dataset is bundled in the package.
 - **Decimal-safe** — every money/rate field is a `big.js`-quantized decimal string, banker's-rounded at each cent.
+- **aforro.net parity** — booked values are derived from the same per-unit quote cadence aforro.net displays: quote rounded to 5 decimals each quarter, then `round(units × quote, 2)`.
 - **Validated inputs** — Zod-checked at the public boundary; the library throws on out-of-window subscriptions, invalid units, or impossible as-of dates.
 - **Cohort-aware rate lookup** — resolve the annual rate that applies to a given subscription on a given quarter, with the base + premium components surfaced for auditability.
 - **CLI included** — `aforro simulate | current | rates | cohort` with stable `--json` output for scripting.
@@ -71,6 +72,7 @@ const result = simulate({
 });
 
 console.log(result.currentValueNet);   // e.g. "1078.42"
+console.log(result.currentUnitQuote);  // e.g. "1.07842"
 console.log(result.totalInterestNet);  // e.g. "78.42"
 console.log(result.matured);           // false
 console.log(result.schedule?.length);  // 8 quarters since subscription
@@ -146,6 +148,7 @@ for (const row of schedule ?? []) {
     row.irsWithheld,        // "1.93"
     row.interestNet,        // "4.95"
     row.balanceAfter,       // "1004.95"
+    row.unitQuoteAfter,     // "1.00495"
     row.premiumTier.ratePct // "0.25"
   );
 }
@@ -286,17 +289,19 @@ from decimal import Decimal, ROUND_HALF_EVEN
 data = json.load(urllib.request.urlopen('https://pprimor.github.io/igcp-aforro/rates.json'))
 rows = [r for r in data['series']['F']['cohortRates'] if r['subscribed'] == '2024-03']
 
-balance = Decimal('1000')
+units = Decimal('1000')
+unit_quote = Decimal('1')
 irs = Decimal('0.28')
 
 for r in rows:
     annual = Decimal(r['annualRatePct']) / Decimal('100')
     quarterly = annual / 4
-    gross = (balance * quarterly).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
+    gross = (units * unit_quote * quarterly).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
     withheld = (gross * irs).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN)
-    balance += gross - withheld
+    net_per_unit = unit_quote * quarterly * (Decimal('1') - irs)
+    unit_quote = (unit_quote + net_per_unit).quantize(Decimal('0.00001'), rounding=ROUND_HALF_EVEN)
 
-print(balance)
+print((units * unit_quote).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN))
 ```
 
 The full schema, day-of-month caveat, and field-by-field documentation live at <https://pprimor.github.io/igcp-aforro/rates-json/>.
@@ -311,7 +316,7 @@ The library reproduces the IGCP technical sheets for **Certificados de Aforro S�
 2. The **annual rate** for a cohort × quarter is `baseRate(quarterStartMonth) + premium(contractYear)`, where `premium` follows the IGCP-published tier table:
    - **Série F** — year 1: 0.00%, years 2–5: +0.25%, 6–9: +0.50%, 10–11: +1.00%, 12–13: +1.50%, 14–15: +1.75%.
    - **Série E** — year 1: 0.00%, years 2–5: +0.50%, 6–10: +1.00%.
-3. **Quarterly capitalization**: each quarter, `interestGross = balance × annualRate / 4`, `irsWithheld = interestGross × 28%`, and `interestNet = interestGross − irsWithheld` are computed at full decimal precision (`big.js`) and the net interest is added to the running balance without intermediate cent-rounding. Cent quantization (banker's rounding) happens only at serialization, so the headline `currentValueNet` matches what aforro.net displays for booked certificates. Per-row `schedule` cells are independently-rounded snapshots of the same high-precision balance and may therefore drift up to ±1 cent against the headline totals on long-running cohorts.
+3. **Quarterly capitalization**: the booked net state is a per-unit quote, starting at `1.00000`. Each quarter computes `grossPerUnit = unitQuote × annualRate / 4`, applies IRS to get `netPerUnit`, then stores the next quote rounded to the series' quote precision (`5` decimals for Série E and F). The headline booked value is `currentValueNet = round(units × currentUnitQuote, 2)`, matching aforro.net to the cent for booked certificates regardless of holding size. Gross interest and IRS withholding are booked separately in real EUR at the holding level each quarter: `interestGross = round(units × previousUnitQuote × annualRate / 4, 2)`, `irsWithheld = round(interestGross × 28%, 2)`, and `interestNet = interestGross − irsWithheld`. Those cent-rounded quarterly rows reconcile exactly with the headline `totalInterest*` fields.
 4. **Quarter anchoring**: quarters start on the subscription's day-of-month, shifted by 3-month multiples. When the day doesn't exist in the target month (e.g. subscription on 31 Jan → next quarter would land on 31 Apr), the date rolls forward to the first day of the following month per the IGCP spec.
 5. **Validations** (per series, read from `SeriesMetadata`):
    - **Série F** — subscriptions on or after `2023-06-01`; units in `[100, 100000]`; matures at `subscriptionDate + 15 years`.
