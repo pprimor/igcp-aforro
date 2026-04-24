@@ -245,3 +245,20 @@ describe('simulate — Série E smoke test', () => {
     expect(result.maturityDate).toBe('2028-01-15');
   });
 });
+
+describe('simulate — Série E per-unit quote parity', () => {
+  it('reproduces the published quote for a 2023-03-29 cohort at the 2026-03-29 capitalization', () => {
+    const result = simulate({
+      series: 'E',
+      subscriptionDate: '2023-03-29',
+      units: 1000,
+      asOfDate: '2026-04-19',
+      includeSchedule: true,
+    });
+
+    expect(result.currentUnitQuote).toBe('1.08340');
+    expect(result.currentValueNet).toBe('1083.40');
+    expect(result.schedule).toHaveLength(12);
+    expect(result.schedule?.at(-1)?.unitQuoteAfter).toBe('1.08340');
+  });
+});

@@ -17,18 +17,21 @@ import {
 } from './dateMath.js';
 import {
   Big,
+  ROUND_HALF_EVEN,
   formatCents,
   formatDecimal,
   formatRate,
   percentToRate,
+  quantizeCents,
   toBig,
 } from './money.js';
 import { getSeries, premiumTierForYear } from './series.js';
 
 /**
- * Quarterly-compounding simulator for IGCP Aforro Série F.
+ * Quarterly-compounding simulator for IGCP Aforro certificates.
  *
- * The contract loop mirrors the IGCP technical sheet:
+ * The contract loop mirrors the IGCP technical sheet and the quote cadence
+ * exposed by aforro.net:
  *
  *   1. Quarters are anchored to the **subscription day-of-month**: quarter `n`
  *      runs from `subscriptionDate + 3·n months` (inclusive) to
@@ -41,22 +44,19 @@ import { getSeries, premiumTierForYear } from './series.js';
  *      rate for the **quarter-start month** plus the permanence premium for
  *      the contract year that the quarter falls into (1-indexed: year 1 has
  *      no premium, year 2 starts the +0.25% tier, etc.).
- *   3. Quarterly interest gross = `balance × annualRate / 4`, kept at full
- *      decimal precision (no per-quarter cent quantization).
- *   4. IRS withholding (default 28%, overridable) is applied to the
- *      full-precision gross interest at each capitalization, also kept at
- *      full precision.
- *   5. Full-precision net interest is added to the balance; the next
- *      quarter's interest is computed on the updated balance (automatic
- *      reinvestment).
+ *   3. The booked net state is a per-unit quote. Each capitalization computes
+ *      gross and net interest per unit, then rounds the resulting unit quote
+ *      to the series' configured quote precision (5 decimals for Série E/F)
+ *      using banker's rounding.
+ *   4. Gross interest and IRS withholding are also booked in real EUR at the
+ *      holding level each quarter: gross = `units × previousUnitQuote ×
+ *      quarterlyRate`, rounded to cents; IRS = `gross × irsRate`, rounded to
+ *      cents; net = gross − IRS.
  *
- * Cent rounding happens **only at serialization**, both for headline totals
- * and for each schedule row. This matches what aforro.net (the official IGCP
- * portal where citizens manage real booked certificates) displays for
- * already-booked cohorts. Because schedule rows are independently-rounded
- * snapshots of a never-quantized running balance, the per-row identity
- * (`net = gross − IRS`) and the sum-to-totals reconciliation may drift by up
- * to ±1 cent.
+ * The displayed booked value is derived from the rounded quote:
+ * `currentValueNet = round(units × currentUnitQuote, 2)`. Because the
+ * headline total fields are sums of cent-quantized quarterly EUR amounts,
+ * they reconcile exactly with the schedule rows.
  *
  * The loop terminates at `min(asOfDate, maturityDate)`. If `asOfDate` falls
  * mid-quarter, the partial quarter is reported separately as
@@ -126,7 +126,7 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
   const maturityDate = shiftMonths(subscriptionDate, series.maturityYears * 12);
   const maxQuarters = series.maturityYears * 4;
 
-  let balance = principal;
+  let unitQuote = new Big(1);
   let totalInterestGross = new Big(0);
   let totalInterestNet = new Big(0);
   let totalIrsWithheld = new Big(0);
@@ -149,14 +149,20 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
       options,
     );
 
-    const interestGross = balance.times(quarterlyRate);
-    const irs = interestGross.times(irsRateBig);
+    const grossPerUnit = unitQuote.times(quarterlyRate);
+    const netPerUnit = grossPerUnit.times(new Big(1).minus(irsRateBig));
+    const nextUnitQuote = unitQuote
+      .plus(netPerUnit)
+      .round(series.unitQuoteDecimals, ROUND_HALF_EVEN);
+
+    const interestGross = quantizeCents(grossPerUnit.times(principal));
+    const irs = quantizeCents(interestGross.times(irsRateBig));
     const interestNet = interestGross.minus(irs);
-    balance = balance.plus(interestNet);
 
     totalInterestGross = totalInterestGross.plus(interestGross);
     totalInterestNet = totalInterestNet.plus(interestNet);
     totalIrsWithheld = totalIrsWithheld.plus(irs);
+    unitQuote = nextUnitQuote;
 
     if (includeSchedule) {
       schedule.push({
@@ -166,7 +172,8 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
         interestGross: formatCents(interestGross),
         irsWithheld: formatCents(irs),
         interestNet: formatCents(interestNet),
-        balanceAfter: formatCents(balance),
+        balanceAfter: formatCents(quantizeCents(unitQuote.times(principal))),
+        unitQuoteAfter: formatDecimal(unitQuote, series.unitQuoteDecimals),
         premiumTier: tier,
       });
     }
@@ -186,12 +193,12 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
     if (totalDays > 0 && elapsedDays > 0 && elapsedDays < totalDays) {
       const { quarterlyRate } = rateForQuarter(series, subscriptionDate, quarterStart, options);
       const fraction = toBig(elapsedDays).div(totalDays);
-      accruedGross = balance.times(quarterlyRate).times(fraction);
+      accruedGross = unitQuote.times(quarterlyRate).times(fraction).times(principal);
     }
   }
 
   const currentValueGross = principal.plus(totalInterestGross);
-  const currentValueNet = balance;
+  const currentValueNet = quantizeCents(unitQuote.times(principal));
 
   const result: SimulateResult = {
     series: series.code,
@@ -200,6 +207,7 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
     units: parsed.units,
     irsRate: formatDecimal(irsRateBig, 4),
     currentValueGross: formatCents(currentValueGross),
+    currentUnitQuote: formatDecimal(unitQuote, series.unitQuoteDecimals),
     currentValueNet: formatCents(currentValueNet),
     totalInterestGross: formatCents(totalInterestGross),
     totalInterestNet: formatCents(totalInterestNet),
