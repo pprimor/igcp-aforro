@@ -5,11 +5,12 @@ import { Big, ROUND_HALF_EVEN, formatPercent, toBig } from './money.js';
 import { getSeries } from './series.js';
 
 /**
- * Série F monthly base-rate computation.
+ * Monthly base-rate computation for IGCP Certificados de Aforro.
  *
  * For a given `(year, month)` (the month for which the base rate applies),
- * IGCP's published methodology — codified in Portaria n.º 149-A/2023, of
- * 2 June 2023 (Diário da República, 1.ª série, n.º 107, suplemento) — is:
+ * IGCP's published methodology — codified for Série F in Portaria n.º 149-A/2023
+ * of 2 June 2023 (Diário da República, 1.ª série, n.º 107, suplemento) and for
+ * Série E in Portaria n.º 329-A/2017 of 30 October 2017 — is:
  *
  *   1. Determine the **fixing date**: the antepenultimate (third-from-last)
  *      TARGET2 business day of the *previous* calendar month.
@@ -20,7 +21,13 @@ import { getSeries } from './series.js';
  *      window — it only anchors which 10 prior observations are averaged.
  *   3. Compute the arithmetic mean and round it to **3 decimal places** using
  *      banker's rounding (`ROUND_HALF_EVEN`).
- *   4. Clamp the result into `[0%, 2.5%]`.
+ *   4. Add the series' additive spread (`baseRateSpreadPct`): `0pp` for
+ *      Série F (the formula is just E3) or `+1pp` for Série E (the formula
+ *      is `E3 + 1%`). The "sendo o resultado arredondado à terceira casa
+ *      decimal" clause applies to the *mean*, so rounding happens before
+ *      the spread, not after.
+ *   5. Clamp the result into the series' published window:
+ *      `[0%, 2.5%]` for Série F and `[0%, 3.5%]` for Série E.
  *
  * The bundled dataset (`src/data/euribor3m.json`) only contains TARGET2
  * business days for which Bundesbank actually published a fixing —
@@ -75,11 +82,23 @@ export interface BaseRateResult {
   readonly observations: readonly RateEntry[];
   /** Arithmetic mean of {@link observations}, before rounding or clamping. */
   readonly rawAveragePct: string;
-  /** Mean rounded to 3 decimals (`ROUND_HALF_EVEN`), pre-clamp. */
+  /** Mean rounded to 3 decimals (`ROUND_HALF_EVEN`), pre-spread, pre-clamp. */
   readonly roundedAveragePct: string;
-  /** Final published base rate after clamping to `[0%, 2.5%]`. */
+  /**
+   * {@link roundedAveragePct} after adding the series' additive spread
+   * ({@link SeriesMetadata.baseRateSpreadPct}), pre-clamp. For Série F the
+   * spread is `"0"` so this equals {@link roundedAveragePct} byte-for-byte;
+   * for Série E the published formula is `E3 + 1%` so this is the rounded
+   * Euribor mean plus `1`.
+   */
+  readonly roundedPlusSpreadPct: string;
+  /**
+   * Final published base rate after clamping
+   * {@link roundedPlusSpreadPct} into the series'
+   * `[baseRateClampMinPct, baseRateClampMaxPct]` window.
+   */
   readonly basePct: string;
-  /** Whether the clamp altered {@link roundedAveragePct}. */
+  /** Whether the clamp altered {@link roundedPlusSpreadPct}. */
   readonly clamped: boolean;
 }
 
@@ -118,10 +137,11 @@ function findLastIndexAtOrBefore(observations: readonly RateEntry[], cutoff: Iso
 }
 
 /**
- * Computes the Série F base rate for a given month and returns the full
- * audit trail (fixing date, contributing observations, raw/rounded/clamped
- * percentages). Use this when building `rates.json` or surfacing diagnostics;
- * for a plain `Big` percentage, prefer {@link baseRate}.
+ * Computes the monthly base rate for the given series (defaults to Série F)
+ * and returns the full audit trail (fixing date, contributing observations,
+ * raw mean, rounded mean, mean+spread, final clamped value). Use this when
+ * building `rates.json` or surfacing diagnostics; for a plain `Big`
+ * percentage, prefer {@link baseRate}.
  *
  * @throws {Error} when `(year, month)` is invalid, when the bundled dataset
  *   does not yet cover the fixing window, or when the requested month
@@ -179,11 +199,16 @@ export function computeBaseRate(
   }
   const rawAverage = sum.div(windowSize);
   const rounded = rawAverage.round(series.baseRateDecimals, ROUND_HALF_EVEN);
+  // Per the Série E ficha técnica ("E3+1%, sendo o resultado arredondado à
+  // terceira casa decimal"), the +1pp spread is added *after* the mean is
+  // rounded and *before* the [0%, 3.5%] clamp is applied. Série F sets
+  // `baseRateSpreadPct: '0'`, making this a no-op for the existing formula.
+  const withSpread = rounded.plus(toBig(series.baseRateSpreadPct));
 
   const min = toBig(series.baseRateClampMinPct);
   const max = toBig(series.baseRateClampMaxPct);
   let clamped = false;
-  let final = rounded;
+  let final = withSpread;
   if (final.lt(min)) {
     final = min;
     clamped = true;
@@ -199,6 +224,7 @@ export function computeBaseRate(
     observations: window,
     rawAveragePct: rawAverage.toString(),
     roundedAveragePct: formatPercent(rounded, series.baseRateDecimals),
+    roundedPlusSpreadPct: formatPercent(withSpread, series.baseRateDecimals),
     basePct: formatPercent(final, series.baseRateDecimals),
     clamped,
   };
