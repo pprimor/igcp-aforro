@@ -25,7 +25,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "aforro": "./dist/cli.js"
+    "aforro": "dist/cli.js"
   },
   "files": ["dist", "README.md", "LICENSE"],
   "engines": {

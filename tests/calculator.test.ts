@@ -133,9 +133,7 @@ describe('simulate — input validation', () => {
   });
 
   it('rejects Série E subscriptionDate after the 2023-06-01 closure', () => {
-    expect(() =>
-      simulate({ series: 'E', subscriptionDate: '2023-06-02', units: 1000 }),
-    ).toThrow();
+    expect(() => simulate({ series: 'E', subscriptionDate: '2023-06-02', units: 1000 })).toThrow();
   });
 
   it('accepts Série E units up to the 250.000€ ceiling', () => {
@@ -216,9 +214,7 @@ describe('simulate — Série E smoke test', () => {
       Number(result.totalInterestGross) - Number(result.totalIrsWithheld)
     ).toFixed(2);
     expect(result.totalInterestNet).toBe(expectedNet);
-    expect(result.currentValueNet).toBe(
-      (principal + Number(result.totalInterestNet)).toFixed(2),
-    );
+    expect(result.currentValueNet).toBe((principal + Number(result.totalInterestNet)).toFixed(2));
     expect(result.currentValueGross).toBe(
       (principal + Number(result.totalInterestGross)).toFixed(2),
     );
