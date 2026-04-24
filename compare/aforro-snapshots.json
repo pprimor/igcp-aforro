@@ -1,0 +1,37 @@
+{
+  "$schema_doc": "./aforroAlgorithm.ts",
+  "snapshots": [
+    {
+      "id": "E:2023-03-29:1000",
+      "series": "E",
+      "subscriptionDate": "2023-03-29",
+      "units": 1000,
+      "currentUnitQuote": "1.08340",
+      "currentValueNet": "1083.40"
+    },
+    {
+      "id": "E:2023-03-29:2500",
+      "series": "E",
+      "subscriptionDate": "2023-03-29",
+      "units": 2500,
+      "currentUnitQuote": "1.08340",
+      "currentValueNet": "2708.50"
+    },
+    {
+      "id": "E:2023-03-29:5000",
+      "series": "E",
+      "subscriptionDate": "2023-03-29",
+      "units": 5000,
+      "currentUnitQuote": "1.08340",
+      "currentValueNet": "5417.00"
+    },
+    {
+      "id": "E:2023-03-29:10000",
+      "series": "E",
+      "subscriptionDate": "2023-03-29",
+      "units": 10000,
+      "currentUnitQuote": "1.08340",
+      "currentValueNet": "10834.00"
+    }
+  ]
+}
