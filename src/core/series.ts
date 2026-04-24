@@ -29,6 +29,7 @@ const SERIE_F_METADATA: SeriesMetadata = {
   maxUnits: 100_000,
   baseRateClampMinPct: '0',
   baseRateClampMaxPct: '2.5',
+  baseRateSpreadPct: '0',
   baseRateDecimals: 3,
   euribor3mAveragingDays: 10,
   capitalizationFrequency: 'quarterly',
@@ -45,7 +46,7 @@ export const Series = {
   F: 'F',
 } as const satisfies Record<string, SeriesCode>;
 
-const SERIES_REGISTRY: Readonly<Record<SeriesCode, SeriesMetadata>> = {
+const SERIES_REGISTRY: Readonly<Partial<Record<SeriesCode, SeriesMetadata>>> = {
   F: SERIE_F_METADATA,
 };
 

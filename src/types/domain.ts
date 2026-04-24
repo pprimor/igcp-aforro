@@ -21,10 +21,11 @@ export type IsoDate = string;
 export type IsoMonth = string;
 
 /**
- * Identifier for a Treasury Certificate series. Only `'F'` is in scope for v1;
- * additional codes (`'A' | 'B' | 'D' | 'E'`) will be added without restructuring.
+ * Identifier for a Treasury Certificate series. Currently in scope: `'E'`
+ * (subscriptions closed 2023-06-01) and `'F'` (currently open). Additional
+ * codes (`'A' | 'B' | 'D'`) will be added without restructuring.
  */
-export type SeriesCode = 'F';
+export type SeriesCode = 'E' | 'F';
 
 /**
  * One permanence-premium tier. Tiers are 1-indexed and inclusive on both ends:
@@ -52,10 +53,24 @@ export interface SeriesMetadata {
   readonly name: string;
   readonly maturityYears: number;
   readonly subscriptionStartDate: IsoDate;
+  /**
+   * Last date on which subscriptions were accepted, inclusive. `undefined`
+   * means subscriptions are still open. Set for closed series such as Série E
+   * (closed by Portaria n.º 149-A/2023, 2 June 2023).
+   */
+  readonly subscriptionEndDate?: IsoDate;
   readonly minUnits: number;
   readonly maxUnits: number;
   readonly baseRateClampMinPct: string;
   readonly baseRateClampMaxPct: string;
+  /**
+   * Additive spread (in percentage points, as a decimal string) applied to
+   * the rounded Euribor 3M mean **before** clamping into the
+   * `[baseRateClampMinPct, baseRateClampMaxPct]` window. Série F uses
+   * `"0"` (the published formula has no spread); Série E uses `"1"`
+   * (the published formula is `E3 + 1%`).
+   */
+  readonly baseRateSpreadPct: string;
   readonly baseRateDecimals: number;
   readonly euribor3mAveragingDays: number;
   readonly capitalizationFrequency: CapitalizationFrequency;
@@ -210,8 +225,8 @@ export interface MonthlyBaseRate {
 /**
  * Inputs accepted by `getCurrentRate`.
  *
- * Both fields are optional: `series` defaults to `'F'` (the only series in
- * scope for v1) and `asOfDate` defaults to today (UTC).
+ * Both fields are optional: `series` defaults to `'F'` (the currently-open
+ * series) and `asOfDate` defaults to today (UTC).
  */
 export interface CurrentRateInput {
   readonly series?: SeriesCode;

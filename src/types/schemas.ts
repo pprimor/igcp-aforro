@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { getSeries } from '../core/series.js';
+import type { SeriesCode } from './domain.js';
 
 /**
  * Runtime validation schemas for public inputs. These mirror the TypeScript
@@ -7,6 +9,10 @@ import { z } from 'zod';
  *
  * String dates are validated as `YYYY-MM-DD`. Lexicographic comparison is sound
  * for ISO-8601 dates, so range checks use plain `>=` rather than parsing.
+ *
+ * Per-series constraints (subscription window, units range) are resolved at
+ * runtime from `SeriesMetadata` via `getSeries()` inside a `.superRefine()`,
+ * so adding a new series only requires updating the registry.
  */
 
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -21,29 +27,61 @@ export const isoDateSchema = z
 
 export const isoMonthSchema = z.string().regex(ISO_MONTH_REGEX, 'Expected month in YYYY-MM format');
 
-export const seriesCodeSchema = z.enum(['F']);
+export const seriesCodeSchema = z.enum(['E', 'F']);
 
 /**
- * Inputs accepted by `simulate()`. `units` is constrained to Série F's
- * [100, 100_000] range; if/when other series ship with different limits, this
- * schema will be derived per-series from `SeriesMetadata`.
+ * Adds per-series subscription-window issues to `ctx`. Reads bounds from the
+ * series registry so each series carries its own start/end and unit limits
+ * without duplicating constants in this file.
  */
+function refineSubscriptionWindow(
+  ctx: z.RefinementCtx,
+  series: SeriesCode,
+  subscriptionDate: string,
+): void {
+  const metadata = getSeries(series);
+  if (subscriptionDate < metadata.subscriptionStartDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `subscriptionDate must be on or after ${metadata.subscriptionStartDate} (${metadata.name} subscription start)`,
+      path: ['subscriptionDate'],
+    });
+  }
+  if (metadata.subscriptionEndDate && subscriptionDate > metadata.subscriptionEndDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `subscriptionDate must be on or before ${metadata.subscriptionEndDate} (${metadata.name} subscriptions closed)`,
+      path: ['subscriptionDate'],
+    });
+  }
+}
+
 export const simulateInputSchema = z
   .object({
     series: seriesCodeSchema,
     subscriptionDate: isoDateSchema,
-    units: z
-      .number()
-      .int('units must be an integer')
-      .min(100, 'units must be >= 100')
-      .max(100_000, 'units must be <= 100,000'),
+    units: z.number().int('units must be an integer'),
     asOfDate: isoDateSchema.optional(),
     includeSchedule: z.boolean().optional(),
     irsRate: z.number().min(0, 'irsRate must be >= 0').max(1, 'irsRate must be <= 1').optional(),
   })
-  .refine((data) => data.subscriptionDate >= '2023-06-01', {
-    message: 'subscriptionDate must be on or after 2023-06-01 (Série F open date)',
-    path: ['subscriptionDate'],
+  .superRefine((data, ctx) => {
+    refineSubscriptionWindow(ctx, data.series, data.subscriptionDate);
+    const metadata = getSeries(data.series);
+    if (data.units < metadata.minUnits) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `units must be >= ${metadata.minUnits}`,
+        path: ['units'],
+      });
+    }
+    if (data.units > metadata.maxUnits) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `units must be <= ${metadata.maxUnits.toLocaleString('en-US')}`,
+        path: ['units'],
+      });
+    }
   })
   .refine((data) => !data.asOfDate || data.asOfDate >= data.subscriptionDate, {
     message: 'asOfDate must be on or after subscriptionDate',
@@ -56,9 +94,8 @@ export const cohortRateInputSchema = z
     subscriptionDate: isoDateSchema,
     asOfDate: isoDateSchema.optional(),
   })
-  .refine((data) => data.subscriptionDate >= '2023-06-01', {
-    message: 'subscriptionDate must be on or after 2023-06-01 (Série F open date)',
-    path: ['subscriptionDate'],
+  .superRefine((data, ctx) => {
+    refineSubscriptionWindow(ctx, data.series, data.subscriptionDate);
   })
   .refine((data) => !data.asOfDate || data.asOfDate >= data.subscriptionDate, {
     message: 'asOfDate must be on or after subscriptionDate',
