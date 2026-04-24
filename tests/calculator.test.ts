@@ -33,6 +33,11 @@ function stripMetadata(result: SimulateResult): Omit<SimulateResult, 'seriesMeta
   return rest;
 }
 
+function cents(amount: string): number {
+  const [euros, centsPart = ''] = amount.split('.');
+  return Number(euros) * 100 + Number(centsPart.padEnd(2, '0').slice(0, 2));
+}
+
 describe('simulate — golden quarterly-compounding scenarios', () => {
   it('fixture is non-empty and has unique ids', () => {
     expect(scenarios.length).toBeGreaterThan(0);
@@ -53,55 +58,43 @@ describe('simulate — golden quarterly-compounding scenarios', () => {
 describe('simulate — invariants beyond the locked fixtures', () => {
   // These assertions hold for every scenario in the fixture and act as a
   // light double-check on the locked numbers themselves.
-  it('currentValueNet === units + totalInterestNet for every scenario', () => {
+  it('currentValueNet equals the current per-unit quote rounded to cents for every scenario', () => {
     for (const scenario of scenarios) {
       const result = simulate(scenario.input);
-      const expected = (Number(scenario.input.units) + Number(result.totalInterestNet)).toFixed(2);
-      expect(result.currentValueNet).toBe(expected);
+      const unroundedValue = scenario.input.units * Number(result.currentUnitQuote);
+      expect(Math.abs(unroundedValue - Number(result.currentValueNet))).toBeLessThanOrEqual(0.005);
     }
   });
 
   it('currentValueGross === units + totalInterestGross for every scenario', () => {
     for (const scenario of scenarios) {
       const result = simulate(scenario.input);
-      const expected = (Number(scenario.input.units) + Number(result.totalInterestGross)).toFixed(
-        2,
-      );
-      expect(result.currentValueGross).toBe(expected);
+      const expectedCents = scenario.input.units * 100 + cents(result.totalInterestGross);
+      expect(cents(result.currentValueGross)).toBe(expectedCents);
     }
   });
 
-  // Tolerance: the headline totals (`totalInterestGross`, `totalIrsWithheld`,
-  // `totalInterestNet`) are each rounded *independently* from the same
-  // never-quantized running balance, so the per-cent identity
-  // `net = gross − IRS` can drift by up to one cent. We accept ≤ 0.01 EUR.
-  it('totalInterestNet ≈ totalInterestGross - totalIrsWithheld (±0.01 EUR) for every scenario', () => {
+  it('totalInterestNet === totalInterestGross - totalIrsWithheld for every scenario', () => {
     for (const scenario of scenarios) {
       const result = simulate(scenario.input);
-      const diff =
-        Number(result.totalInterestNet) -
-        (Number(result.totalInterestGross) - Number(result.totalIrsWithheld));
-      expect(Math.abs(diff)).toBeLessThanOrEqual(0.01);
+      expect(cents(result.totalInterestNet)).toBe(
+        cents(result.totalInterestGross) - cents(result.totalIrsWithheld),
+      );
     }
   });
 
-  // Tolerance: each schedule row is an independently-rounded display snapshot
-  // of the high-precision running balance, so summing the rounded rows can
-  // diverge from the rounded headline totals by up to one cent (and across
-  // many quarters, the accumulated rounding can stretch a couple of cents).
-  // We accept ≤ 0.01 EUR per identity here.
-  it('schedule rows reconcile to totalInterestGross / Net / Withheld within ±0.01 EUR', () => {
+  it('schedule rows reconcile exactly to totalInterestGross / Net / Withheld', () => {
     for (const scenario of scenarios.filter((s) => s.input.includeSchedule)) {
       const result = simulate(scenario.input);
       const sched = result.schedule;
       expect(sched).toBeDefined();
       if (!sched) continue;
-      const sumGross = sched.reduce((sum, row) => sum + Number(row.interestGross), 0);
-      const sumNet = sched.reduce((sum, row) => sum + Number(row.interestNet), 0);
-      const sumIrs = sched.reduce((sum, row) => sum + Number(row.irsWithheld), 0);
-      expect(Math.abs(sumGross - Number(result.totalInterestGross))).toBeLessThanOrEqual(0.01);
-      expect(Math.abs(sumNet - Number(result.totalInterestNet))).toBeLessThanOrEqual(0.01);
-      expect(Math.abs(sumIrs - Number(result.totalIrsWithheld))).toBeLessThanOrEqual(0.01);
+      const sumGross = sched.reduce((sum, row) => sum + cents(row.interestGross), 0);
+      const sumNet = sched.reduce((sum, row) => sum + cents(row.interestNet), 0);
+      const sumIrs = sched.reduce((sum, row) => sum + cents(row.irsWithheld), 0);
+      expect(sumGross).toBe(cents(result.totalInterestGross));
+      expect(sumNet).toBe(cents(result.totalInterestNet));
+      expect(sumIrs).toBe(cents(result.totalIrsWithheld));
     }
   });
 });
@@ -178,9 +171,9 @@ describe('simulate — input validation', () => {
  *     starts on or after the 5th anniversary (2023-01-15 — quarter 20,
  *     0-indexed 20 in `schedule`).
  *   - Maturity falls on 2028-01-15 and `matured` is `false` at 2026-04-19.
- *   - The capitalization identities (`net = gross − IRS`,
- *     `currentValueNet = units + totalInterestNet`) hold at the totals
- *     level, mirroring the Série F invariants block above.
+ *   - The holding-level capitalization identity (`net = gross − IRS`) holds
+ *     at the totals level, and booked net value follows the rounded unit
+ *     quote.
  */
 describe('simulate — Série E smoke test', () => {
   const input: SimulateInput = {
@@ -219,18 +212,14 @@ describe('simulate — Série E smoke test', () => {
   it('preserves the cents-level capitalization identities at the totals level', () => {
     const result = simulate(input);
     const principal = input.units;
-    // Same tolerance as the cross-cutting invariants block above:
-    // gross/IRS/net are rounded independently from a high-precision balance,
-    // so the `net = gross − IRS` identity can drift up to one cent. The
-    // currentValue* identities ride on the same rounding pipeline as their
-    // total* counterparts, so they should reconcile exactly.
-    const netDiff =
-      Number(result.totalInterestNet) -
-      (Number(result.totalInterestGross) - Number(result.totalIrsWithheld));
-    expect(Math.abs(netDiff)).toBeLessThanOrEqual(0.01);
-    expect(result.currentValueNet).toBe((principal + Number(result.totalInterestNet)).toFixed(2));
-    expect(result.currentValueGross).toBe(
-      (principal + Number(result.totalInterestGross)).toFixed(2),
+    const unroundedNetValue = principal * Number(result.currentUnitQuote);
+
+    expect(cents(result.totalInterestNet)).toBe(
+      cents(result.totalInterestGross) - cents(result.totalIrsWithheld),
+    );
+    expect(Math.abs(unroundedNetValue - Number(result.currentValueNet))).toBeLessThanOrEqual(0.005);
+    expect(cents(result.currentValueGross)).toBe(
+      principal * 100 + cents(result.totalInterestGross),
     );
   });
 
@@ -247,7 +236,7 @@ describe('simulate — Série E smoke test', () => {
 });
 
 describe('simulate — Série E per-unit quote parity', () => {
-  it('reproduces the published quote for a 2023-03-29 cohort at the 2026-03-29 capitalization', () => {
+  it('reproduces the published quote history for a 2023-03-29 cohort', () => {
     const result = simulate({
       series: 'E',
       subscriptionDate: '2023-03-29',
@@ -256,9 +245,26 @@ describe('simulate — Série E per-unit quote parity', () => {
       includeSchedule: true,
     });
 
+    const expectedUnitQuotes = [
+      '1.00000',
+      '1.00630',
+      '1.01264',
+      '1.01902',
+      '1.02544',
+      '1.03282',
+      '1.04026',
+      '1.04775',
+      '1.05529',
+      '1.06289',
+      '1.06972',
+      '1.07651',
+      '1.08340',
+    ];
+    const actualUnitQuotes = ['1.00000', ...(result.schedule ?? []).map((row) => row.unitQuoteAfter)];
+
     expect(result.currentUnitQuote).toBe('1.08340');
     expect(result.currentValueNet).toBe('1083.40');
     expect(result.schedule).toHaveLength(12);
-    expect(result.schedule?.at(-1)?.unitQuoteAfter).toBe('1.08340');
+    expect(actualUnitQuotes).toEqual(expectedUnitQuotes);
   });
 });
