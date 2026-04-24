@@ -28,19 +28,16 @@
  *
  * Every scenario asks the IGCP endpoint for the same canonical quantity
  * ({@link COMPARE_UNITS}) and divides both sides by that quantity before
- * diffing. Empirically the IGCP simulator computes a high-precision
- * per-unit value and only rounds when scaling to the requested quantity,
- * whereas our `simulate()` quantizes the running balance to cents at every
- * quarterly capitalization. Comparing totals at large quantities therefore
- * amplifies a sub-cent per-unit drift into multi-EUR diffs that are
- * artifacts of *when* each side rounds, not of the underlying interest
- * formula. Per-unit comparison sidesteps that amplification, so any
- * remaining drift is genuine formula divergence we want to catch.
- *
- * The exact cent-rounding semantics required by Portaria n.º 149-A/2023
- * for Série F are still an open question (see `compare followups` subplan);
- * until we can settle it from the regulation itself, per-unit is the
- * fairest apples-to-apples comparison.
+ * diffing. The IGCP endpoint returns the cohort's net current value
+ * already rounded to the cent at the requested quantity, so comparing
+ * totals at large quantities folds that single cent-rounding step into
+ * the diff and amplifies it into a multi-EUR artifact that has nothing
+ * to do with the underlying interest formula. Dividing both sides by
+ * {@link COMPARE_UNITS} spreads that one-cent quantization across the
+ * full quantity, yielding a clean per-unit comparison whose only
+ * residual is `≤ 0.005 / COMPARE_UNITS` EUR/unit (5 µEUR at the default
+ * 1000 units). Any drift above that floor is genuine formula divergence
+ * worth catching.
  *
  * Output is a left-aligned table with one row per scenario (`--verbose`
  * shows PASS rows too; the default elides them) and a summary footer with
@@ -65,13 +62,14 @@ const DEFAULT_DELAY_MS = 250;
 /**
  * Default ±EUR/unit window inside which a row is still considered a PASS.
  *
- * IGCP returns values rounded to the cent at our chosen quantity, which at
- * {@link COMPARE_UNITS} = 1000 gives us 5 decimals of per-unit precision
- * (e.g. `1035.92` ⇒ `1.03592 €/unit`). We allow one decimal of slack on
- * top of that to absorb sub-cent noise from our cent-quantization-per-quarter,
- * giving a per-unit tolerance of `1e-4 €/unit`.
+ * IGCP returns values rounded to the cent at our chosen quantity, so the
+ * worst-case quantization residual after dividing by {@link COMPARE_UNITS}
+ * is `0.005 / COMPARE_UNITS = 5e-6` EUR/unit. Now that our `simulate()`
+ * compounds at full precision and rounds only at output, this is the
+ * tightest tolerance the comparison can meaningfully enforce — anything
+ * larger would be genuine formula drift.
  */
-const DEFAULT_TOLERANCE_EUR_PER_UNIT = 0.0001;
+const DEFAULT_TOLERANCE_EUR_PER_UNIT = 5e-6;
 
 /**
  * Canonical quantity used for every IGCP request.
