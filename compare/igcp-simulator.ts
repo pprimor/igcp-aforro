@@ -1,8 +1,9 @@
 #!/usr/bin/env tsx
 /**
- * `pnpm compare:igcp` — comparison harness that pits our local Série F
+ * `pnpm compare:igcp` — comparison harness that pits our local
  * `simulate()` against the IGCP web simulator's value endpoint and reports
- * any drift.
+ * any drift. By default it sweeps both Série E and Série F; the
+ * `--series` flag narrows to a single series.
  *
  * The IGCP "Simulador Certificados de Aforro" page (Drupal Webform) loads a
  * `Drupal.behaviors.simulatorFetchResults` jQuery handler that intercepts the
@@ -54,6 +55,7 @@ import { cac } from 'cac';
 
 import { simulate } from '../src/core/calculator.js';
 import { todayIsoUtc } from '../src/core/dateMath.js';
+import type { SeriesCode } from '../src/types/domain.js';
 
 const IGCP_API_URL = 'https://www.igcp.pt/pt/api/simulator-value/query';
 
@@ -84,45 +86,73 @@ const COMPARE_UNITS = 1000;
 
 interface Scenario {
   readonly id: string;
+  readonly series: SeriesCode;
   readonly subscriptionMonth: string;
 }
 
 /**
- * Builds the scenario matrix exercised by the harness.
+ * Per-series window of subscription months that the harness sweeps.
  *
- * Subscription months span every calendar month from `2023-09` (the first
- * month after the inaugural Série F month — June 2023's base rate is
- * currently un-derivable from our bundled Euribor window, see the
- * `baseRate followups` subplan) up to two months before today, so every
- * cohort has at least one completed quarterly capitalization to compare
- * against.
+ * - Série F starts at `2023-09` — one month after the inaugural Série F
+ *   subscription month (June 2023's base rate is currently un-derivable
+ *   from our bundled Euribor window, see the `baseRate followups`
+ *   subplan).
+ * - Série E starts at `2018-01` — one month after the inaugural Série E
+ *   subscription month (November 2017), giving a clean ≥1-year history of
+ *   Euribor 3M fixings before the first fixing-window we exercise.
+ *
+ * The end date is two months before `today`, so every cohort has at
+ * least one completed quarterly capitalization to compare against.
+ */
+const SERIES_WINDOW_START: Readonly<Record<SeriesCode, { year: number; month: number }>> = {
+  E: { year: 2018, month: 1 },
+  F: { year: 2023, month: 9 },
+};
+
+export type CompareSeries = SeriesCode | 'both';
+
+/**
+ * Builds the scenario matrix exercised by the harness.
  *
  * Each cohort is exercised once at the canonical {@link COMPARE_UNITS}
  * quantity. We deliberately do *not* sweep across multiple unit amounts:
  * IGCP's per-unit value is invariant to quantity (modulo their final
  * rounding-to-cents), and exercising several unit amounts per cohort just
  * re-tests that invariant rather than the underlying interest formula.
- * The per-month sweep is what gives us coverage across every Série F
- * fixing-window so far.
+ * The per-month sweep is what gives us coverage across every fixing-window
+ * for the requested series.
+ *
+ * When `series === 'both'`, the matrix is the concatenation of the per-series
+ * sweeps in `E, F` order — `--filter` and `--limit` operate on the merged
+ * list.
  */
-export function buildScenarios(today: string = todayIsoUtc()): readonly Scenario[] {
+export function buildScenarios(
+  series: CompareSeries = 'both',
+  today: string = todayIsoUtc(),
+): readonly Scenario[] {
   const [yearStr, monthStr] = today.split('-');
   const todayYear = Number(yearStr);
   const todayMonth = Number(monthStr);
 
+  const codes: readonly SeriesCode[] = series === 'both' ? ['E', 'F'] : [series];
+
   const scenarios: Scenario[] = [];
-  let year = 2023;
-  let month = 9;
-  while (year < todayYear || (year === todayYear && month <= todayMonth - 2)) {
-    const subscriptionMonth = `${year}-${pad2(month)}`;
-    scenarios.push({
-      id: subscriptionMonth,
-      subscriptionMonth,
-    });
-    month += 1;
-    if (month > 12) {
-      month = 1;
-      year += 1;
+  for (const code of codes) {
+    const start = SERIES_WINDOW_START[code];
+    let year = start.year;
+    let month = start.month;
+    while (year < todayYear || (year === todayYear && month <= todayMonth - 2)) {
+      const subscriptionMonth = `${year}-${pad2(month)}`;
+      scenarios.push({
+        id: `${code}:${subscriptionMonth}`,
+        series: code,
+        subscriptionMonth,
+      });
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
     }
   }
 
@@ -133,8 +163,8 @@ export function buildScenarios(today: string = todayIsoUtc()): readonly Scenario
  * Reproduces the `getCurrentDate` heuristic baked into the IGCP page's
  * `simulatorFetchResults` jQuery behavior: when the cohort's day-of-month
  * has not yet elapsed this calendar month, IGCP asks for the previous
- * month's snapshot instead. Series A is exempt in their JS, but the only
- * series we compare against is F so the branch is unconditional here.
+ * month's snapshot instead. Series A is exempt in their JS, but the
+ * series we compare against (E and F) all flow through this same branch.
  *
  * Our scenarios all use `01` as the day-of-month, so the "ask for previous
  * month" branch is never taken — we keep the helper anyway so the request
@@ -193,7 +223,7 @@ async function fetchIgcp(
   fetchImpl: typeof fetch,
 ): Promise<IgcpResponse> {
   const params = new URLSearchParams({
-    field_serie: 'F',
+    field_serie: scenario.series,
     field_field_date: toIgcpDate(igcpAsOfMonth(scenario.subscriptionMonth, today)),
     field_field_acquisition_date: toIgcpDate(scenario.subscriptionMonth),
     quantity: String(COMPARE_UNITS),
@@ -259,7 +289,7 @@ async function runScenario(
   try {
     const igcp = await fetchIgcp(scenario, today, fetchImpl);
     const ours = simulate({
-      series: 'F',
+      series: scenario.series,
       subscriptionDate: `${scenario.subscriptionMonth}-01`,
       units: COMPARE_UNITS,
       asOfDate: today,
@@ -300,6 +330,7 @@ function classify(result: ScenarioResult, tolerancePerUnit: number): ScenarioRes
 }
 
 interface CompareOptions {
+  readonly series: CompareSeries;
   readonly tolerance: number;
   readonly verbose: boolean;
   readonly limit?: number;
@@ -320,7 +351,7 @@ interface CompareOptions {
  * 1 = drift or transport error) so callers can wire this straight into CI.
  */
 export async function runCompareSuite(options: CompareOptions): Promise<number> {
-  const allScenarios = buildScenarios(options.today);
+  const allScenarios = buildScenarios(options.series, options.today);
   const filtered = allScenarios
     .filter((scenario) => !options.filter || options.filter.test(scenario.id))
     .slice(0, options.limit ?? allScenarios.length);
@@ -332,7 +363,7 @@ export async function runCompareSuite(options: CompareOptions): Promise<number> 
 
   options.write(
     `Running ${filtered.length} scenario(s) against ${IGCP_API_URL}\n` +
-      `  today=${options.today}  units=${COMPARE_UNITS}  tolerance=±${formatPerUnit(options.tolerance)}\n\n`,
+      `  today=${options.today}  series=${options.series}  units=${COMPARE_UNITS}  tolerance=±${formatPerUnit(options.tolerance)}\n\n`,
   );
 
   const results: ScenarioResult[] = [];
@@ -368,6 +399,7 @@ export async function runCompareSuite(options: CompareOptions): Promise<number> 
 
 interface JsonReport {
   readonly today: string;
+  readonly series: CompareSeries;
   readonly units: number;
   readonly tolerancePerUnit: number;
   readonly counts: { readonly pass: number; readonly fail: number; readonly error: number };
@@ -387,6 +419,7 @@ function buildJsonReport(results: readonly ScenarioResult[], options: CompareOpt
   );
   return {
     today: options.today,
+    series: options.series,
     units: COMPARE_UNITS,
     tolerancePerUnit: options.tolerance,
     counts,
@@ -398,6 +431,7 @@ function buildJsonReport(results: readonly ScenarioResult[], options: CompareOpt
 function renderTable(results: readonly ScenarioResult[], options: CompareOptions): void {
   const headers = [
     'status',
+    'series',
     'subscribed',
     'igcp_eur_per_unit',
     'ours_eur_per_unit',
@@ -411,6 +445,7 @@ function renderTable(results: readonly ScenarioResult[], options: CompareOptions
   } else {
     const rows = visible.map((r) => [
       r.status.toUpperCase(),
+      r.scenario.series,
       r.scenario.subscriptionMonth,
       r.igcpPerUnit === null ? '-' : formatPerUnit(r.igcpPerUnit),
       r.oursPerUnit === null ? '-' : formatPerUnit(r.oursPerUnit),
@@ -505,6 +540,14 @@ function parseDelayFlag(raw: unknown): number {
   return value;
 }
 
+function parseSeriesFlag(raw: unknown): CompareSeries {
+  if (raw === undefined) return 'both';
+  const value = String(raw).toUpperCase();
+  if (value === 'E' || value === 'F') return value;
+  if (value === 'BOTH') return 'both';
+  throw new Error(`--series must be one of E, F, both (got ${String(raw)})`);
+}
+
 function parseFilterFlag(raw: unknown): RegExp | undefined {
   if (raw === undefined) return undefined;
   try {
@@ -516,6 +559,7 @@ function parseFilterFlag(raw: unknown): RegExp | undefined {
 }
 
 interface CliFlags {
+  readonly series?: string;
   readonly tolerance?: string | number;
   readonly verbose?: boolean;
   readonly limit?: string | number;
@@ -529,6 +573,7 @@ async function main(): Promise<void> {
   const cli = cac('compare:igcp');
   cli
     .command('[...args]', 'Compare local simulate() output against the IGCP web simulator')
+    .option('--series <code>', 'Series to compare: E, F, or both', { default: 'both' })
     .option('--tolerance <eur-per-unit>', 'Max absolute per-unit EUR diff to count as PASS', {
       default: DEFAULT_TOLERANCE_EUR_PER_UNIT,
     })
@@ -541,10 +586,12 @@ async function main(): Promise<void> {
     .option('--out <file>', 'Also write the JSON report to <file>')
     .option('--json', 'Emit the JSON report to stdout instead of the table')
     .example('pnpm compare:igcp')
+    .example('pnpm compare:igcp -- --series E --verbose')
     .example('pnpm compare:igcp -- --tolerance 0.0005 --verbose')
-    .example('pnpm compare:igcp -- --filter ^2024- --limit 5')
+    .example('pnpm compare:igcp -- --filter ^F:2024- --limit 5')
     .action(async (_args: string[], flags: CliFlags) => {
       const exitCode = await runCompareSuite({
+        series: parseSeriesFlag(flags.series),
         tolerance: parseToleranceFlag(flags.tolerance),
         verbose: flags.verbose === true,
         limit: parseLimitFlag(flags.limit),
