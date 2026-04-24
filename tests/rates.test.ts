@@ -24,6 +24,13 @@ import { getSeries, premiumTierForYear } from '../src/core/series.js';
 
 const serieF = getSeries('F');
 
+describe('getSeries', () => {
+  it('exposes the per-unit quote precision for supported series', () => {
+    expect(getSeries('E').unitQuoteDecimals).toBe(5);
+    expect(getSeries('F').unitQuoteDecimals).toBe(5);
+  });
+});
+
 describe('premiumTierForYear', () => {
   // Each row is (contract year, expected ratePct, expected fromYear-toYear).
   // Boundary years are picked at the two endpoints of every tier so a

@@ -72,6 +72,12 @@ export interface SeriesMetadata {
    */
   readonly baseRateSpreadPct: string;
   readonly baseRateDecimals: number;
+  /**
+   * Decimal places retained for the per-unit net quote after each
+   * capitalization. Série E and F use 5 decimals to mirror IGCP's published
+   * quote precision.
+   */
+  readonly unitQuoteDecimals: number;
   readonly euribor3mAveragingDays: number;
   readonly capitalizationFrequency: CapitalizationFrequency;
   readonly defaultIrsRate: string;
