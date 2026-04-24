@@ -84,7 +84,20 @@ export interface RateEntry {
   readonly ratePct: string;
 }
 
-/** One row of the quarterly capitalization schedule produced by `simulate()`. */
+/**
+ * One row of the quarterly capitalization schedule produced by `simulate()`.
+ *
+ * Every monetary field on this row is an **independently-rounded display
+ * snapshot** of a high-precision running balance — `simulate()` compounds at
+ * full decimal precision and only rounds to cents at serialization (both for
+ * headline totals and for each schedule cell). As a consequence the per-row
+ * identity `interestNet = interestGross − irsWithheld` and the sum-to-totals
+ * reconciliation across rows (`Σ interestGross`, `Σ interestNet`,
+ * `Σ irsWithheld`) may each drift by up to ±1 cent versus the matching
+ * {@link SimulateResult.totalInterestGross} / {@link SimulateResult.totalInterestNet} /
+ * {@link SimulateResult.totalIrsWithheld} totals. This is intentional and
+ * matches what aforro.net displays for already-booked cohorts.
+ */
 export interface ScheduleRow {
   readonly quarterEndDate: IsoDate;
   readonly annualRate: string;
@@ -137,19 +150,37 @@ export interface SimulateResult {
   /** Effective IRS rate applied this run, formatted to 4 decimals. */
   readonly irsRate: string;
   /**
-   * Principal + sum of capitalized **gross** interest. Excludes any partial
-   * interest accrued since the last capitalization (see
-   * {@link accruedSinceLastCapitalization}).
+   * Principal + sum of capitalized **gross** interest. Derived from a single
+   * full-precision running balance and rounded to cents exactly once, at
+   * serialization. Excludes any partial interest accrued since the last
+   * capitalization (see {@link accruedSinceLastCapitalization}).
    */
   readonly currentValueGross: string;
   /**
-   * Principal + sum of capitalized **net** interest (i.e. the running
-   * balance after every capitalization), matching what a holder would see on
-   * an IGCP statement on the as-of date. Excludes accrued.
+   * Principal + sum of capitalized **net** interest (i.e. the full-precision
+   * running balance after every capitalization, rounded to cents only here
+   * at serialization), matching what aforro.net displays for an already-booked
+   * cohort on the as-of date. Excludes accrued.
    */
   readonly currentValueNet: string;
+  /**
+   * Sum of every quarter's gross interest, accumulated at full precision and
+   * rounded to cents only at serialization. May differ by up to ±1 cent from
+   * the sum of {@link ScheduleRow.interestGross} across {@link schedule}
+   * rows, since each row is independently rounded for display.
+   */
   readonly totalInterestGross: string;
+  /**
+   * Sum of every quarter's net interest (gross − IRS), accumulated at full
+   * precision and rounded to cents only at serialization. May differ by up
+   * to ±1 cent from the sum of {@link ScheduleRow.interestNet} across rows.
+   */
   readonly totalInterestNet: string;
+  /**
+   * Sum of every quarter's IRS withholding, accumulated at full precision
+   * and rounded to cents only at serialization. May differ by up to ±1 cent
+   * from the sum of {@link ScheduleRow.irsWithheld} across rows.
+   */
   readonly totalIrsWithheld: string;
   readonly matured: boolean;
   readonly maturityDate: IsoDate;
@@ -159,11 +190,11 @@ export interface SimulateResult {
    *
    * **This is a library convention, not an IGCP-published number.** It is
    * computed as `balance × quarterlyRate × elapsedDays / totalDays`
-   * (calendar-day pro-rata of the would-be quarterly interest), quantized to
-   * cents with banker's rounding. IRS is **not** withheld on this amount —
-   * withholding only occurs at capitalization, so callers projecting a
-   * "value if redeemed today" should subtract the expected withholding
-   * themselves (`accrued × irsRate`).
+   * (calendar-day pro-rata of the would-be quarterly interest) at full
+   * precision, and rounded to cents only here at serialization. IRS is
+   * **not** withheld on this amount — withholding only occurs at
+   * capitalization, so callers projecting a "value if redeemed today" should
+   * subtract the expected withholding themselves (`accrued × irsRate`).
    *
    * Surface this as a separate informational field rather than folding it
    * into `currentValue*` / `totalInterest*` so audit trails against IGCP
