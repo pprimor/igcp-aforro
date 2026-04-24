@@ -21,7 +21,6 @@ import {
   formatDecimal,
   formatRate,
   percentToRate,
-  quantizeCents,
   toBig,
 } from './money.js';
 import { getSeries, premiumTierForYear } from './series.js';
@@ -42,13 +41,22 @@ import { getSeries, premiumTierForYear } from './series.js';
  *      rate for the **quarter-start month** plus the permanence premium for
  *      the contract year that the quarter falls into (1-indexed: year 1 has
  *      no premium, year 2 starts the +0.25% tier, etc.).
- *   3. Quarterly interest gross = `balance × annualRate / 4`, quantized to
- *      cents with banker's rounding.
- *   4. IRS withholding (default 28%, overridable) is applied to the gross
- *      interest at each capitalization, rounded to cents independently so the
- *      net = gross − IRS identity always holds at the cent level.
- *   5. Net interest is added to the balance; the next quarter's interest is
- *      computed on the updated balance (automatic reinvestment).
+ *   3. Quarterly interest gross = `balance × annualRate / 4`, kept at full
+ *      decimal precision (no per-quarter cent quantization).
+ *   4. IRS withholding (default 28%, overridable) is applied to the
+ *      full-precision gross interest at each capitalization, also kept at
+ *      full precision.
+ *   5. Full-precision net interest is added to the balance; the next
+ *      quarter's interest is computed on the updated balance (automatic
+ *      reinvestment).
+ *
+ * Cent rounding happens **only at serialization**, both for headline totals
+ * and for each schedule row. This matches what aforro.net (the official IGCP
+ * portal where citizens manage real booked certificates) displays for
+ * already-booked cohorts. Because schedule rows are independently-rounded
+ * snapshots of a never-quantized running balance, the per-row identity
+ * (`net = gross − IRS`) and the sum-to-totals reconciliation may drift by up
+ * to ±1 cent.
  *
  * The loop terminates at `min(asOfDate, maturityDate)`. If `asOfDate` falls
  * mid-quarter, the partial quarter is reported separately as
@@ -141,8 +149,8 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
       options,
     );
 
-    const interestGross = quantizeCents(balance.times(quarterlyRate));
-    const irs = quantizeCents(interestGross.times(irsRateBig));
+    const interestGross = balance.times(quarterlyRate);
+    const irs = interestGross.times(irsRateBig);
     const interestNet = interestGross.minus(irs);
     balance = balance.plus(interestNet);
 
@@ -178,7 +186,7 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
     if (totalDays > 0 && elapsedDays > 0 && elapsedDays < totalDays) {
       const { quarterlyRate } = rateForQuarter(series, subscriptionDate, quarterStart, options);
       const fraction = toBig(elapsedDays).div(totalDays);
-      accruedGross = quantizeCents(balance.times(quarterlyRate).times(fraction));
+      accruedGross = balance.times(quarterlyRate).times(fraction);
     }
   }
 
