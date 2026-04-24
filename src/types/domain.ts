@@ -93,16 +93,16 @@ export interface RateEntry {
 /**
  * One row of the quarterly capitalization schedule produced by `simulate()`.
  *
- * Every monetary field on this row is an **independently-rounded display
- * snapshot** of a high-precision running balance — `simulate()` compounds at
- * full decimal precision and only rounds to cents at serialization (both for
- * headline totals and for each schedule cell). As a consequence the per-row
- * identity `interestNet = interestGross − irsWithheld` and the sum-to-totals
- * reconciliation across rows (`Σ interestGross`, `Σ interestNet`,
- * `Σ irsWithheld`) may each drift by up to ±1 cent versus the matching
- * {@link SimulateResult.totalInterestGross} / {@link SimulateResult.totalInterestNet} /
- * {@link SimulateResult.totalIrsWithheld} totals. This is intentional and
- * matches what aforro.net displays for already-booked cohorts.
+ * `simulate()` maintains a per-unit net quote and rounds it to the series'
+ * {@link SeriesMetadata.unitQuoteDecimals} after each completed quarter. The
+ * holding's booked net value is then `round(units × unitQuoteAfter, 2)`.
+ *
+ * Gross interest, IRS withholding, and net interest are booked in real EUR at
+ * the holding level each quarter: `interestGross` is cent-rounded from
+ * `units × previousUnitQuote × quarterlyRate`, `irsWithheld` is cent-rounded
+ * from `interestGross × irsRate`, and `interestNet = interestGross −
+ * irsWithheld`. As a consequence, schedule rows reconcile exactly with the
+ * matching `totalInterest*` headline fields.
  */
 export interface ScheduleRow {
   readonly quarterEndDate: IsoDate;
@@ -112,6 +112,7 @@ export interface ScheduleRow {
   readonly irsWithheld: string;
   readonly interestNet: string;
   readonly balanceAfter: string;
+  readonly unitQuoteAfter: string;
   readonly premiumTier: PremiumTier;
 }
 
@@ -157,35 +158,42 @@ export interface SimulateResult {
   readonly irsRate: string;
   /**
    * Principal + sum of capitalized **gross** interest. Derived from a single
-   * full-precision running balance and rounded to cents exactly once, at
-   * serialization. Excludes any partial interest accrued since the last
-   * capitalization (see {@link accruedSinceLastCapitalization}).
+   * full-precision running balance and rounded to cents at serialization.
+   * Gross interest itself is booked per quarter at holding-level cent
+   * precision for {@link totalInterestGross}. Excludes any partial interest
+   * accrued since the last capitalization (see
+   * {@link accruedSinceLastCapitalization}).
    */
   readonly currentValueGross: string;
   /**
-   * Principal + sum of capitalized **net** interest (i.e. the full-precision
-   * running balance after every capitalization, rounded to cents only here
-   * at serialization), matching what aforro.net displays for an already-booked
-   * cohort on the as-of date. Excludes accrued.
+   * Current per-unit net quote after completed capitalizations, rounded to the
+   * series' {@link SeriesMetadata.unitQuoteDecimals}. This is the primary
+   * booked-value state used to mirror IGCP's quote model.
+   */
+  readonly currentUnitQuote: string;
+  /**
+   * Booked net value for the holding, computed as
+   * `round(units × currentUnitQuote, 2)`, matching what aforro.net displays
+   * for an already-booked cohort on the as-of date. Excludes accrued.
    */
   readonly currentValueNet: string;
   /**
-   * Sum of every quarter's gross interest, accumulated at full precision and
-   * rounded to cents only at serialization. May differ by up to ±1 cent from
-   * the sum of {@link ScheduleRow.interestGross} across {@link schedule}
-   * rows, since each row is independently rounded for display.
+   * Sum of every quarter's gross interest, with each quarter cent-rounded at
+   * the holding level before accumulation. Reconciles exactly with the sum of
+   * {@link ScheduleRow.interestGross} across {@link schedule} rows.
    */
   readonly totalInterestGross: string;
   /**
-   * Sum of every quarter's net interest (gross − IRS), accumulated at full
-   * precision and rounded to cents only at serialization. May differ by up
-   * to ±1 cent from the sum of {@link ScheduleRow.interestNet} across rows.
+   * Sum of every quarter's net interest (`gross − IRS`), with each quarter
+   * computed from cent-rounded holding-level gross interest and IRS
+   * withholding before accumulation. Reconciles exactly with the sum of
+   * {@link ScheduleRow.interestNet} across {@link schedule} rows.
    */
   readonly totalInterestNet: string;
   /**
-   * Sum of every quarter's IRS withholding, accumulated at full precision
-   * and rounded to cents only at serialization. May differ by up to ±1 cent
-   * from the sum of {@link ScheduleRow.irsWithheld} across rows.
+   * Sum of every quarter's IRS withholding, with each quarter cent-rounded at
+   * the holding level before accumulation. Reconciles exactly with the sum of
+   * {@link ScheduleRow.irsWithheld} across {@link schedule} rows.
    */
   readonly totalIrsWithheld: string;
   readonly matured: boolean;
