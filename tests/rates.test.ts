@@ -125,6 +125,18 @@ describe('getCurrentRate', () => {
     expect(rate.fixingDate).toBe('2026-03-27');
     expect(rate.basePct).toBe('2.138');
   });
+
+  it('returns the Série E rate (E3 + 1pp, unclamped) for the same month', () => {
+    // Série E shares the fixing date and 10-day window with Série F; the
+    // only difference is the +1pp spread (and the wider [0, 3.5%] clamp).
+    // April 2026's E3 mean is 2.138% (Série F's published rate, unclamped);
+    // adding the 1pp spread yields 3.138%, still below the cap.
+    const rate = getCurrentRate({ series: 'E', asOfDate: '2026-04-19' });
+    expect(rate.series).toBe('E');
+    expect(rate.month).toBe('2026-04');
+    expect(rate.fixingDate).toBe('2026-03-27');
+    expect(rate.basePct).toBe('3.138');
+  });
 });
 
 describe('getRateTable', () => {
@@ -152,5 +164,50 @@ describe('getRateTable', () => {
 
   it('rejects fromMonth > toMonth at the schema boundary', () => {
     expect(() => getRateTable({ fromMonth: '2025-12', toMonth: '2025-01' })).toThrow();
+  });
+});
+
+/**
+ * Série E cohort-rate composition.
+ *
+ * Série E uses a different premium-tier ladder (years 2-5 → +0.50%, 6-10 →
+ * +1.00%) and a different base-rate formula (`E3 + 1%` clamped into
+ * `[0%, 3.5%]`) than Série F. This block locks the composite annual rate
+ * for a cohort that has crossed the year-5 → year-6 premium boundary, and
+ * lands on a quarter whose base rate is comfortably inside the clamp window
+ * so the value can be derived from the bundled Euribor dataset.
+ *
+ * Cohort: subscribed 2018-01-15 (a few months after Série E opened on
+ * 2017-11-01), evaluated at 2026-04-19. Quarter 33 starts on 2026-04-15
+ * and the contract is in year 9, deep inside the +1.00% premium tier.
+ */
+describe('getRateForCohort — Série E', () => {
+  it('resolves the +1.00% premium tier for a year-9 cohort', () => {
+    const result = getRateForCohort({
+      series: 'E',
+      subscriptionDate: '2018-01-15',
+      asOfDate: '2026-04-19',
+    });
+    expect(result.series).toBe('E');
+    expect(result.quarterStartDate).toBe('2026-04-15');
+    expect(result.quarterEndDate).toBe('2026-07-15');
+    expect(result.quarterIndex).toBe(33);
+    expect(result.yearsSinceSubscription).toBe(8);
+    expect(result.premiumTier).toEqual({ fromYear: 6, toYear: 10, ratePct: '1.00' });
+    // E3 mean for 2026-04 = 2.138% (Série F's published rate, unclamped),
+    // +1pp spread = 3.138% — Série E's base rate. Annual rate is base +
+    // permanence premium = 3.138% + 1.00% = 4.138%.
+    expect(result.baseRatePct).toBe('3.138');
+    expect(result.annualRatePct).toBe('4.138');
+  });
+
+  it('rejects subscription dates after Série E closed (2023-06-01)', () => {
+    expect(() =>
+      getRateForCohort({
+        series: 'E',
+        subscriptionDate: '2023-06-02',
+        asOfDate: '2026-04-19',
+      }),
+    ).toThrow(/Série E subscriptions closed/);
   });
 });

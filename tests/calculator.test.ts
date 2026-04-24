@@ -131,4 +131,107 @@ describe('simulate — input validation', () => {
       simulate({ series: 'F', subscriptionDate: '2024-03-15', units: 1000, irsRate: 1.01 }),
     ).toThrow();
   });
+
+  it('rejects Série E subscriptionDate after the 2023-06-01 closure', () => {
+    expect(() =>
+      simulate({ series: 'E', subscriptionDate: '2023-06-02', units: 1000 }),
+    ).toThrow();
+  });
+
+  it('accepts Série E units up to the 250.000€ ceiling', () => {
+    expect(() =>
+      simulate({
+        series: 'E',
+        subscriptionDate: '2018-01-15',
+        units: 250_000,
+        asOfDate: '2018-04-15',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      simulate({ series: 'E', subscriptionDate: '2018-01-15', units: 250_001 }),
+    ).toThrow();
+  });
+});
+
+/**
+ * Série E smoke test — exercises the cross-cutting plumbing on a single
+ * cohort that spans the year-5 → year-6 premium boundary and (since
+ * maturity is 10 years rather than Série F's 15) sits within reach of the
+ * `matured` flag.
+ *
+ * Cohort: subscribed 2018-01-15 (Série E was open from 2017-11-01 through
+ * 2023-06-01), evaluated at 2026-04-19. Subscription day-of-month is 15,
+ * which dodges every quarterly month-end roll-forward edge case. Specific
+ * monetary totals are not locked here because they depend on the bundled
+ * Euribor 3M dataset (which evolves with each refresh); instead the test
+ * pins the structural invariants:
+ *
+ *   - 33 completed quarters between 2018-01-15 and 2026-04-15.
+ *   - The premium tier flips from +0.50% to +1.00% on the 1st quarter that
+ *     starts on or after the 5th anniversary (2023-01-15 — quarter 20,
+ *     0-indexed 20 in `schedule`).
+ *   - Maturity falls on 2028-01-15 and `matured` is `false` at 2026-04-19.
+ *   - The capitalization identities (`net = gross − IRS`,
+ *     `currentValueNet = units + totalInterestNet`) hold at the totals
+ *     level, mirroring the Série F invariants block above.
+ */
+describe('simulate — Série E smoke test', () => {
+  const input: SimulateInput = {
+    series: 'E',
+    subscriptionDate: '2018-01-15',
+    units: 1000,
+    asOfDate: '2026-04-19',
+    includeSchedule: true,
+  };
+
+  it('produces 33 quarterly capitalizations and reports the 10-year maturity date', () => {
+    const result = simulate(input);
+    expect(result.series).toBe('E');
+    expect(result.seriesMetadata.code).toBe('E');
+    expect(result.maturityDate).toBe('2028-01-15');
+    expect(result.matured).toBe(false);
+    expect(result.schedule).toBeDefined();
+    expect(result.schedule?.length).toBe(33);
+  });
+
+  it('crosses the year-5 → year-6 premium boundary at quarter 20 (2023-01-15)', () => {
+    const result = simulate(input);
+    const schedule = result.schedule;
+    expect(schedule).toBeDefined();
+    if (!schedule) return;
+    // First quarter sits in contract year 1 → no premium.
+    expect(schedule[0]?.premiumTier).toEqual({ fromYear: 1, toYear: 1, ratePct: '0.00' });
+    // Quarter 19 (0-indexed) ends 2023-01-15 — the 5th anniversary.
+    // The quarter *starting* on 2023-01-15 is the first one in contract
+    // year 6, so its premium jumps from +0.50% to +1.00%.
+    expect(schedule[19]?.quarterEndDate).toBe('2023-01-15');
+    expect(schedule[19]?.premiumTier).toEqual({ fromYear: 2, toYear: 5, ratePct: '0.50' });
+    expect(schedule[20]?.premiumTier).toEqual({ fromYear: 6, toYear: 10, ratePct: '1.00' });
+  });
+
+  it('preserves the cents-level capitalization identities at the totals level', () => {
+    const result = simulate(input);
+    const principal = input.units;
+    const expectedNet = (
+      Number(result.totalInterestGross) - Number(result.totalIrsWithheld)
+    ).toFixed(2);
+    expect(result.totalInterestNet).toBe(expectedNet);
+    expect(result.currentValueNet).toBe(
+      (principal + Number(result.totalInterestNet)).toFixed(2),
+    );
+    expect(result.currentValueGross).toBe(
+      (principal + Number(result.totalInterestGross)).toFixed(2),
+    );
+  });
+
+  it('reports matured=true once asOfDate reaches the 10-year maturity date', () => {
+    const result = simulate({
+      series: 'E',
+      subscriptionDate: '2018-01-15',
+      units: 1000,
+      asOfDate: '2028-01-15',
+    });
+    expect(result.matured).toBe(true);
+    expect(result.maturityDate).toBe('2028-01-15');
+  });
 });

@@ -167,6 +167,61 @@ describe('aforro CLI — happy paths via execa', () => {
     expect(parsed.totalInterestNet).toBe(parsed.totalInterestGross);
   });
 
+  it('current --series E --json prints the Série E rate (E3 + 1pp) for the as-of month', async () => {
+    const { stdout, exitCode } = await runCli([
+      'current',
+      '--series',
+      'E',
+      '--as-of',
+      '2026-04-19',
+      '--json',
+    ]);
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed).toMatchObject({
+      series: 'E',
+      month: '2026-04',
+      fixingDate: '2026-03-27',
+      basePct: '3.138',
+    });
+  });
+
+  it('simulate --series E --json runs against a Série E cohort end-to-end', async () => {
+    // 2018-01-15 sits inside Série E's subscription window (2017-11-01 →
+    // 2023-06-01) and asOf 2018-04-15 closes exactly one quarter — the
+    // smallest sample that still exercises the Série E base-rate +
+    // capitalization path through the CLI.
+    const { stdout, exitCode } = await runCli([
+      'simulate',
+      '--series',
+      'E',
+      '--subscribed',
+      '2018-01-15',
+      '--units',
+      '1000',
+      '--as-of',
+      '2018-04-15',
+      '--json',
+    ]);
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed).toMatchObject({
+      series: 'E',
+      subscriptionDate: '2018-01-15',
+      asOfDate: '2018-04-15',
+      units: 1000,
+      maturityDate: '2028-01-15',
+      matured: false,
+    });
+    // Net interest, gross interest, and IRS withholding must reconcile at
+    // the cents level (gross − IRS = net) regardless of the underlying
+    // base rate.
+    const gross = Number(parsed.totalInterestGross);
+    const irs = Number(parsed.totalIrsWithheld);
+    const net = Number(parsed.totalInterestNet);
+    expect(Math.abs(gross - irs - net)).toBeLessThan(0.005);
+  });
+
   it('current default (pretty) output prints aligned key-value rows', async () => {
     const { stdout, exitCode } = await runCli(['current', '--as-of', '2026-04-19']);
     expect(exitCode).toBe(0);
