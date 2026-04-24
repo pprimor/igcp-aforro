@@ -76,14 +76,14 @@ A cada fim de trimestre `Q`:
 
 1. Resolve-se a **taxa anual** aplicável ao trimestre, com base no `quarterStartDate` (mês de referência da taxa-base) e na **idade contratual** do cohort à data desse início.
 2. Calcula-se a **taxa trimestral** como `taxa_anual / 4`.
-3. Calcula-se o **juro bruto** do trimestre como `saldo × taxa_trimestral`, quantizado a cêntimos com arredondamento bancário.
-4. Calcula-se o **IRS retido** como `juro_bruto × 28%`, quantizado a cêntimos com arredondamento bancário.
-5. O **juro líquido** (`bruto − IRS`) é capitalizado, atualizando o `saldo` e iniciando o trimestre seguinte.
+3. Calcula-se o **juro bruto** do trimestre como `saldo × taxa_trimestral`, em **alta precisão decimal** (sem arredondar a cêntimos).
+4. Calcula-se o **IRS retido** como `juro_bruto × 28%`, também em alta precisão.
+5. O **juro líquido** (`bruto − IRS`) é capitalizado em alta precisão, atualizando o `saldo` e iniciando o trimestre seguinte.
 
-O ciclo está em [`src/core/calculator.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calculator.ts) e usa `big.js` (alias `Big`) para garantir aritmética decimal exata. As somas de juros e o saldo final são reportados como *strings* decimais para que possam atravessar JSON sem perda de precisão.
+O ciclo está em [`src/core/calculator.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calculator.ts) e usa `big.js` (alias `Big`) para garantir aritmética decimal exata. O saldo é mantido em alta precisão durante todas as capitalizações; a quantização a cêntimos (arredondamento bancário) só acontece no momento de serializar os campos para `string` decimal. Esta semântica reproduz exatamente o que o portal **aforro.net** apresenta para certificados em carteira.
 
-:::caution[Nota sobre arredondamentos]
-Esta biblioteca **arredonda a cêntimos a cada capitalização** (saldo cêntimo-quantizado todos os trimestres). Em comparações de longo prazo contra o simulador do IGCP, observámos divergência ao nível dos cêntimos em quantidades elevadas, o que sugere que o IGCP poderá calcular em alta precisão por unidade e arredondar apenas no momento de escalar. Acompanhe o estado desta investigação no [follow-up plan de *rounding semantics*](https://github.com/primor/igcp-aforro/blob/main/.cursor/plans/igcp-aforro_compare_followups_60be90d7.plan.md).
+:::note[Snapshots do schedule]
+As linhas do `schedule` são *snapshots* independentes, cada uma arredondada a cêntimos a partir do mesmo saldo de alta precisão para fins de visualização. Por isso, a identidade `interestNet = interestGross − irsWithheld` em cada linha — bem como o somatório das linhas vs. os totais — pode divergir em até ±1 cêntimo em horizontes longos. Os totais (`currentValueNet`, `totalInterestGross`, `totalIrsWithheld`, `totalInterestNet`) são derivados de uma única passagem de alta precisão e, por isso, são a referência canónica.
 :::
 
 ## Trimestres ancorados ao dia da subscrição
