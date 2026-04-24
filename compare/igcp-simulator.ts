@@ -64,10 +64,10 @@ const DEFAULT_DELAY_MS = 250;
  *
  * IGCP returns values rounded to the cent at our chosen quantity, so the
  * worst-case quantization residual after dividing by {@link COMPARE_UNITS}
- * is `0.005 / COMPARE_UNITS = 5e-6` EUR/unit. Now that our `simulate()`
- * compounds at full precision and rounds only at output, this is the
- * tightest tolerance the comparison can meaningfully enforce — anything
- * larger would be genuine formula drift.
+ * is `0.005 / COMPARE_UNITS = 5e-6` EUR/unit. Now that `simulate()`
+ * follows IGCP's per-unit quote model, rounded to 5 decimals after each
+ * quarterly capitalization, this is the tightest tolerance the comparison
+ * can meaningfully enforce — anything larger would be genuine formula drift.
  */
 const DEFAULT_TOLERANCE_EUR_PER_UNIT = 5e-6;
 
