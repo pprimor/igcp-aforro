@@ -260,7 +260,10 @@ describe('simulate — Série E per-unit quote parity', () => {
       '1.07651',
       '1.08340',
     ];
-    const actualUnitQuotes = ['1.00000', ...(result.schedule ?? []).map((row) => row.unitQuoteAfter)];
+    const actualUnitQuotes = [
+      '1.00000',
+      ...(result.schedule ?? []).map((row) => row.unitQuoteAfter),
+    ];
 
     expect(result.currentUnitQuote).toBe('1.08340');
     expect(result.currentValueNet).toBe('1083.40');
