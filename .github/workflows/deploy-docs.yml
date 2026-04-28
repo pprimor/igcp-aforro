@@ -1,0 +1,98 @@
+name: Deploy docs
+
+# Builds the Astro Starlight docs against a specific release tag (so the
+# typedoc API reference and the bundled rates.json snapshot match what's on
+# npm) and ships the result to Cloudflare Pages at https://igcp-aforro.primor.me.
+#
+# Triggered two ways:
+#   - workflow_call from Release (immediately after a new version is published)
+#   - workflow_dispatch (re-deploy any past tag without bumping the npm version)
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Git tag to deploy (e.g. v2026.428.0)
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to deploy (e.g. v2026.428.0)
+        required: true
+        type: string
+
+concurrency:
+  # Serialize Pages deploys so two runs don't race against the same Cloudflare
+  # project. `cancel-in-progress: false` lets in-flight deploys finish.
+  group: deploy-docs
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy docs + rates.json to Cloudflare Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: cloudflare-pages
+      url: https://igcp-aforro.primor.me
+    steps:
+      - name: Checkout (release tag)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        # Astro >=5 requires Node >=22.12. Library code targets Node >=20 (per
+        # package.json `engines`), but this job only builds the docs site, so
+        # bumping just this job to 22 is the minimal fix.
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build library (needed for typedoc API reference)
+        run: pnpm build
+
+      - name: Rebuild rates.json against the released version
+        # build-rates-json.ts reads VERSION from src/index.ts, which the
+        # release tag already pinned to the published version.
+        run: pnpm build:rates-json
+
+      - name: Install docs dependencies
+        working-directory: docs
+        run: pnpm install --frozen-lockfile
+
+      - name: Build docs site
+        working-directory: docs
+        run: pnpm build
+
+      - name: Stage Pages artifact (docs + rates.json + versioned snapshot)
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          mkdir -p "docs/dist/v/${version}"
+          cp public/rates.json docs/dist/rates.json
+          cp public/rates.json "docs/dist/v/${version}/rates.json"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # `--branch=main` makes this a production deployment (any other
+          # branch name would produce a preview URL). `--commit-dirty=true`
+          # silences the "uncommitted changes" warning since the staging step
+          # above writes rates.json into docs/dist.
+          command: pages deploy docs/dist --project-name=igcp-aforro --branch=main --commit-dirty=true

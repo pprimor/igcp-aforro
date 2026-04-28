@@ -207,64 +207,13 @@ jobs:
             ${PRERELEASE_FLAG}
 
   deploy-docs:
-    name: Deploy docs + rates.json to Cloudflare Pages
+    name: Deploy docs
     needs: release
     if: ${{ !inputs.dryRun }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: cloudflare-pages
-      url: https://igcp-aforro.primor.me
-    steps:
-      - name: Checkout (release tag)
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release.outputs.tag }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install dependencies (root)
-        run: pnpm install --frozen-lockfile
-
-      - name: Build library (needed for typedoc API reference)
-        run: pnpm build
-
-      - name: Rebuild rates.json against the released version
-        # build-rates-json.ts reads VERSION from src/index.ts, which in turn
-        # is sourced from package.json — already bumped by the release job.
-        run: pnpm build:rates-json
-
-      - name: Install docs dependencies
-        working-directory: docs
-        run: pnpm install --frozen-lockfile
-
-      - name: Build docs site
-        working-directory: docs
-        run: pnpm build
-
-      - name: Stage Pages artifact (docs + rates.json + versioned snapshot)
-        env:
-          VERSION: ${{ needs.release.outputs.version }}
-        run: |
-          set -euo pipefail
-          mkdir -p docs/dist/v/${VERSION}
-          cp public/rates.json docs/dist/rates.json
-          cp public/rates.json docs/dist/v/${VERSION}/rates.json
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # `--branch=main` makes this a production deployment (any other
-          # branch name produces a preview URL). `--commit-dirty=true`
-          # silences the "uncommitted changes" warning since the staging
-          # step above writes rates.json into docs/dist.
-          command: pages deploy docs/dist --project-name=igcp-aforro --branch=main --commit-dirty=true
+    # The actual deploy lives in a standalone workflow so it can also be
+    # triggered manually for any past tag (e.g. when only the docs need a
+    # re-deploy and we don't want to bump the npm version).
+    uses: ./.github/workflows/deploy-docs.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}
+    secrets: inherit
