@@ -165,6 +165,12 @@ jobs:
             writeFileSync(path, after);
           EOF
 
+      - name: Reformat bumped files
+        # `pnpm version` rewrites package.json with multi-line arrays, which
+        # Biome's formatter rejects. Run Biome's formatter on the touched
+        # files so prepublishOnly's `biome check` passes during npm publish.
+        run: pnpm exec biome format --write package.json src/index.ts
+
       - name: Commit and tag
         if: ${{ !inputs.dryRun }}
         env:
