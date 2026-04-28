@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Node ≥ 20](https://img.shields.io/badge/node-%E2%89%A520-brightgreen.svg)](https://nodejs.org/)
 [![Types: TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg?logo=typescript&logoColor=white)](./src/index.ts)
-[![Docs](https://img.shields.io/badge/docs-online-8a2be2.svg)](https://pprimor.github.io/igcp-aforro/)
+[![Docs](https://img.shields.io/badge/docs-online-8a2be2.svg)](https://igcp-aforro.primor.me/)
 
 Deterministic, decimal-safe TypeScript library and CLI for simulating Portuguese **IGCP Aforro Série E and Série F** Treasury Certificates. Drop-in for JS/TS apps; ships with a CLI and a static `rates.json` artifact for non-JS consumers.
 
@@ -31,7 +31,7 @@ This package reproduces that math end-to-end, with all monetary fields returned 
 - **Validated inputs** — Zod-checked at the public boundary; the library throws on out-of-window subscriptions, invalid units, or impossible as-of dates.
 - **Cohort-aware rate lookup** — resolve the annual rate that applies to a given subscription on a given quarter, with the base + premium components surfaced for auditability.
 - **CLI included** — `aforro simulate | current | rates | cohort` with stable `--json` output for scripting.
-- **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate (for both Série E and Série F), precomputed and published to GitHub Pages for Python / Java / Excel users.
+- **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate (for both Série E and Série F), precomputed and published with the docs site for Python / Java / Excel users.
 - **Golden-tested** — every IGCP-published monthly base rate since the inaugural June 2023 Série F cohort is asserted in CI; Série E base rates are validated against the IGCP technical sheet's E3+1% formula.
 - **TypeScript-first** — full `.d.ts` typings, ESM + CJS dual bundles, Node ≥ 20.
 
@@ -230,14 +230,14 @@ import type {
 | `listSeries()` | function | Returns the list of series codes the library supports. |
 | `VERSION` | string | Library CalVer (`YYYY.MMDD.PATCH`). |
 
-Full type signatures and TSDoc are generated into the docs site at <https://pprimor.github.io/igcp-aforro/api/>.
+Full type signatures and TSDoc are generated into the docs site at <https://igcp-aforro.primor.me/api/>.
 
 ## Static `rates.json` for non-JS users
 
 Python, Java, Excel, and spreadsheet users can skip the npm package entirely and consume a precomputed JSON snapshot of every monthly base rate and every cohort-anchored annual rate.
 
-- **Latest**: <https://pprimor.github.io/igcp-aforro/rates.json>
-- **Per-release snapshot**: `https://pprimor.github.io/igcp-aforro/v/<calver>/rates.json` (e.g. `v/2026.420.0/rates.json`)
+- **Latest**: <https://igcp-aforro.primor.me/rates.json>
+- **Per-release snapshot**: `https://igcp-aforro.primor.me/v/<calver>/rates.json` (e.g. `v/2026.420.0/rates.json`)
 
 The file is regenerated after every release and after every Euribor / IGCP base-rate refresh PR is merged.
 
@@ -286,7 +286,7 @@ Minimal Python compounder using only `rates.json`:
 import json, urllib.request
 from decimal import Decimal, ROUND_HALF_EVEN
 
-data = json.load(urllib.request.urlopen('https://pprimor.github.io/igcp-aforro/rates.json'))
+data = json.load(urllib.request.urlopen('https://igcp-aforro.primor.me/rates.json'))
 rows = [r for r in data['series']['F']['cohortRates'] if r['subscribed'] == '2024-03']
 
 units = Decimal('1000')
@@ -304,7 +304,7 @@ for r in rows:
 print((units * unit_quote).quantize(Decimal('0.01'), rounding=ROUND_HALF_EVEN))
 ```
 
-The full schema, day-of-month caveat, and field-by-field documentation live at <https://pprimor.github.io/igcp-aforro/rates-json/>.
+The full schema, day-of-month caveat, and field-by-field documentation live at <https://igcp-aforro.primor.me/rates-json/>.
 
 ## Methodology and legal notice
 
@@ -323,7 +323,7 @@ The library reproduces the IGCP technical sheets for **Certificados de Aforro S�
    - **Série E** — subscriptions in `[2017-11-01, 2023-06-01]` (closed to new subscriptions); units in `[100, 250000]`; matures at `subscriptionDate + 10 years`.
    - In both cases `asOfDate` must be on or after `subscriptionDate`. Past maturity, the simulation stops and reports `matured: true`.
 
-The Portuguese-language methodology page maps every rule above to the source file that implements it: <https://pprimor.github.io/igcp-aforro/methodology/>.
+The Portuguese-language methodology page maps every rule above to the source file that implements it: <https://igcp-aforro.primor.me/methodology/>.
 
 ### Legal notice
 

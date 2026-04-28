@@ -4,7 +4,7 @@
  * every series registered in {@link listSeries} (currently Série E and
  * Série F), with one block per series enumerating every published month
  * and every anchored-quarter cohort, then write it to
- * `public/rates.json` (the path GitHub Pages ships from).
+ * `public/rates.json` (the path published with the docs site).
  *
  * The artifact exists so non-JS consumers (Python, Java, Excel,
  * spreadsheets) can use the same numbers the npm library returns

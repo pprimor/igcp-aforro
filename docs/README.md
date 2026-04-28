@@ -1,6 +1,6 @@
 # igcp-aforro docs
 
-[Astro Starlight](https://starlight.astro.build) site for `igcp-aforro`. Deployed to GitHub Pages by the release workflow.
+[Astro Starlight](https://starlight.astro.build) site for `igcp-aforro`. Deployed to Cloudflare Pages by the release workflow.
 
 ## Local development
 
@@ -14,10 +14,10 @@ The dev server runs on [http://localhost:4321](http://localhost:4321). The API r
 
 ## Deploy
 
-GitHub Pages serves the site under a sub-path. Build with `BASE_PATH` set to match the deployed prefix:
+The production site is served from the domain root. Build locally with:
 
 ```bash
-BASE_PATH=/igcp-aforro/ pnpm build
+pnpm build
 ```
 
 The compiled site lands in `docs/dist/`.
