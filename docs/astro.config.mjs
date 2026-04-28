@@ -10,10 +10,8 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const aforroEntry = fileURLToPath(new URL('../src/index.ts', import.meta.url));
 
 export default defineConfig({
-  site: 'https://igcp-aforro.dev',
-  // GitHub Pages serves the site under `/<repo>/` by default; override with
-  // `BASE_PATH=/igcp-aforro/` (or similar) at build time when deploying there.
-  base: process.env.BASE_PATH ?? '/',
+  site: 'https://igcp-aforro.primor.me',
+  base: '/',
   redirects: {
     // `starlight-typedoc` only emits leaf pages (`/api/functions/...`,
     // `/api/interfaces/...`) plus an auto-generated module overview at
@@ -42,7 +40,7 @@ export default defineConfig({
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/primor/igcp-aforro',
+          href: 'https://github.com/pprimor/igcp-aforro',
         },
         {
           icon: 'npm',
@@ -51,7 +49,7 @@ export default defineConfig({
         },
       ],
       editLink: {
-        baseUrl: 'https://github.com/primor/igcp-aforro/edit/main/docs/',
+        baseUrl: 'https://github.com/pprimor/igcp-aforro/edit/main/docs/',
       },
       lastUpdated: true,
       plugins: [
