@@ -1,6 +1,6 @@
 {
   "name": "igcp-aforro",
-  "version": "2026.428.0",
+  "version": "2026.425.0",
   "description": "TypeScript library and CLI for simulating Portuguese IGCP Aforro Treasury Certificates (Série E and Série F): deterministic quarterly compounding with Euribor 3M-derived base rates and permanence-tier premiums.",
   "license": "MIT",
   "author": "Pedro Primor <pedro.primor@pm.me>",
@@ -27,11 +27,7 @@
   "bin": {
     "aforro": "dist/cli.js"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "engines": {
     "node": ">=20"
   },
@@ -69,11 +65,7 @@
     "zod": "^3.23.8"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "@biomejs/biome",
-      "esbuild",
-      "msw"
-    ]
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "msw"]
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
