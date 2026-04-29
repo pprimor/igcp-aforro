@@ -2,14 +2,14 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
 import { describe, expect, it } from 'vitest';
+import { VERSION } from '../src/index.js';
 
 /**
- * End-to-end CLI happy-path tests.
+ * End-to-end CLI contract tests.
  *
  * Each test spawns the real CLI binary via `tsx` (the same loader the
- * `aforro fetch-euribor` subcommand defers to) and asserts on the
- * `--json` output. We invoke the TypeScript entry point directly rather
- * than the built `dist/cli.js`:
+ * `aforro fetch-euribor` subcommand defers to). We invoke the TypeScript
+ * entry point directly rather than the built `dist/cli.js`:
  *
  *   - it removes a `pnpm build` precondition from CI,
  *   - it makes failures point at the source file in stack traces,
@@ -30,6 +30,8 @@ interface CliResult {
   readonly exitCode: number;
 }
 
+type JsonObject = Record<string, unknown>;
+
 async function runCli(args: readonly string[]): Promise<CliResult> {
   const result = await execa(TSX_BIN, [CLI_ENTRY, ...args], {
     cwd: REPO_ROOT,
@@ -42,11 +44,84 @@ async function runCli(args: readonly string[]): Promise<CliResult> {
   };
 }
 
-describe('aforro CLI — happy paths via execa', () => {
+function expectSuccess(result: CliResult): void {
+  expect(result.exitCode).toBe(0);
+  expect(result.stderr).toBe('');
+}
+
+function expectFailure(result: CliResult): void {
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stdout).toBe('');
+  expect(result.stderr).toMatch(/^error: /);
+}
+
+function parseJson<T = unknown>(result: CliResult): T {
+  expectSuccess(result);
+  return JSON.parse(result.stdout) as T;
+}
+
+function linesOf(stdout: string): string[] {
+  return stdout.trimEnd().split('\n');
+}
+
+describe('aforro CLI — global contracts', () => {
+  it('--version prints the exported VERSION string', async () => {
+    const result = await runCli(['--version']);
+
+    expectSuccess(result);
+    expect(result.stdout).toContain(VERSION);
+  });
+
+  it('--help exits cleanly and prints the global usage', async () => {
+    const result = await runCli(['--help']);
+
+    expectSuccess(result);
+    expect(result.stdout).toContain('Usage:');
+    expect(result.stdout).toContain('simulate');
+    expect(result.stdout).toContain('current');
+    expect(result.stdout).toContain('rates');
+    expect(result.stdout).toContain('cohort');
+    expect(result.stdout).toContain('fetch-euribor');
+  });
+
+  it.each([
+    [
+      'simulate',
+      ['--subscribed', '--units', '--as-of', '--schedule', '--irs', '--series', '--json'],
+    ],
+    ['current', ['--series', '--as-of', '--json']],
+    ['rates', ['--series', '--from', '--to', '--json']],
+    ['cohort', ['--subscribed', '--as-of', '--series', '--json']],
+  ] as const)('%s --help includes the command flags', async (command, flags) => {
+    const result = await runCli([command, '--help']);
+
+    expectSuccess(result);
+    for (const flag of flags) {
+      expect(result.stdout).toContain(flag);
+    }
+  });
+
+  it('successful --json commands keep stderr empty and emit parseable JSON', async () => {
+    const result = await runCli(['current', '--as-of', '2026-04-19', '--json']);
+
+    const parsed = parseJson<JsonObject>(result);
+    expect(parsed).toHaveProperty('series', 'F');
+  });
+
+  it('command-handler failures set a non-zero exit code and keep stdout empty', async () => {
+    const result = await runCli(['simulate', '--units', '1000']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--subscribed is required');
+  });
+});
+
+describe('aforro CLI — JSON contracts', () => {
   it('current --json prints the IGCP-published rate for the as-of month', async () => {
-    const { stdout, exitCode } = await runCli(['current', '--as-of', '2026-04-19', '--json']);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout);
+    const parsed = parseJson<JsonObject>(
+      await runCli(['current', '--as-of', '2026-04-19', '--json']),
+    );
+
     expect(parsed).toMatchObject({
       series: 'F',
       month: '2026-04',
@@ -55,32 +130,43 @@ describe('aforro CLI — happy paths via execa', () => {
     });
   });
 
+  it('current --series E --json prints the Série E rate for the as-of month', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli(['current', '--series', 'E', '--as-of', '2026-04-19', '--json']),
+    );
+
+    expect(parsed).toMatchObject({
+      series: 'E',
+      month: '2026-04',
+      fixingDate: '2026-03-27',
+      basePct: '3.138',
+    });
+  });
+
   it('rates --from --to --json returns one row per month in range', async () => {
-    const { stdout, exitCode } = await runCli([
-      'rates',
-      '--from',
-      '2025-04',
-      '--to',
-      '2025-07',
-      '--json',
-    ]);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout) as ReadonlyArray<{ month: string; basePct: string }>;
+    const parsed = parseJson<ReadonlyArray<{ month: string; basePct: string }>>(
+      await runCli(['rates', '--from', '2025-04', '--to', '2025-07', '--json']),
+    );
+
     expect(parsed.map((row) => row.month)).toEqual(['2025-04', '2025-05', '2025-06', '2025-07']);
     expect(parsed[0]?.basePct).toBe('2.415');
   });
 
+  it('rates --series E --json returns Série E rows in range', async () => {
+    const parsed = parseJson<ReadonlyArray<{ series: string; month: string; basePct: string }>>(
+      await runCli(['rates', '--series', 'E', '--from', '2025-04', '--to', '2025-05', '--json']),
+    );
+
+    expect(parsed).toHaveLength(2);
+    expect(parsed.map((row) => row.series)).toEqual(['E', 'E']);
+    expect(parsed.map((row) => row.basePct)).toEqual(['3.415', '3.216']);
+  });
+
   it('cohort --json resolves the annual rate components', async () => {
-    const { stdout, exitCode } = await runCli([
-      'cohort',
-      '--subscribed',
-      '2024-03-15',
-      '--as-of',
-      '2026-03-19',
-      '--json',
-    ]);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout);
+    const parsed = parseJson<JsonObject>(
+      await runCli(['cohort', '--subscribed', '2024-03-15', '--as-of', '2026-03-19', '--json']),
+    );
+
     expect(parsed).toMatchObject({
       series: 'F',
       subscriptionDate: '2024-03-15',
@@ -91,32 +177,50 @@ describe('aforro CLI — happy paths via execa', () => {
   });
 
   it('cohort accepts the YYYY-MM shorthand for --subscribed and --as-of', async () => {
-    const { stdout, exitCode } = await runCli([
-      'cohort',
-      '--subscribed',
-      '2024-03',
-      '--as-of',
-      '2026-04',
-      '--json',
-    ]);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout);
+    const parsed = parseJson<JsonObject>(
+      await runCli(['cohort', '--subscribed', '2024-03', '--as-of', '2026-04', '--json']),
+    );
+
     expect(parsed.subscriptionDate).toBe('2024-03-01');
+    expect(parsed.asOfDate).toBe('2026-04-01');
+  });
+
+  it('cohort --series E --json resolves a valid Série E cohort', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'cohort',
+        '--series',
+        'E',
+        '--subscribed',
+        '2018-01-15',
+        '--as-of',
+        '2020-02-15',
+        '--json',
+      ]),
+    );
+
+    expect(parsed).toMatchObject({
+      series: 'E',
+      subscriptionDate: '2018-01-15',
+      yearsSinceSubscription: 2,
+      premiumTier: { fromYear: 2, toYear: 5, ratePct: '0.50' },
+    });
   });
 
   it('simulate --json mirrors the calculator output', async () => {
-    const { stdout, exitCode } = await runCli([
-      'simulate',
-      '--subscribed',
-      '2024-03-15',
-      '--units',
-      '1000',
-      '--as-of',
-      '2024-09-15',
-      '--json',
-    ]);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout);
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'simulate',
+        '--subscribed',
+        '2024-03-15',
+        '--units',
+        '1000',
+        '--as-of',
+        '2024-09-15',
+        '--json',
+      ]),
+    );
+
     expect(parsed).toMatchObject({
       series: 'F',
       subscriptionDate: '2024-03-15',
@@ -130,81 +234,61 @@ describe('aforro CLI — happy paths via execa', () => {
   });
 
   it('simulate --schedule populates the per-quarter breakdown', async () => {
-    const { stdout, exitCode } = await runCli([
-      'simulate',
-      '--subscribed',
-      '2024-03-15',
-      '--units',
-      '5000',
-      '--as-of',
-      '2025-06-15',
-      '--schedule',
-      '--json',
-    ]);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout) as { schedule?: ReadonlyArray<unknown> };
+    const parsed = parseJson<{ schedule?: ReadonlyArray<unknown> }>(
+      await runCli([
+        'simulate',
+        '--subscribed',
+        '2024-03-15',
+        '--units',
+        '5000',
+        '--as-of',
+        '2025-06-15',
+        '--schedule',
+        '--json',
+      ]),
+    );
+
     expect(parsed.schedule).toBeDefined();
-    expect(parsed.schedule?.length).toBe(5);
+    expect(parsed.schedule).toHaveLength(5);
   });
 
   it('simulate --irs overrides the default IRS rate', async () => {
-    const { stdout, exitCode } = await runCli([
-      'simulate',
-      '--subscribed',
-      '2024-03-15',
-      '--units',
-      '1000',
-      '--as-of',
-      '2024-09-15',
-      '--irs',
-      '0',
-      '--json',
-    ]);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout);
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'simulate',
+        '--subscribed',
+        '2024-03-15',
+        '--units',
+        '1000',
+        '--as-of',
+        '2024-09-15',
+        '--irs',
+        '0',
+        '--json',
+      ]),
+    );
+
     expect(parsed.irsRate).toBe('0.0000');
     expect(parsed.totalIrsWithheld).toBe('0.00');
     expect(parsed.totalInterestNet).toBe(parsed.totalInterestGross);
   });
 
-  it('current --series E --json prints the Série E rate (E3 + 1pp) for the as-of month', async () => {
-    const { stdout, exitCode } = await runCli([
-      'current',
-      '--series',
-      'E',
-      '--as-of',
-      '2026-04-19',
-      '--json',
-    ]);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout);
-    expect(parsed).toMatchObject({
-      series: 'E',
-      month: '2026-04',
-      fixingDate: '2026-03-27',
-      basePct: '3.138',
-    });
-  });
-
   it('simulate --series E --json runs against a Série E cohort end-to-end', async () => {
-    // 2018-01-15 sits inside Série E's subscription window (2017-11-01 →
-    // 2023-06-01) and asOf 2018-04-15 closes exactly one quarter — the
-    // smallest sample that still exercises the Série E base-rate +
-    // capitalization path through the CLI.
-    const { stdout, exitCode } = await runCli([
-      'simulate',
-      '--series',
-      'E',
-      '--subscribed',
-      '2018-01-15',
-      '--units',
-      '1000',
-      '--as-of',
-      '2018-04-15',
-      '--json',
-    ]);
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(stdout);
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'simulate',
+        '--series',
+        'E',
+        '--subscribed',
+        '2018-01-15',
+        '--units',
+        '1000',
+        '--as-of',
+        '2018-04-15',
+        '--json',
+      ]),
+    );
+
     expect(parsed).toMatchObject({
       series: 'E',
       subscriptionDate: '2018-01-15',
@@ -213,62 +297,287 @@ describe('aforro CLI — happy paths via execa', () => {
       maturityDate: '2028-01-15',
       matured: false,
     });
-    // Net interest, gross interest, and IRS withholding must reconcile at
-    // the cents level (gross − IRS = net) regardless of the underlying
-    // base rate.
     const gross = Number(parsed.totalInterestGross);
     const irs = Number(parsed.totalIrsWithheld);
     const net = Number(parsed.totalInterestNet);
     expect(Math.abs(gross - irs - net)).toBeLessThan(0.005);
   });
-
-  it('current default (pretty) output prints aligned key-value rows', async () => {
-    const { stdout, exitCode } = await runCli(['current', '--as-of', '2026-04-19']);
-    expect(exitCode).toBe(0);
-    const lines = stdout.trimEnd().split('\n');
-    expect(lines).toHaveLength(4);
-    // Each line is `<key>  <value>` (two-space gap), with the key column
-    // padded to the widest key (`fixingDate` = 10 chars).
-    for (const line of lines) {
-      expect(line).toMatch(/^\S.*\s{2,}\S/);
-    }
-  });
-
-  it('--help exits cleanly and prints the global usage', async () => {
-    const { stdout, exitCode } = await runCli(['--help']);
-    expect(exitCode).toBe(0);
-    expect(stdout).toContain('aforro');
-    expect(stdout).toMatch(/simulate/);
-    expect(stdout).toMatch(/current/);
-    expect(stdout).toMatch(/rates/);
-    expect(stdout).toMatch(/cohort/);
-    expect(stdout).toMatch(/fetch-euribor/);
-  });
 });
 
-describe('aforro CLI — error paths', () => {
-  it('simulate without --subscribed prints a single-line error and exits non-zero', async () => {
-    const { stderr, exitCode } = await runCli(['simulate', '--units', '1000']);
-    expect(exitCode).not.toBe(0);
-    expect(stderr).toMatch(/error: --subscribed is required/);
+describe('aforro CLI — pretty output contracts', () => {
+  it('current prints the exact pretty key set', async () => {
+    const result = await runCli(['current', '--as-of', '2026-04-19']);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines.map((line) => line.split(/\s{2,}/)[0])).toEqual([
+      'series',
+      'month',
+      'fixingDate',
+      'basePct',
+    ]);
+    expect(lines).toContain('basePct     2.138');
   });
 
-  it('simulate with units below the minimum surfaces the Zod issue', async () => {
-    const { stderr, exitCode } = await runCli([
+  it('rates prints a table with headers, separator, and one row per month', async () => {
+    const result = await runCli(['rates', '--from', '2025-04', '--to', '2025-07']);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines[0]).toMatch(/^series\s{2,}month\s{2,}fixingDate\s{2,}basePct$/);
+    expect(lines[1]).toMatch(/^-{6}\s{2,}-{7}\s{2,}-{10}\s{2,}-{7}$/);
+    expect(lines.slice(2)).toHaveLength(4);
+    expect(lines[2]).toContain('F       2025-04  2025-03-27  2.415');
+  });
+
+  it('cohort prints key-value output with formatted premium tier', async () => {
+    const result = await runCli(['cohort', '--subscribed', '2024-03', '--as-of', '2026-04']);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines.map((line) => line.split(/\s{2,}/)[0])).toEqual([
+      'series',
+      'subscriptionDate',
+      'asOfDate',
+      'quarterStartDate',
+      'quarterEndDate',
+      'quarterIndex',
+      'yearsSinceSubscription',
+      'baseRatePct',
+      'premiumTier',
+      'annualRatePct',
+    ]);
+    expect(lines).toContain('premiumTier             y2-5 (+0.25%)');
+  });
+
+  it('simulate prints the summary key set without a schedule section by default', async () => {
+    const result = await runCli([
       'simulate',
       '--subscribed',
       '2024-03-15',
       '--units',
-      '50',
+      '1000',
+      '--as-of',
+      '2024-09-15',
     ]);
-    expect(exitCode).not.toBe(0);
-    expect(stderr).toMatch(/error: invalid input/);
-    expect(stderr).toMatch(/units: units must be >= 100/);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines.map((line) => line.split(/\s{2,}/)[0])).toEqual([
+      'series',
+      'subscriptionDate',
+      'asOfDate',
+      'units',
+      'irsRate',
+      'currentValueGross',
+      'currentValueNet',
+      'totalInterestGross',
+      'totalInterestNet',
+      'totalIrsWithheld',
+      'accruedSinceLastCapitalization',
+      'matured',
+      'maturityDate',
+    ]);
+    expect(lines).toContain('currentValueNet                 1009.02');
+    expect(lines).not.toContain('schedule');
   });
 
-  it('rates without --from and --to prints a missing-flag error', async () => {
-    const { stderr, exitCode } = await runCli(['rates']);
-    expect(exitCode).not.toBe(0);
-    expect(stderr).toMatch(/error: --from is required/);
+  it('simulate --schedule prints a blank-line schedule table section', async () => {
+    const result = await runCli([
+      'simulate',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--as-of',
+      '2024-09-15',
+      '--schedule',
+    ]);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    const scheduleIndex = lines.indexOf('schedule');
+    expect(scheduleIndex).toBeGreaterThan(0);
+    expect(lines[scheduleIndex - 1]).toBe('');
+    expect(lines[scheduleIndex + 1]).toMatch(
+      /^quarterEndDate\s{2,}annualRate\s{2,}quarterlyRate\s{2,}interestGross\s{2,}irsWithheld\s{2,}interestNet\s{2,}balanceAfter\s{2,}tier\s*$/,
+    );
+    expect(lines.slice(scheduleIndex + 3)).toHaveLength(2);
+    expect(lines[scheduleIndex + 3]).toContain('2024-06-15');
+  });
+});
+
+describe('aforro CLI — validation contracts', () => {
+  it('current rejects an invalid --series value', async () => {
+    const result = await runCli(['current', '--series', 'X', '--as-of', '2026-04-19']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain("series: Invalid enum value. Expected 'E' | 'F', received 'X'");
+  });
+
+  it('current rejects an invalid --as-of date', async () => {
+    const result = await runCli(['current', '--as-of', '2026-4-19']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('asOfDate: Expected date in YYYY-MM-DD format');
+  });
+
+  it('rates requires --from before checking --to', async () => {
+    const result = await runCli(['rates']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--from is required');
+  });
+
+  it('rates requires --to when --from is present', async () => {
+    const result = await runCli(['rates', '--from', '2025-04']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--to is required');
+  });
+
+  it('rates rejects an invalid --from month format', async () => {
+    const result = await runCli(['rates', '--from', '2025-4', '--to', '2025-07']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('fromMonth: Expected month in YYYY-MM format');
+  });
+
+  it('rates rejects --from after --to', async () => {
+    const result = await runCli(['rates', '--from', '2025-07', '--to', '2025-04']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('toMonth: fromMonth must be on or before toMonth');
+  });
+
+  it('cohort requires --subscribed', async () => {
+    const result = await runCli(['cohort', '--as-of', '2026-04']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--subscribed is required');
+  });
+
+  it('cohort rejects an invalid --subscribed shorthand', async () => {
+    const result = await runCli(['cohort', '--subscribed', '2024/03', '--as-of', '2026-04']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--subscribed must be YYYY-MM or YYYY-MM-DD');
+  });
+
+  it('cohort rejects an invalid --as-of shorthand', async () => {
+    const result = await runCli(['cohort', '--subscribed', '2024-03', '--as-of', '2026/04']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--as-of must be YYYY-MM or YYYY-MM-DD');
+  });
+
+  it('cohort rejects out-of-window Série E subscriptions', async () => {
+    const result = await runCli([
+      'cohort',
+      '--series',
+      'E',
+      '--subscribed',
+      '2024-03',
+      '--as-of',
+      '2024-04',
+    ]);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('subscriptionDate must be on or before 2023-06-01');
+  });
+
+  it('simulate requires --units when --subscribed is present', async () => {
+    const result = await runCli(['simulate', '--subscribed', '2024-03-15']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--units is required');
+  });
+
+  it('simulate rejects non-finite units', async () => {
+    const result = await runCli(['simulate', '--subscribed', '2024-03-15', '--units', 'nope']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--units must be a finite number');
+  });
+
+  it('simulate rejects non-integer units', async () => {
+    const result = await runCli(['simulate', '--subscribed', '2024-03-15', '--units', '100.5']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('units: units must be an integer');
+  });
+
+  it('simulate rejects units below the minimum', async () => {
+    const result = await runCli(['simulate', '--subscribed', '2024-03-15', '--units', '50']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('units: units must be >= 100');
+  });
+
+  it('simulate rejects units above the maximum', async () => {
+    const result = await runCli(['simulate', '--subscribed', '2024-03-15', '--units', '100001']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('units: units must be <= 100,000');
+  });
+
+  it('simulate rejects invalid --irs values', async () => {
+    const result = await runCli([
+      'simulate',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--irs',
+      '1.5',
+    ]);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('irsRate: irsRate must be <= 1');
+  });
+
+  it('simulate rejects --as-of before the subscription date', async () => {
+    const result = await runCli([
+      'simulate',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--as-of',
+      '2024-03-14',
+    ]);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('asOfDate: asOfDate must be on or after subscriptionDate');
+  });
+
+  it('simulate reports matured cohorts as successful output', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'simulate',
+        '--subscribed',
+        '2024-03-15',
+        '--units',
+        '1000',
+        '--as-of',
+        '2039-03-15',
+        '--json',
+      ]),
+    );
+
+    expect(parsed).toMatchObject({
+      matured: true,
+      maturityDate: '2039-03-15',
+    });
+  });
+});
+
+describe('aforro CLI — fetch-euribor scope', () => {
+  it('fetch-euribor --help exposes forwarding options without running the network/file-writing script', async () => {
+    const result = await runCli(['fetch-euribor', '--help']);
+
+    expectSuccess(result);
+    expect(result.stdout).toContain('--mode <mode>');
+    expect(result.stdout).toContain('seed | incremental | range');
   });
 });
