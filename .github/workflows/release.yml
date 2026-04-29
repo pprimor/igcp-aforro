@@ -211,9 +211,9 @@ jobs:
     needs: release
     if: ${{ !inputs.dryRun }}
     # The actual deploy lives in a standalone workflow so it can also be
-    # triggered manually for any past tag (e.g. when only the docs need a
-    # re-deploy and we don't want to bump the npm version).
+    # triggered manually for any branch, SHA, or past tag (e.g. when only
+    # the docs need a deploy and we don't want to bump the npm version).
     uses: ./.github/workflows/deploy-docs.yml
     with:
-      tag: ${{ needs.release.outputs.tag }}
+      ref: ${{ needs.release.outputs.tag }}
     secrets: inherit

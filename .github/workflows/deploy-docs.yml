@@ -1,25 +1,26 @@
 name: Deploy docs
 
-# Builds the Astro Starlight docs against a specific release tag (so the
-# typedoc API reference and the bundled rates.json snapshot match what's on
-# npm) and ships the result to Cloudflare Pages at https://igcp-aforro.primor.me.
+# Builds the Astro Starlight docs against a specific git ref and ships the
+# result to Cloudflare Pages at https://igcp-aforro.primor.me. Release-tag
+# deploys also publish a versioned rates.json snapshot.
 #
 # Triggered two ways:
 #   - workflow_call from Release (immediately after a new version is published)
-#   - workflow_dispatch (re-deploy any past tag without bumping the npm version)
+#   - workflow_dispatch (deploy any branch, SHA, or past tag without publishing npm)
 
 on:
   workflow_call:
     inputs:
-      tag:
-        description: Git tag to deploy (e.g. v2026.428.0)
+      ref:
+        description: Git ref to deploy (e.g. main, a commit SHA, or v2026.428.0)
         required: true
         type: string
   workflow_dispatch:
     inputs:
-      tag:
-        description: Git tag to deploy (e.g. v2026.428.0)
+      ref:
+        description: Git ref to deploy (e.g. main, a commit SHA, or v2026.428.0)
         required: true
+        default: main
         type: string
 
 concurrency:
@@ -44,10 +45,10 @@ jobs:
       # Opt in to the Node 24 runner behavior early so the workflow stays warning-free.
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - name: Checkout (release tag)
+      - name: Checkout deploy ref
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4.4.0
@@ -67,9 +68,9 @@ jobs:
       - name: Build library (needed for typedoc API reference)
         run: pnpm build
 
-      - name: Rebuild rates.json against the released version
+      - name: Rebuild rates.json against deploy ref
         # build-rates-json.ts reads VERSION from src/index.ts, which the
-        # release tag already pinned to the published version.
+        # release workflow pins before calling this workflow for tags.
         run: pnpm build:rates-json
 
       - name: Install docs dependencies
@@ -80,15 +81,17 @@ jobs:
         working-directory: docs
         run: pnpm build
 
-      - name: Stage Pages artifact (docs + rates.json + versioned snapshot)
+      - name: Stage Pages artifact (docs + rates.json)
         env:
-          TAG: ${{ inputs.tag }}
+          DEPLOY_REF: ${{ inputs.ref }}
         run: |
           set -euo pipefail
-          version="${TAG#v}"
-          mkdir -p "docs/dist/v/${version}"
           cp public/rates.json docs/dist/rates.json
-          cp public/rates.json "docs/dist/v/${version}/rates.json"
+          if [[ "${DEPLOY_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-.+)?$ ]]; then
+            version="${DEPLOY_REF#v}"
+            mkdir -p "docs/dist/v/${version}"
+            cp public/rates.json "docs/dist/v/${version}/rates.json"
+          fi
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
