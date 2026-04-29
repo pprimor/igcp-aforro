@@ -353,11 +353,9 @@ pnpm fetch:euribor
 pnpm fetch:igcp-base-rates
 ```
 
-Run the comparison suite against IGCP's public simulator:
-
-```bash
-pnpm compare:igcp
-```
+Maintainers can run the live IGCP parity harness for targeted smoke checks or a
+full local sweep; see the compare runbook in [`CONTRIBUTING.md`](./CONTRIBUTING.md)
+for examples and failure triage.
 
 ## License
 

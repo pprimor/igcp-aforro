@@ -91,6 +91,58 @@ Style expectations:
   public simulator. This command depends on the live IGCP endpoint, so it is a
   manual confidence check rather than a normal PR requirement.
 
+### Live IGCP Compare Runbook
+
+Maintainers use `pnpm compare:igcp` when calculator, rate, data, or methodology
+changes need extra parity confidence against IGCP's public simulator. It is also
+useful before releases or when investigating suspected parity drift. Prefer a
+small targeted smoke run first so local development does not hit IGCP's live
+endpoint more than needed.
+
+```bash
+# Fast Série F smoke across a few 2024 cohorts.
+pnpm compare:igcp -- --series F --filter '^F:2024-' --limit 3 --verbose
+
+# Focused Série E smoke for one subscription month.
+pnpm compare:igcp -- --series E --filter '^E:2023-03' --verbose
+
+# Full local sweep across both supported series.
+pnpm compare:igcp -- --verbose
+
+# Machine-readable report outside the repository.
+pnpm compare:igcp -- --json --out /tmp/igcp-compare.json
+```
+
+Useful flags:
+
+- `--series E|F|both` narrows the scenario matrix; the default is `both`.
+- `--filter <regex>` keeps scenario IDs matching the regex, such as
+  `^F:2024-`.
+- `--limit <n>` caps the run after filtering.
+- `--verbose` prints PASS rows as well as FAIL and ERROR rows.
+- `--delay <ms>` changes the pause between IGCP requests; keep a non-zero delay
+  for broad sweeps.
+- `--tolerance <eur-per-unit>` adjusts the maximum absolute per-unit EUR diff
+  that still counts as PASS.
+- `--json` emits the report JSON to stdout instead of the table.
+- `--out <file>` also writes a JSON report to a file. Prefer `/tmp` or another
+  disposable path unless the repository later adds an ignored report directory.
+
+Failure triage:
+
+- Rerun the smallest matching case with `--limit 1 --verbose` so the failing
+  scenario and error details are easy to inspect.
+- Treat `ERROR` rows, HTTP failures, empty arrays, or non-array payload messages
+  as endpoint or transport problems first. Check IGCP availability, whether the
+  simulator endpoint or payload shape changed, and whether the scenario is asking
+  for a month IGCP no longer serves.
+- Treat `FAIL` rows with numeric per-unit diffs as possible formula or data drift.
+  Compare the scenario against local `simulate()` output, recent Euribor or IGCP
+  fixture changes, and the specific methodology rule touched by the change.
+- Remember that `pnpm test` is deterministic and should remain the normal PR
+  signal. `pnpm compare:igcp` is live, externally dependent, and its failures are
+  investigation input rather than automatic proof of a local regression.
+
 ## Docs Workflow
 
 The docs site lives in [`docs`](./docs). See [`docs/README.md`](./docs/README.md)
