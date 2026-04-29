@@ -1,4 +1,11 @@
-import { type SimulateInput, type SimulateResult, simulate } from 'igcp-aforro';
+import {
+  type SeriesCode,
+  type SimulateInput,
+  type SimulateResult,
+  getSeries,
+  listSeries,
+  simulate,
+} from 'igcp-aforro';
 import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
 import {
   daysBetween,
@@ -10,10 +17,11 @@ import {
   todayIsoUtc,
 } from './format';
 
-const SERIES_F_OPEN_DATE = '2023-06-01';
 const DEBOUNCE_MS = 50;
+const SERIES_OPTIONS = listSeries();
 
 const INITIAL_FORM: FormState = {
+  series: 'F',
   subscriptionDate: '2024-03-15',
   units: '1000',
   asOfDate: todayIsoUtc(),
@@ -25,6 +33,7 @@ type FieldErrors = Record<string, string | undefined>;
 type SnippetMode = 'ts' | 'cli' | 'json';
 
 interface FormState {
+  series: SeriesCode;
   subscriptionDate: string;
   units: string;
   asOfDate: string;
@@ -41,7 +50,7 @@ interface SimState {
 function buildInput(form: FormState): SimulateInput {
   const units = Number(form.units);
   const input: SimulateInput = {
-    series: 'F',
+    series: form.series,
     subscriptionDate: form.subscriptionDate,
     units: Number.isFinite(units) ? units : Number.NaN,
     asOfDate: form.asOfDate,
@@ -91,7 +100,7 @@ function buildTsSnippet(form: FormState): string {
     "import { simulate } from 'igcp-aforro';",
     '',
     'const result = simulate({',
-    "  series: 'F',",
+    `  series: '${form.series}',`,
     `  subscriptionDate: '${form.subscriptionDate}',`,
     `  units: ${form.units},`,
     `  asOfDate: '${form.asOfDate}',`,
@@ -109,6 +118,7 @@ function buildTsSnippet(form: FormState): string {
 function buildCliSnippet(form: FormState): string {
   const parts = [
     'aforro simulate',
+    `--series ${form.series}`,
     `--subscribed ${form.subscriptionDate}`,
     `--units ${form.units}`,
     `--as-of ${form.asOfDate}`,
@@ -140,6 +150,7 @@ export default function Playground() {
   const debounceRef = useRef<number | null>(null);
 
   const ids = {
+    series: useId(),
     subscribed: useId(),
     units: useId(),
     asOf: useId(),
@@ -171,6 +182,7 @@ export default function Playground() {
 
   const reset = () => setForm({ ...INITIAL_FORM, asOfDate: todayIsoUtc() });
   const setAsOfToday = () => update('asOfDate', todayIsoUtc());
+  const selectedSeries = useMemo(() => getSeries(form.series), [form.series]);
 
   const snippet = useMemo(() => {
     switch (snippetMode) {
@@ -194,6 +206,7 @@ export default function Playground() {
   };
 
   const { result, fieldErrors, generalError } = sim;
+  const resultSeriesName = result ? getSeries(result.series).name : selectedSeries.name;
   const irsRateNum = result ? Number(result.irsRate) : 0;
   const accruedGross = result ? Number(result.accruedSinceLastCapitalization) : 0;
   const hasAccrued = Number.isFinite(accruedGross) && accruedGross > 0;
@@ -201,7 +214,23 @@ export default function Playground() {
     ? projectNet(result.accruedSinceLastCapitalization, irsRateNum)
     : '0.00';
 
-  const irsPlaceholder = result ? result.irsRate : '0.28';
+  const irsPlaceholder = result ? result.irsRate : selectedSeries.defaultIrsRate;
+  const subscriptionDateHelpId = `${ids.subscribed}-help`;
+  const subscriptionDateErrorId = `${ids.subscribed}-err`;
+  const subscriptionDateDescription = [
+    subscriptionDateHelpId,
+    fieldErrors.subscriptionDate ? subscriptionDateErrorId : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const unitsHelpId = `${ids.units}-help`;
+  const unitsErrorId = `${ids.units}-err`;
+  const unitsDescription = [unitsHelpId, fieldErrors.units ? unitsErrorId : '']
+    .filter(Boolean)
+    .join(' ');
+  const unitsRangeLabel = `${selectedSeries.minUnits.toLocaleString(
+    'en-US',
+  )}-${selectedSeries.maxUnits.toLocaleString('en-US')}`;
 
   const maturityRemaining = useMemo(() => {
     if (!result) return null;
@@ -226,17 +255,38 @@ export default function Playground() {
 
       <form class="aforro-pg-form" onSubmit={(e) => e.preventDefault()}>
         <div class="aforro-pg-field">
+          <label for={ids.series}>Series</label>
+          <select
+            id={ids.series}
+            value={form.series}
+            onInput={(e) => update('series', (e.target as HTMLSelectElement).value as SeriesCode)}
+          >
+            {SERIES_OPTIONS.map((series) => (
+              <option key={series.code} value={series.code}>
+                {series.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div class="aforro-pg-field">
           <label for={ids.subscribed}>Subscription date</label>
           <input
             id={ids.subscribed}
             type="date"
             value={form.subscriptionDate}
-            min={SERIES_F_OPEN_DATE}
+            min={selectedSeries.subscriptionStartDate}
+            max={selectedSeries.subscriptionEndDate}
             aria-invalid={fieldErrors.subscriptionDate ? 'true' : undefined}
-            aria-describedby={fieldErrors.subscriptionDate ? `${ids.subscribed}-err` : undefined}
+            aria-describedby={subscriptionDateDescription}
             onInput={(e) => update('subscriptionDate', (e.target as HTMLInputElement).value)}
           />
-          <FieldError id={`${ids.subscribed}-err`} message={fieldErrors.subscriptionDate} />
+          <p id={subscriptionDateHelpId} class="aforro-pg-help">
+            {selectedSeries.subscriptionEndDate
+              ? `${selectedSeries.name} subscriptions: ${selectedSeries.subscriptionStartDate} to ${selectedSeries.subscriptionEndDate}.`
+              : `${selectedSeries.name} subscriptions opened on ${selectedSeries.subscriptionStartDate}.`}
+          </p>
+          <FieldError id={subscriptionDateErrorId} message={fieldErrors.subscriptionDate} />
         </div>
 
         <div class="aforro-pg-field">
@@ -245,15 +295,18 @@ export default function Playground() {
             id={ids.units}
             type="number"
             value={form.units}
-            min={100}
-            max={100000}
+            min={selectedSeries.minUnits}
+            max={selectedSeries.maxUnits}
             step={1}
             inputMode="numeric"
             aria-invalid={fieldErrors.units ? 'true' : undefined}
-            aria-describedby={fieldErrors.units ? `${ids.units}-err` : undefined}
+            aria-describedby={unitsDescription}
             onInput={(e) => update('units', (e.target as HTMLInputElement).value)}
           />
-          <FieldError id={`${ids.units}-err`} message={fieldErrors.units} />
+          <p id={unitsHelpId} class="aforro-pg-help">
+            {selectedSeries.name} accepts {unitsRangeLabel} units.
+          </p>
+          <FieldError id={unitsErrorId} message={fieldErrors.units} />
         </div>
 
         <div class="aforro-pg-field">
@@ -326,7 +379,7 @@ export default function Playground() {
             <header class="aforro-pg-card-head">
               <h3 id={ids.summaryHeading}>Summary</h3>
               <div class="aforro-pg-meta">
-                <span class="aforro-pg-badge">Série F</span>
+                <span class="aforro-pg-badge">{resultSeriesName}</span>
                 {elapsedSinceSub && (
                   <span class="aforro-pg-meta-item">
                     <span class="aforro-pg-meta-label">Elapsed</span> {elapsedSinceSub}
@@ -525,7 +578,8 @@ const STYLES = `
   gap: 0.5rem;
 }
 .aforro-pg-field input[type='date'],
-.aforro-pg-field input[type='number'] {
+.aforro-pg-field input[type='number'],
+.aforro-pg-field select {
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--sl-color-hairline, var(--sl-color-gray-5));
   border-radius: 0.35rem;
@@ -534,6 +588,10 @@ const STYLES = `
   font: inherit;
 }
 .aforro-pg-field input:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 1px;
+}
+.aforro-pg-field select:focus-visible {
   outline: 2px solid var(--sl-color-accent);
   outline-offset: 1px;
 }
@@ -575,6 +633,11 @@ const STYLES = `
   margin: 0;
   color: var(--sl-color-red, #d33);
   font-size: 0.8rem;
+}
+.aforro-pg-help {
+  margin: 0;
+  font-size: 0.78rem;
+  opacity: 0.72;
 }
 .aforro-pg-results {
   display: flex;
