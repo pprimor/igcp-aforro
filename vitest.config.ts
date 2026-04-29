@@ -9,8 +9,14 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
-      include: ['src/**/*.ts'],
+      include: ['src/core/**/*.ts'],
       exclude: ['src/**/*.test.ts', 'src/cli.ts', 'src/cli/**', 'src/types/**'],
+      thresholds: {
+        lines: 90,
+        statements: 90,
+        functions: 85,
+        branches: 80,
+      },
     },
     testTimeout: 10_000,
   },
