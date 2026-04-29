@@ -1,5 +1,5 @@
 ---
-title: Metodologia (PT)
+title: Metodologia
 description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Série E e Série F, com referências às fichas técnicas do IGCP.
 ---
 
@@ -67,7 +67,7 @@ A correção contra os valores publicados pelo IGCP é assegurada pelos *golden 
 | 2 a 5 | +0,50% |
 | 6 a 10 | +1,00% |
 
-Em ambas as séries, o ano 1 é representado explicitamente como uma faixa de prémio zero para que cada linha do *schedule* possa transportar sempre um `premiumTier` não-nulo. As faixas estão definidas em [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts).
+Em ambas as séries, o ano 1 é representado explicitamente como uma faixa de prémio zero para que cada linha do calendário (`schedule`) possa transportar sempre um `premiumTier` não-nulo. As faixas estão definidas em [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts).
 
 A função `premiumTierForYear(series, contractYear)` resolve a faixa aplicável; `getRateForCohort()` compõe a taxa anual (`base + prémio`).
 
@@ -75,7 +75,7 @@ A função `premiumTierForYear(series, contractYear)` resolve a faixa aplicável
 
 A cada fim de trimestre `Q`, `simulate()` mantém a posição líquida como uma **cotação por unidade**, não como um saldo em euros de alta precisão:
 
-1. Resolve-se a **taxa anual** aplicável ao trimestre, com base no `quarterStartDate` (mês de referência da taxa-base) e na **idade contratual** do cohort à data desse início.
+1. Resolve-se a **taxa anual** aplicável ao trimestre, com base no `quarterStartDate` (mês de referência da taxa-base) e na **idade contratual** do grupo de subscrição à data desse início.
 2. Calcula-se a **taxa trimestral** como `taxa_anual / 4`.
 3. Calcula-se o juro bruto por unidade como `cotacao_unidade × taxa_trimestral`.
 4. Aplica-se a retenção de IRS ao juro por unidade para obter o juro líquido por unidade.
@@ -97,9 +97,9 @@ irsWithheld = round(interestGross × irsRate, 2)
 interestNet = interestGross - irsWithheld
 ```
 
-Isto reflete a retenção efetiva em euros e mantém `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet` reconciliáveis com o `schedule`.
+Isto reflete a retenção efetiva em euros e mantém `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet` reconciliáveis com o calendário (`schedule`).
 
-:::note[Snapshots do schedule]
+:::note[Snapshots do calendário]
 Cada linha do `schedule` expõe `unitQuoteAfter`, a cotação líquida depois dessa capitalização, já arredondada a 5 casas decimais. `balanceAfter` é `round(units × unitQuoteAfter, 2)`. Como `interestGross`, `irsWithheld` e `interestNet` são também arredondados a cêntimos no próprio trimestre, o somatório das linhas reconcilia exatamente com os totais `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet`.
 :::
 

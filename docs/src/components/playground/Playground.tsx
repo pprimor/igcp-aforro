@@ -8,6 +8,7 @@ import {
 } from 'igcp-aforro';
 import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
 import {
+  type PlaygroundLocale,
   daysBetween,
   formatDuration,
   formatEur,
@@ -27,6 +28,159 @@ const INITIAL_FORM: FormState = {
   asOfDate: todayIsoUtc(),
   irsRate: '',
   includeSchedule: true,
+};
+
+interface PlaygroundCopy {
+  series: string;
+  subscriptionDate: string;
+  subscriptionWindow: (name: string, start: string, end: string) => string;
+  subscriptionOpen: (name: string, start: string) => string;
+  units: string;
+  unitsRange: (name: string, range: string) => string;
+  asOfDate: string;
+  setTodayTitle: string;
+  today: string;
+  irsRate: string;
+  includeSchedule: string;
+  reset: string;
+  error: string;
+  summary: string;
+  elapsed: string;
+  matured: string;
+  maturesIn: string;
+  currentValueNet: string;
+  currentValueGross: string;
+  totalInterestNet: string;
+  totalIrsWithheld: string;
+  effectiveIrsRate: string;
+  maturityDate: string;
+  pending: string;
+  midQuarterAccrued: string;
+  grossAccrued: string;
+  projectedNet: string;
+  afterIrs: string;
+  accruedNote: string;
+  accruedNoteSuffix: string;
+  schedule: string;
+  quarters: string;
+  quarterEnd: string;
+  annualRate: string;
+  quarterlyRate: string;
+  interestGross: string;
+  irsWithheld: string;
+  interestNet: string;
+  balanceAfter: string;
+  tier: string;
+  tierYearPrefix: string;
+  highlightedRow: string;
+  copySnippet: string;
+  snippetFormat: string;
+  copied: string;
+  copy: string;
+}
+
+const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
+  en: {
+    series: 'Series',
+    subscriptionDate: 'Subscription date',
+    subscriptionWindow: (name: string, start: string, end: string) =>
+      `${name} subscriptions: ${start} to ${end}.`,
+    subscriptionOpen: (name: string, start: string) => `${name} subscriptions opened on ${start}.`,
+    units: 'Units (€)',
+    unitsRange: (name: string, range: string) => `${name} accepts ${range} units.`,
+    asOfDate: 'As-of date',
+    setTodayTitle: 'Set to today (UTC)',
+    today: 'Today',
+    irsRate: 'IRS rate (optional)',
+    includeSchedule: 'Include quarterly schedule',
+    reset: 'Reset to defaults',
+    error: 'Error:',
+    summary: 'Summary',
+    elapsed: 'Elapsed',
+    matured: 'Matured',
+    maturesIn: 'Matures in',
+    currentValueNet: 'Current value (net)',
+    currentValueGross: 'Current value (gross)',
+    totalInterestNet: 'Total interest (net)',
+    totalIrsWithheld: 'Total IRS withheld',
+    effectiveIrsRate: 'Effective IRS rate',
+    maturityDate: 'Maturity date',
+    pending: 'pending',
+    midQuarterAccrued: 'Mid-quarter accrued',
+    grossAccrued: 'Gross accrued since the last capitalization:',
+    projectedNet: 'Projected net',
+    afterIrs: 'after',
+    accruedNote:
+      'IRS is only withheld at capitalization, so this is a UI-side projection — see the',
+    accruedNoteSuffix: 'field docs for details.',
+    schedule: 'Schedule',
+    quarters: 'quarters',
+    quarterEnd: 'Quarter end',
+    annualRate: 'Annual rate',
+    quarterlyRate: 'Quarterly rate',
+    interestGross: 'Interest gross',
+    irsWithheld: 'IRS withheld',
+    interestNet: 'Interest net',
+    balanceAfter: 'Balance after',
+    tier: 'Tier',
+    tierYearPrefix: 'y',
+    highlightedRow: 'Highlighted row is the most recent capitalization.',
+    copySnippet: 'Copy snippet',
+    snippetFormat: 'Snippet format',
+    copied: 'Copied!',
+    copy: 'Copy',
+  },
+  'pt-PT': {
+    series: 'Série',
+    subscriptionDate: 'Data de subscrição',
+    subscriptionWindow: (name: string, start: string, end: string) =>
+      `Subscrições ${name}: ${start} a ${end}.`,
+    subscriptionOpen: (name: string, start: string) =>
+      `Subscrições ${name} abertas desde ${start}.`,
+    units: 'Unidades (€)',
+    unitsRange: (name: string, range: string) => `${name} aceita ${range} unidades.`,
+    asOfDate: 'Data de referência',
+    setTodayTitle: 'Definir como hoje (UTC)',
+    today: 'Hoje',
+    irsRate: 'Taxa de IRS (opcional)',
+    includeSchedule: 'Incluir calendário trimestral',
+    reset: 'Repor valores',
+    error: 'Erro:',
+    summary: 'Resumo',
+    elapsed: 'Decorrido',
+    matured: 'Maturou',
+    maturesIn: 'Matura em',
+    currentValueNet: 'Valor atual (líquido)',
+    currentValueGross: 'Valor atual (bruto)',
+    totalInterestNet: 'Juro total (líquido)',
+    totalIrsWithheld: 'IRS total retido',
+    effectiveIrsRate: 'Taxa efetiva de IRS',
+    maturityDate: 'Data de maturidade',
+    pending: 'pendente',
+    midQuarterAccrued: 'Juro acumulado a meio do trimestre',
+    grossAccrued: 'Juro bruto acumulado desde a última capitalização:',
+    projectedNet: 'Líquido projetado',
+    afterIrs: 'após',
+    accruedNote:
+      'O IRS só é retido na capitalização, por isso isto é uma projeção da interface — consulte a documentação do campo',
+    accruedNoteSuffix: 'para mais detalhes.',
+    schedule: 'Calendário',
+    quarters: 'trimestres',
+    quarterEnd: 'Fim do trimestre',
+    annualRate: 'Taxa anual',
+    quarterlyRate: 'Taxa trimestral',
+    interestGross: 'Juro bruto',
+    irsWithheld: 'IRS retido',
+    interestNet: 'Juro líquido',
+    balanceAfter: 'Saldo depois',
+    tier: 'Escalão',
+    tierYearPrefix: 'a',
+    highlightedRow: 'A linha destacada é a capitalização mais recente.',
+    copySnippet: 'Copiar exemplo',
+    snippetFormat: 'Formato do exemplo',
+    copied: 'Copiado!',
+    copy: 'Copiar',
+  },
 };
 
 type FieldErrors = Record<string, string | undefined>;
@@ -142,7 +296,8 @@ function FieldError({ id, message }: { id: string; message: string | undefined }
   );
 }
 
-export default function Playground() {
+export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocale }) {
+  const copy = COPY[locale];
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [sim, setSim] = useState<SimState>(() => runSimulate(INITIAL_FORM));
   const [snippetMode, setSnippetMode] = useState<SnippetMode>('ts');
@@ -228,24 +383,25 @@ export default function Playground() {
   const unitsDescription = [unitsHelpId, fieldErrors.units ? unitsErrorId : '']
     .filter(Boolean)
     .join(' ');
+  const numberLocale = locale === 'pt-PT' ? 'pt-PT' : 'en-US';
   const unitsRangeLabel = `${selectedSeries.minUnits.toLocaleString(
-    'en-US',
-  )}-${selectedSeries.maxUnits.toLocaleString('en-US')}`;
+    numberLocale,
+  )}-${selectedSeries.maxUnits.toLocaleString(numberLocale)}`;
 
   const maturityRemaining = useMemo(() => {
     if (!result) return null;
     if (result.matured) return { matured: true as const };
     const days = daysBetween(result.asOfDate, result.maturityDate);
     if (days === null || days <= 0) return null;
-    return { matured: false as const, label: formatDuration(days) };
-  }, [result]);
+    return { matured: false as const, label: formatDuration(days, locale) };
+  }, [result, locale]);
 
   const elapsedSinceSub = useMemo(() => {
     if (!result) return null;
     const days = daysBetween(result.subscriptionDate, result.asOfDate);
     if (days === null || days <= 0) return null;
-    return formatDuration(days);
-  }, [result]);
+    return formatDuration(days, locale);
+  }, [result, locale]);
 
   const lastQuarterIndex = result?.schedule ? result.schedule.length - 1 : -1;
 
@@ -255,7 +411,7 @@ export default function Playground() {
 
       <form class="aforro-pg-form" onSubmit={(e) => e.preventDefault()}>
         <div class="aforro-pg-field">
-          <label for={ids.series}>Series</label>
+          <label for={ids.series}>{copy.series}</label>
           <select
             id={ids.series}
             value={form.series}
@@ -270,7 +426,7 @@ export default function Playground() {
         </div>
 
         <div class="aforro-pg-field">
-          <label for={ids.subscribed}>Subscription date</label>
+          <label for={ids.subscribed}>{copy.subscriptionDate}</label>
           <input
             id={ids.subscribed}
             type="date"
@@ -283,14 +439,18 @@ export default function Playground() {
           />
           <p id={subscriptionDateHelpId} class="aforro-pg-help">
             {selectedSeries.subscriptionEndDate
-              ? `${selectedSeries.name} subscriptions: ${selectedSeries.subscriptionStartDate} to ${selectedSeries.subscriptionEndDate}.`
-              : `${selectedSeries.name} subscriptions opened on ${selectedSeries.subscriptionStartDate}.`}
+              ? copy.subscriptionWindow(
+                  selectedSeries.name,
+                  selectedSeries.subscriptionStartDate,
+                  selectedSeries.subscriptionEndDate,
+                )
+              : copy.subscriptionOpen(selectedSeries.name, selectedSeries.subscriptionStartDate)}
           </p>
           <FieldError id={subscriptionDateErrorId} message={fieldErrors.subscriptionDate} />
         </div>
 
         <div class="aforro-pg-field">
-          <label for={ids.units}>Units (€)</label>
+          <label for={ids.units}>{copy.units}</label>
           <input
             id={ids.units}
             type="number"
@@ -304,21 +464,21 @@ export default function Playground() {
             onInput={(e) => update('units', (e.target as HTMLInputElement).value)}
           />
           <p id={unitsHelpId} class="aforro-pg-help">
-            {selectedSeries.name} accepts {unitsRangeLabel} units.
+            {copy.unitsRange(selectedSeries.name, unitsRangeLabel)}
           </p>
           <FieldError id={unitsErrorId} message={fieldErrors.units} />
         </div>
 
         <div class="aforro-pg-field">
           <label for={ids.asOf}>
-            <span>As-of date</span>
+            <span>{copy.asOfDate}</span>
             <button
               type="button"
               class="aforro-pg-link-btn"
               onClick={setAsOfToday}
-              title="Set to today (UTC)"
+              title={copy.setTodayTitle}
             >
-              Today
+              {copy.today}
             </button>
           </label>
           <input
@@ -334,7 +494,7 @@ export default function Playground() {
         </div>
 
         <div class="aforro-pg-field">
-          <label for={ids.irs}>IRS rate (optional)</label>
+          <label for={ids.irs}>{copy.irsRate}</label>
           <input
             id={ids.irs}
             type="number"
@@ -359,17 +519,17 @@ export default function Playground() {
               checked={form.includeSchedule}
               onChange={(e) => update('includeSchedule', (e.target as HTMLInputElement).checked)}
             />
-            Include quarterly schedule
+            {copy.includeSchedule}
           </label>
           <button type="button" class="aforro-pg-link-btn" onClick={reset}>
-            Reset to defaults
+            {copy.reset}
           </button>
         </div>
       </form>
 
       {generalError && (
         <div class="aforro-pg-card aforro-pg-card-error" role="alert">
-          <strong>Error:</strong> {generalError}
+          <strong>{copy.error}</strong> {generalError}
         </div>
       )}
 
@@ -377,75 +537,95 @@ export default function Playground() {
         <div class="aforro-pg-results" aria-live="polite">
           <section class="aforro-pg-card" aria-labelledby={ids.summaryHeading}>
             <header class="aforro-pg-card-head">
-              <h3 id={ids.summaryHeading}>Summary</h3>
+              <h3 id={ids.summaryHeading}>{copy.summary}</h3>
               <div class="aforro-pg-meta">
                 <span class="aforro-pg-badge">{resultSeriesName}</span>
                 {elapsedSinceSub && (
                   <span class="aforro-pg-meta-item">
-                    <span class="aforro-pg-meta-label">Elapsed</span> {elapsedSinceSub}
+                    <span class="aforro-pg-meta-label">{copy.elapsed}</span> {elapsedSinceSub}
                   </span>
                 )}
                 {maturityRemaining?.matured ? (
-                  <span class="aforro-pg-badge aforro-pg-badge-matured">Matured</span>
+                  <span class="aforro-pg-badge aforro-pg-badge-matured">{copy.matured}</span>
                 ) : maturityRemaining ? (
                   <span class="aforro-pg-meta-item">
-                    <span class="aforro-pg-meta-label">Matures in</span> {maturityRemaining.label}
+                    <span class="aforro-pg-meta-label">{copy.maturesIn}</span>{' '}
+                    {maturityRemaining.label}
                   </span>
                 ) : null}
               </div>
             </header>
             <dl class="aforro-pg-grid">
-              <SummaryItem label="Current value (net)" value={result.currentValueNet} accent />
-              <SummaryItem label="Current value (gross)" value={result.currentValueGross} />
-              <SummaryItem label="Total interest (net)" value={result.totalInterestNet} />
-              <SummaryItem label="Total IRS withheld" value={result.totalIrsWithheld} />
+              <SummaryItem
+                label={copy.currentValueNet}
+                value={result.currentValueNet}
+                locale={locale}
+                accent
+              />
+              <SummaryItem
+                label={copy.currentValueGross}
+                value={result.currentValueGross}
+                locale={locale}
+              />
+              <SummaryItem
+                label={copy.totalInterestNet}
+                value={result.totalInterestNet}
+                locale={locale}
+              />
+              <SummaryItem
+                label={copy.totalIrsWithheld}
+                value={result.totalIrsWithheld}
+                locale={locale}
+              />
               <div class="aforro-pg-grid-item">
-                <dt>Effective IRS rate</dt>
-                <dd>{formatRateFraction(result.irsRate)}</dd>
+                <dt>{copy.effectiveIrsRate}</dt>
+                <dd>{formatRateFraction(result.irsRate, locale)}</dd>
                 <code>{result.irsRate}</code>
               </div>
               <div class="aforro-pg-grid-item">
-                <dt>Maturity date</dt>
+                <dt>{copy.maturityDate}</dt>
                 <dd>{result.maturityDate}</dd>
-                <code>{result.matured ? 'matured' : 'pending'}</code>
+                <code>{result.matured ? copy.matured : copy.pending}</code>
               </div>
             </dl>
           </section>
 
           {hasAccrued && (
             <section class="aforro-pg-card" aria-labelledby={ids.accruedHeading}>
-              <h3 id={ids.accruedHeading}>Mid-quarter accrued</h3>
+              <h3 id={ids.accruedHeading}>{copy.midQuarterAccrued}</h3>
               <p>
-                Gross accrued since the last capitalization:{' '}
-                <strong>{formatEur(result.accruedSinceLastCapitalization)}</strong>{' '}
+                {copy.grossAccrued}{' '}
+                <strong>{formatEur(result.accruedSinceLastCapitalization, locale)}</strong>{' '}
                 <code>{result.accruedSinceLastCapitalization}</code>
               </p>
               <p>
-                Projected net (after {formatRateFraction(result.irsRate)} IRS):{' '}
-                <strong>{formatEur(accruedNet)}</strong> <code>{accruedNet}</code>
+                {copy.projectedNet} ({copy.afterIrs} {formatRateFraction(result.irsRate, locale)}{' '}
+                IRS): <strong>{formatEur(accruedNet, locale)}</strong> <code>{accruedNet}</code>
               </p>
               <p class="aforro-pg-note">
-                IRS is only withheld at capitalization, so this is a UI-side projection — see the{' '}
-                <code>accruedSinceLastCapitalization</code> field docs for details.
+                {copy.accruedNote} <code>accruedSinceLastCapitalization</code>{' '}
+                {copy.accruedNoteSuffix}
               </p>
             </section>
           )}
 
           {result.schedule && result.schedule.length > 0 && (
             <section class="aforro-pg-card" aria-labelledby={ids.scheduleHeading}>
-              <h3 id={ids.scheduleHeading}>Schedule ({result.schedule.length} quarters)</h3>
+              <h3 id={ids.scheduleHeading}>
+                {copy.schedule} ({result.schedule.length} {copy.quarters})
+              </h3>
               <div class="aforro-pg-table-wrap">
                 <table class="aforro-pg-table">
                   <thead>
                     <tr>
-                      <th scope="col">Quarter end</th>
-                      <th scope="col">Annual rate</th>
-                      <th scope="col">Quarterly rate</th>
-                      <th scope="col">Interest gross</th>
-                      <th scope="col">IRS withheld</th>
-                      <th scope="col">Interest net</th>
-                      <th scope="col">Balance after</th>
-                      <th scope="col">Tier</th>
+                      <th scope="col">{copy.quarterEnd}</th>
+                      <th scope="col">{copy.annualRate}</th>
+                      <th scope="col">{copy.quarterlyRate}</th>
+                      <th scope="col">{copy.interestGross}</th>
+                      <th scope="col">{copy.irsWithheld}</th>
+                      <th scope="col">{copy.interestNet}</th>
+                      <th scope="col">{copy.balanceAfter}</th>
+                      <th scope="col">{copy.tier}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -455,30 +635,31 @@ export default function Playground() {
                         class={i === lastQuarterIndex ? 'aforro-pg-row-latest' : undefined}
                       >
                         <td>{row.quarterEndDate}</td>
-                        <td>{formatRateFraction(row.annualRate)}</td>
-                        <td>{formatRateFraction(row.quarterlyRate)}</td>
-                        <td>{formatEur(row.interestGross)}</td>
-                        <td>{formatEur(row.irsWithheld)}</td>
-                        <td>{formatEur(row.interestNet)}</td>
-                        <td>{formatEur(row.balanceAfter)}</td>
+                        <td>{formatRateFraction(row.annualRate, locale)}</td>
+                        <td>{formatRateFraction(row.quarterlyRate, locale)}</td>
+                        <td>{formatEur(row.interestGross, locale)}</td>
+                        <td>{formatEur(row.irsWithheld, locale)}</td>
+                        <td>{formatEur(row.interestNet, locale)}</td>
+                        <td>{formatEur(row.balanceAfter, locale)}</td>
                         <td>
-                          y{row.premiumTier.fromYear}–{row.premiumTier.toYear} (+
-                          {formatRatePct(row.premiumTier.ratePct)})
+                          {copy.tierYearPrefix}
+                          {row.premiumTier.fromYear}–{row.premiumTier.toYear} (+
+                          {formatRatePct(row.premiumTier.ratePct, locale)})
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p class="aforro-pg-note">Highlighted row is the most recent capitalization.</p>
+              <p class="aforro-pg-note">{copy.highlightedRow}</p>
             </section>
           )}
 
           <section class="aforro-pg-card" aria-labelledby={ids.snippetHeading}>
             <div class="aforro-pg-snippet-head">
-              <h3 id={ids.snippetHeading}>Copy snippet</h3>
+              <h3 id={ids.snippetHeading}>{copy.copySnippet}</h3>
               <div class="aforro-pg-snippet-controls">
-                <div class="aforro-pg-tabs" role="tablist" aria-label="Snippet format">
+                <div class="aforro-pg-tabs" role="tablist" aria-label={copy.snippetFormat}>
                   {(['ts', 'cli', 'json'] as const).map((mode) => (
                     <button
                       key={mode}
@@ -493,7 +674,7 @@ export default function Playground() {
                   ))}
                 </div>
                 <button type="button" class="aforro-pg-copy" onClick={handleCopy}>
-                  {copied ? 'Copied!' : 'Copy'}
+                  {copied ? copy.copied : copy.copy}
                 </button>
               </div>
             </div>
@@ -510,16 +691,18 @@ export default function Playground() {
 function SummaryItem({
   label,
   value,
+  locale,
   accent,
 }: {
   label: string;
   value: string;
+  locale: PlaygroundLocale;
   accent?: boolean;
 }) {
   return (
     <div class={`aforro-pg-grid-item ${accent ? 'is-accent' : ''}`}>
       <dt>{label}</dt>
-      <dd>{formatEur(value)}</dd>
+      <dd>{formatEur(value, locale)}</dd>
       <code>{value}</code>
     </div>
   );

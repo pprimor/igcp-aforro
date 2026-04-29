@@ -1,40 +1,40 @@
 ---
 title: igcp-aforro
-description: TypeScript library and CLI for simulating Portuguese IGCP Aforro (Série E and Série F) Treasury Certificates.
+description: Biblioteca TypeScript e CLI para simular Certificados de Aforro Série E e Série F do IGCP.
 template: splash
 hero:
-  tagline: Deterministic, decimal-safe Aforro Série E and Série F simulator. Drop-in for JS/TS apps; ships with a CLI and a static `rates.json` for everyone else.
+  tagline: Simulador determinístico e seguro em decimal para Certificados de Aforro Série E e Série F. Integra-se em apps JS/TS; inclui CLI e um `rates.json` estático para todos os outros consumidores.
   actions:
-    - text: Quickstart
+    - text: Início rápido
       link: /quickstart/
       icon: right-arrow
-    - text: Try in browser
+    - text: Experimentar no navegador
       link: /playground/
       icon: right-arrow
-    - text: API reference
+    - text: Referência da API
       link: /api/
       variant: minimal
-    - text: View on GitHub
+    - text: Ver no GitHub
       link: https://github.com/primor/igcp-aforro
       icon: external
       variant: minimal
 ---
 
-## What it does
+## O que faz
 
-`igcp-aforro` reproduces the [IGCP Aforro Série E and Série F](https://www.igcp.pt/) calculation end-to-end:
+`igcp-aforro` reproduz de ponta a ponta o cálculo dos [Certificados de Aforro Série E e Série F do IGCP](https://www.igcp.pt/):
 
-- Resolves the **monthly base rate** from the antepenultimate-business-day Euribor 3M average. Série F clamps the rounded mean to `[0%, 2.5%]`; Série E adds a `+1pp` spread (`E3 + 1%`) and clamps to `[0%, 3.5%]`.
-- Adds the **permanence-premium tier** that applies to the cohort's contract year (per-series tier table).
-- Compounds **quarterly** with **28% IRS withholding** at each capitalization.
-- Returns decimal strings so callers can JSON-serialize results without precision loss.
+- Resolve a **taxa-base mensal** a partir da média da Euribor 3M dos 10 dias úteis até ao antepenúltimo dia útil. A Série F limita a média arredondada a `[0%, 2,5%]`; a Série E soma um *spread* de `+1pp` (`E3 + 1%`) e limita a `[0%, 3,5%]`.
+- Soma o **prémio de permanência** aplicável ao ano contratual do grupo de subscrição, usando a tabela da série.
+- Capitaliza **trimestralmente** com **retenção de IRS de 28%** em cada capitalização.
+- Devolve *strings* decimais para que os resultados possam ser serializados em JSON sem perda de precisão.
 
-## Choose your interface
+## Escolha a interface
 
-- **JS/TS app?** Install the npm package and call [`simulate()`](/api/functions/simulate/).
-- **Shell user?** Install the CLI and run [`aforro simulate`](/cli/).
-- **Python / Java / Excel user?** Fetch the precomputed [`rates.json`](/rates-json/) and write a ~50-line compounder.
+- **Aplicação JS/TS?** Instale o pacote npm e chame [`simulate()`](/api/functions/simulate/).
+- **Linha de comandos?** Instale a CLI e execute [`aforro simulate`](/cli/).
+- **Python / Java / Excel?** Use o [`rates.json`](/rates-json/) pré-calculado e escreva um capitalizador de ~50 linhas.
 
-## Status
+## Estado
 
-The library covers **Série E** (subscriptions open from 1 Nov 2017 to 1 Jun 2023, 10-year maturity) and **Série F** (subscriptions open from 1 Jun 2023 onwards, 15-year maturity) end-to-end. Older series (A, B, C, D) are out of scope — the `Series` abstraction in `src/core/series.ts` leaves room to add them as additional constants tables without restructuring.
+A biblioteca cobre de ponta a ponta a **Série E** (subscrições abertas de 1 de novembro de 2017 a 1 de junho de 2023, maturidade de 10 anos) e a **Série F** (subscrições abertas desde 1 de junho de 2023, maturidade de 15 anos). As séries anteriores (A, B, C, D) estão fora do âmbito atual. A [referência da API](/api/) é gerada a partir dos comentários TSDoc em inglês e permanece em inglês nesta fase.

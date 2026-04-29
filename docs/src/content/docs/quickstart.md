@@ -1,17 +1,17 @@
 ---
-title: Quickstart
-description: Install igcp-aforro, simulate a Série E or Série F cohort, and inspect the schedule.
+title: Início rápido
+description: Instale o igcp-aforro, simule um grupo de subscrição da Série E ou Série F e consulte o calendário.
 ---
 
-## Install
+## Instalar
 
 ```bash
 pnpm add igcp-aforro
 ```
 
-`igcp-aforro` ships ESM and CJS bundles plus full `.d.ts` typings. Node ≥ 20.
+`igcp-aforro` inclui bundles ESM e CJS, além de tipagens `.d.ts` completas. Requer Node >= 20.
 
-## Simulate a cohort
+## Simular um grupo de subscrição
 
 ```ts
 import { simulate, Series } from 'igcp-aforro';
@@ -30,7 +30,7 @@ console.log(result.matured);
 console.log(result.schedule?.length);
 ```
 
-Pass `series: Series.E` (or the string `'E'`) to simulate a Série E cohort instead. Série E has a different base-rate formula (`E3 + 1%`, clamped to `[0%, 3.5%]`), different premium tiers, a 10-year maturity, and a `[2017-11-01, 2023-06-01]` subscription window:
+Passe `series: Series.E` (ou a *string* `'E'`) para simular um grupo de subscrição da Série E. A Série E tem uma fórmula de taxa-base diferente (`E3 + 1%`, limitada a `[0%, 3,5%]`), prémios de permanência próprios, maturidade de 10 anos e uma janela de subscrição `[2017-11-01, 2023-06-01]`:
 
 ```ts
 import { simulate, Series } from 'igcp-aforro';
@@ -43,13 +43,13 @@ simulate({
 });
 ```
 
-All money and rate fields come back as **decimal strings** (e.g. `"1078.42"`, `"0.02750"`). They are produced by `big.js` with banker's rounding (`ROUND_HALF_EVEN`) at every cent quantization, so you can:
+Todos os campos monetários e de taxas são devolvidos como **strings decimais** (por exemplo, `"1078.42"`, `"0.02750"`). São produzidos por `big.js` com arredondamento bancário (`ROUND_HALF_EVEN`) em cada quantização ao cêntimo, para que possa:
 
-- compare results across runs and machines without floating-point drift,
-- send them straight through `JSON.stringify` without losing precision,
-- feed them back into `Big` (or your own decimal library) on the consumer side.
+- comparar resultados entre execuções e máquinas sem desvios de vírgula flutuante;
+- passar os resultados diretamente por `JSON.stringify` sem perder precisão;
+- voltar a carregar os valores em `Big` (ou noutra biblioteca decimal) no consumidor.
 
-## Look up rates without simulating
+## Consultar taxas sem simular
 
 ```ts
 import { getCurrentRate, getRateForCohort, getRateTable } from 'igcp-aforro';
@@ -68,23 +68,23 @@ getRateTable({ series: 'F', fromMonth: '2023-06', toMonth: '2026-04' });
 // → MonthlyBaseRate[]
 ```
 
-## Validation rules
+## Regras de validação
 
-`simulate()` validates inputs with Zod against the metadata of the chosen series and throws on:
+`simulate()` valida os dados de entrada com Zod contra os metadados da série escolhida e lança erro quando:
 
-- a `subscriptionDate` outside the series' subscription window:
-  - **Série F** — strictly on or after `2023-06-01`;
-  - **Série E** — within `[2017-11-01, 2023-06-01]` (closed to new subscriptions);
-- `units` outside the series' `[minUnits, maxUnits]` range:
-  - **Série F** — `[100, 100000]`;
-  - **Série E** — `[100, 250000]`;
+- a `subscriptionDate` está fora da janela de subscrição da série:
+  - **Série F**: estritamente a partir de `2023-06-01`;
+  - **Série E**: dentro de `[2017-11-01, 2023-06-01]` (encerrada a novas subscrições);
+- `units` está fora do intervalo `[minUnits, maxUnits]` da série:
+  - **Série F**: `[100, 100000]`;
+  - **Série E**: `[100, 250000]`;
 - `asOfDate < subscriptionDate`.
 
-Past `subscriptionDate + maturityYears` (15 for Série F, 10 for Série E) the simulation stops at maturity and returns `matured: true`.
+Depois de `subscriptionDate + maturityYears` (15 anos para a Série F, 10 anos para a Série E), a simulação termina na maturidade e devolve `matured: true`.
 
-## Next steps
+## Próximos passos
 
-- [API reference](/api/) — every exported value and type, generated from TSDoc.
-- [CLI reference](/cli/) — `aforro simulate`, `aforro current`, `aforro rates`, `aforro cohort`.
-- [Methodology (PT)](/methodology/) — the IGCP technical sheet, mapped to this library's code paths.
-- [`rates.json` schema](/rates-json/) — for non-JS consumers.
+- [Referência da API](/api/) — todos os valores e tipos exportados, gerados a partir de TSDoc em inglês.
+- [Referência da CLI](/cli/) — `aforro simulate`, `aforro current`, `aforro rates`, `aforro cohort`.
+- [Metodologia](/methodology/) — a ficha técnica do IGCP mapeada para os caminhos de código desta biblioteca.
+- [Esquema do `rates.json`](/rates-json/) — para consumidores que não usam JavaScript.

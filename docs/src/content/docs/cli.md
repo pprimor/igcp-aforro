@@ -1,9 +1,9 @@
 ---
-title: CLI reference
-description: Commands exposed by the `aforro` binary.
+title: Referência da CLI
+description: Comandos expostos pelo binário `aforro`.
 ---
 
-The `aforro` binary is shipped by the npm package. Every command accepts `--json` for machine-readable output; without it, the output is a human-friendly table or key-value layout.
+O binário `aforro` é distribuído pelo pacote npm. Todos os comandos aceitam `--json` para saída legível por máquinas; sem essa opção, a saída é uma tabela ou uma lista chave-valor mais fácil de ler por humanos.
 
 ```bash
 pnpm add -g igcp-aforro
@@ -12,7 +12,7 @@ aforro --help
 
 ## `aforro simulate`
 
-Simulate an IGCP Aforro Série E or Série F cohort up to an as-of date.
+Simula um grupo de subscrição de Certificados de Aforro Série E ou Série F até uma data de referência.
 
 ```bash
 aforro simulate \
@@ -25,39 +25,39 @@ aforro simulate \
   [--json]
 ```
 
-| Flag | Description |
+| Opção | Descrição |
 | --- | --- |
-| `--subscribed <date>` | Subscription date (`YYYY-MM-DD`). Required. |
-| `--units <n>` | Principal in EUR; integer in the series' `[minUnits, maxUnits]` range (Série F: `[100, 100000]`; Série E: `[100, 250000]`). Required. |
-| `--as-of <date>` | As-of date (`YYYY-MM-DD`). Defaults to today (UTC). |
-| `--schedule` | Include the per-quarter capitalization schedule. |
-| `--irs <rate>` | Override IRS withholding rate (e.g. `0.28`). Defaults to series default. |
-| `--series <code>` | Series code. Accepts `E` or `F`. Defaults to `F`. |
-| `--json` | Emit JSON instead of the pretty layout. |
+| `--subscribed <date>` | Data de subscrição (`YYYY-MM-DD`). Obrigatória. |
+| `--units <n>` | Capital em EUR; inteiro dentro do intervalo `[minUnits, maxUnits]` da série (Série F: `[100, 100000]`; Série E: `[100, 250000]`). Obrigatória. |
+| `--as-of <date>` | Data de referência (`YYYY-MM-DD`). Por omissão, hoje em UTC. |
+| `--schedule` | Inclui o calendário de capitalização por trimestre. |
+| `--irs <rate>` | Substitui a taxa de retenção de IRS (por exemplo, `0.28`). Por omissão, usa a taxa da série. |
+| `--series <code>` | Código da série. Aceita `E` ou `F`. Por omissão, `F`. |
+| `--json` | Emite JSON em vez do formato visual. |
 
 ## `aforro current`
 
-Print the IGCP-published monthly base rate for the current (or given) month.
+Mostra a taxa-base mensal publicada pelo IGCP para o mês atual, ou para o mês indicado.
 
 ```bash
 aforro current [--series E|F] [--as-of 2026-04-19] [--json]
 ```
 
-Includes the `fixingDate` so you can audit the value back to a single Euribor 3M observation in `src/data/euribor3m.json`.
+Inclui `fixingDate` para que possa auditar o valor até uma observação específica da Euribor 3M em `src/data/euribor3m.json`.
 
 ## `aforro rates`
 
-Print monthly base rates between `--from` and `--to` (inclusive).
+Mostra as taxas-base mensais entre `--from` e `--to`, inclusive.
 
 ```bash
 aforro rates --from 2023-06 --to 2026-04 [--series E|F] [--json]
 ```
 
-Months are accepted as `YYYY-MM`. The output is one row per resolvable month — months without a bundled fixing are skipped.
+Os meses são aceites no formato `YYYY-MM`. A saída tem uma linha por mês resolúvel; meses sem fixing incluído são omitidos.
 
 ## `aforro cohort`
 
-Resolve the annual rate that applies to a cohort for a given quarter.
+Resolve a taxa anual aplicável a um grupo de subscrição num determinado trimestre.
 
 ```bash
 aforro cohort \
@@ -67,19 +67,19 @@ aforro cohort \
   [--json]
 ```
 
-`--subscribed` and `--as-of` accept either `YYYY-MM` or `YYYY-MM-DD`. Returns the composite annual rate, its base + premium components, and the quarter window they apply to.
+`--subscribed` e `--as-of` aceitam `YYYY-MM` ou `YYYY-MM-DD`. Devolve a taxa anual composta, os seus componentes base + prémio e a janela trimestral a que se aplicam.
 
 ## `aforro fetch-euribor`
 
-:::caution[Developer-only]
-This command refreshes `src/data/euribor3m.json` from the [Deutsche Bundesbank time-series API](https://api.statistiken.bundesbank.de/) (series `BBIG1`, redistributing EMMI EURIBOR® daily fixings). It only works inside a developer checkout of this repo and is wired into the `data-refresh.yml` cron. End users of the library should not need to call it.
-:::
+::::caution[Apenas para desenvolvimento]
+Este comando atualiza `src/data/euribor3m.json` a partir da [API de séries temporais do Deutsche Bundesbank](https://api.statistiken.bundesbank.de/) (série `BBIG1`, redistribuindo fixings diários da EMMI EURIBOR®). Só funciona dentro de um checkout de desenvolvimento deste repositório e está ligado ao cron `data-refresh.yml`. Utilizadores finais da biblioteca não deverão precisar de o executar.
+::::
 
 ```bash
 aforro fetch-euribor [--mode seed|incremental|range]
 ```
 
-## Cross-cutting flags
+## Opções transversais
 
-- `--json` — emit machine-readable output. Stable across releases (changes are flagged in the [Changelog](/changelog/)).
-- `--help` and `--version` — provided by `cac`.
+- `--json` — emite saída legível por máquinas. É estável entre versões; alterações são assinaladas no [Histórico de alterações](/changelog/).
+- `--help` e `--version` — fornecidas por `cac`.

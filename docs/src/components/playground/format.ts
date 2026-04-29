@@ -1,45 +1,58 @@
-const EUR_FORMATTER = new Intl.NumberFormat('en-IE', {
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+export type PlaygroundLocale = 'en' | 'pt-PT';
 
-const PERCENT_FORMATTER = new Intl.NumberFormat('en-IE', {
-  style: 'percent',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 4,
-});
+function localeTag(locale: PlaygroundLocale): string {
+  return locale === 'pt-PT' ? 'pt-PT' : 'en-IE';
+}
+
+function getEurFormatter(locale: PlaygroundLocale): Intl.NumberFormat {
+  return new Intl.NumberFormat(localeTag(locale), {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function getPercentFormatter(locale: PlaygroundLocale): Intl.NumberFormat {
+  return new Intl.NumberFormat(localeTag(locale), {
+    style: 'percent',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+}
 
 /**
  * Formats a decimal-string EUR amount (e.g. "1078.42") for display.
  * Returns "—" for empty/invalid input so the UI never renders "NaN".
  */
-export function formatEur(value: string | undefined | null): string {
+export function formatEur(value: string | undefined | null, locale: PlaygroundLocale): string {
   if (!value) return '—';
   const n = Number(value);
   if (!Number.isFinite(n)) return value;
-  return EUR_FORMATTER.format(n);
+  return getEurFormatter(locale).format(n);
 }
 
 /**
  * Formats a rate expressed as a decimal fraction (e.g. "0.02750" → "2.75%").
  */
-export function formatRateFraction(value: string | undefined | null): string {
+export function formatRateFraction(
+  value: string | undefined | null,
+  locale: PlaygroundLocale,
+): string {
   if (!value) return '—';
   const n = Number(value);
   if (!Number.isFinite(n)) return value;
-  return PERCENT_FORMATTER.format(n);
+  return getPercentFormatter(locale).format(n);
 }
 
 /**
  * Formats a rate expressed as a percent string (e.g. "2.750" → "2.75%").
  */
-export function formatRatePct(value: string | undefined | null): string {
+export function formatRatePct(value: string | undefined | null, locale: PlaygroundLocale): string {
   if (!value) return '—';
   const n = Number(value);
   if (!Number.isFinite(n)) return value;
-  return PERCENT_FORMATTER.format(n / 100);
+  return getPercentFormatter(locale).format(n / 100);
 }
 
 /**
@@ -83,11 +96,19 @@ export function daysBetween(fromIso: string, toIso: string): number | null {
  * as 30.4375 days and a year as 365.25 days — accurate enough for a hero
  * "matures in …" badge, never claims more precision than the user expects.
  */
-export function formatDuration(days: number): string {
+export function formatDuration(days: number, locale: PlaygroundLocale): string {
   if (!Number.isFinite(days) || days <= 0) return '0d';
   const years = Math.floor(days / 365.25);
   const remAfterYears = days - years * 365.25;
   const months = Math.floor(remAfterYears / 30.4375);
+  if (locale === 'pt-PT') {
+    if (years > 0) return months > 0 ? `${years}a ${months}m` : `${years}a`;
+    if (months > 0) {
+      const remDays = Math.floor(remAfterYears - months * 30.4375);
+      return remDays > 0 ? `${months}m ${remDays}d` : `${months}m`;
+    }
+    return `${Math.floor(days)}d`;
+  }
   if (years > 0) return months > 0 ? `${years}y ${months}m` : `${years}y`;
   if (months > 0) {
     const remDays = Math.floor(remAfterYears - months * 30.4375);

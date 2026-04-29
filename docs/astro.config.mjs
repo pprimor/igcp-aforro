@@ -8,6 +8,11 @@ const [starlightTypeDoc, typeDocSidebarGroup] = createStarlightTypeDocPlugin();
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const aforroEntry = fileURLToPath(new URL('../src/index.ts', import.meta.url));
+const apiSidebarGroup = {
+  ...typeDocSidebarGroup,
+  label: 'Referência da API',
+  translations: { en: 'API reference' },
+};
 
 export default defineConfig({
   site: 'https://igcp-aforro.primor.me',
@@ -20,6 +25,7 @@ export default defineConfig({
     // overview so URL pruning doesn't dead-end on a 404. Astro normalizes
     // `/api` and `/api/` to the same route, so only one entry is needed.
     '/api': '/api/readme/',
+    '/en/api': '/en/api/readme/',
   },
   vite: {
     resolve: {
@@ -33,7 +39,18 @@ export default defineConfig({
     starlight({
       title: 'igcp-aforro',
       description:
-        'TypeScript library and CLI for simulating Portuguese IGCP Aforro Série E and Série F Treasury Certificates.',
+        'Biblioteca TypeScript e CLI para simular Certificados de Aforro Série E e Série F do IGCP.',
+      defaultLocale: 'root',
+      locales: {
+        root: {
+          label: 'Português',
+          lang: 'pt-PT',
+        },
+        en: {
+          label: 'English',
+          lang: 'en',
+        },
+      },
       favicon: '/favicon.svg',
       customCss: ['./src/styles/igcp.css'],
       social: [
@@ -75,13 +92,17 @@ export default defineConfig({
         }),
       ],
       sidebar: [
-        { label: 'Quickstart', slug: 'quickstart' },
-        { label: 'Playground', slug: 'playground' },
-        { label: 'CLI reference', slug: 'cli' },
-        { label: 'rates.json schema', slug: 'rates-json' },
-        { label: 'Methodology (PT)', slug: 'methodology' },
-        typeDocSidebarGroup,
-        { label: 'Changelog', slug: 'changelog' },
+        { label: 'Início rápido', slug: 'quickstart', translations: { en: 'Quickstart' } },
+        { label: 'Simulador', slug: 'playground', translations: { en: 'Playground' } },
+        { label: 'Referência da CLI', slug: 'cli', translations: { en: 'CLI reference' } },
+        {
+          label: 'Esquema rates.json',
+          slug: 'rates-json',
+          translations: { en: 'rates.json schema' },
+        },
+        { label: 'Metodologia', slug: 'methodology', translations: { en: 'Methodology' } },
+        apiSidebarGroup,
+        { label: 'Histórico de alterações', slug: 'changelog', translations: { en: 'Changelog' } },
       ],
     }),
   ],
