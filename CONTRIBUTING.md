@@ -122,6 +122,12 @@ It runs daily, refreshes the bundled Euribor data and the current IGCP Série F
 base-rate fixture, runs golden tests when data changes, and opens or updates a
 data-refresh PR when there is a diff.
 
+Clean data-refresh PRs auto-merge only when the current month's official IGCP
+rate has been published and fetched. Euribor-only refresh PRs may stay open
+until the monthly IGCP fixture and raw notice are added; this keeps the merge
+cadence tied to IGCP's monthly base-rate publication instead of daily Euribor
+observations.
+
 Maintainers can use local dry-run checks before investigating or forcing a
 refresh:
 

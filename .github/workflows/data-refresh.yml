@@ -21,7 +21,9 @@ name: Data refresh
 #    PR is still opened, but with `needs-review` so a human inspects).
 # 4. Open / update a PR via peter-evans/create-pull-request when there
 #    is a working-tree diff in the data files; skip silently otherwise.
-# 5. Freshness gate (independent of the diff): fail the job if the
+# 5. Auto-merge clean data-refresh PRs only when the current month's
+#    IGCP-published rate was fetched and all guard checks pass.
+# 6. Freshness gate (independent of the diff): fail the job if the
 #    latest Euribor observation is older than today - 5 calendar days.
 #    That tolerates a Friday + long weekend + a German holiday; longer
 #    silences are real upstream problems worth a human eyeball.
@@ -128,6 +130,7 @@ jobs:
             raw/euribor \
             tests/fixtures/igcpPublishedBaseRates.json \
             raw/igcp || true)
+          igcp_notice="raw/igcp/${{ steps.meta.outputs.month }}.html"
           if [ -n "${changed}" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "Changed files:"
@@ -135,6 +138,14 @@ jobs:
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No data file changes."
+          fi
+          if printf '%s\n' "${changed}" | grep -qF 'tests/fixtures/igcpPublishedBaseRates.json' \
+            && printf '%s\n' "${changed}" | grep -qF "${igcp_notice}"; then
+            echo "igcp_published=true" >> "$GITHUB_OUTPUT"
+            echo "Current-month IGCP publication detected: ${igcp_notice}"
+          else
+            echo "igcp_published=false" >> "$GITHUB_OUTPUT"
+            echo "No current-month IGCP publication change detected."
           fi
 
       - name: Run golden tests (gate before opening PR)
@@ -157,6 +168,7 @@ jobs:
           fi
 
       - name: Create or update PR
+        id: cpr
         if: ${{ steps.diff.outputs.changed == 'true' || inputs.forcePr }}
         uses: peter-evans/create-pull-request@v6
         with:
@@ -191,6 +203,89 @@ jobs:
             the refreshed data — typically the IGCP-published base rate
             disagrees with what `computeBaseRate()` derives from Euribor.
             Investigate before merging.
+
+      - name: Check auto-merge eligibility
+        id: automerge
+        if: ${{ steps.cpr.outputs.pull-request-number != '' && steps.diff.outputs.igcp_published == 'true' && steps.tests.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          EXPECTED_BRANCH: data-refresh/${{ steps.meta.outputs.month }}
+          EXPECTED_MONTH: ${{ steps.meta.outputs.month }}
+        run: |
+          set -euo pipefail
+          pr_json=$(gh pr view "${PR_NUMBER}" --json author,files,headRefName,isDraft,labels,mergeable,mergeStateStatus,state)
+          PR_JSON="${pr_json}" node --input-type=module <<'EOF'
+            import { appendFileSync } from 'node:fs';
+
+            const outputPath = process.env.GITHUB_OUTPUT;
+            const pr = JSON.parse(process.env.PR_JSON);
+            const expectedBranch = process.env.EXPECTED_BRANCH;
+            const expectedMonth = process.env.EXPECTED_MONTH;
+            const expectedIgcpRaw = `raw/igcp/${expectedMonth}.html`;
+
+            function writeOutput(name, value) {
+              appendFileSync(outputPath, `${name}=${value}\n`);
+            }
+
+            function ineligible(reason) {
+              writeOutput('eligible', 'false');
+              writeOutput('reason', reason);
+              console.log(`Auto-merge disabled: ${reason}`);
+              process.exit(0);
+            }
+
+            const labels = new Set(pr.labels.map((label) => label.name));
+            const files = pr.files.map((file) => file.path);
+            const allowedFiles = files.filter((path) =>
+              path === 'src/data/euribor3m.json' ||
+              path === 'src/data/_meta.json' ||
+              path === 'tests/fixtures/igcpPublishedBaseRates.json' ||
+              path === expectedIgcpRaw ||
+              (path.startsWith('raw/euribor/') && path.endsWith('.csv')),
+            );
+            const disallowedFiles = files.filter((path) => !allowedFiles.includes(path));
+
+            if (pr.state !== 'OPEN') ineligible(`PR is ${pr.state}`);
+            if (pr.isDraft) ineligible('PR is a draft');
+            if (pr.headRefName !== expectedBranch) {
+              ineligible(`unexpected branch ${pr.headRefName}`);
+            }
+            if (!['app/github-actions', 'github-actions[bot]'].includes(pr.author.login)) {
+              ineligible(`unexpected author ${pr.author.login}`);
+            }
+            if (!labels.has('data-refresh')) ineligible('missing data-refresh label');
+            if (labels.has('needs-review')) ineligible('needs-review label present');
+            if (disallowedFiles.length > 0) {
+              ineligible(`unexpected files: ${disallowedFiles.join(', ')}`);
+            }
+            if (!files.includes('tests/fixtures/igcpPublishedBaseRates.json')) {
+              ineligible('missing IGCP fixture change');
+            }
+            if (!files.includes(expectedIgcpRaw)) {
+              ineligible(`missing current-month IGCP raw HTML: ${expectedIgcpRaw}`);
+            }
+
+            writeOutput('eligible', 'true');
+            writeOutput('mergeable', pr.mergeable ?? 'UNKNOWN');
+            writeOutput('merge_state_status', pr.mergeStateStatus ?? 'UNKNOWN');
+            writeOutput('reason', 'eligible');
+            console.log(`Auto-merge eligible: ${files.join(', ')}`);
+          EOF
+
+      - name: Merge eligible data-refresh PR
+        if: ${{ steps.automerge.outputs.eligible == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          MERGE_STATE_STATUS: ${{ steps.automerge.outputs.merge_state_status }}
+        run: |
+          set -euo pipefail
+          if [ "${MERGE_STATE_STATUS}" = "CLEAN" ]; then
+            gh pr merge "${PR_NUMBER}" --squash --delete-branch
+          else
+            gh pr merge "${PR_NUMBER}" --squash --auto --delete-branch
+          fi
 
       - name: Fail job if tests failed
         if: ${{ steps.tests.outcome == 'failure' }}
