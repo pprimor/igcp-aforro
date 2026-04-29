@@ -39,20 +39,24 @@ jobs:
     environment:
       name: cloudflare-pages
       url: https://igcp-aforro.primor.me
+    env:
+      # cloudflare/wrangler-action@v3 still declares the Node 20 action runtime.
+      # Opt in to the Node 24 runner behavior early so the workflow stays warning-free.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout (release tag)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
         # Astro >=5 requires Node >=22.12. Library code targets Node >=20 (per
         # package.json `engines`), but this job only builds the docs site, so
         # bumping just this job to 22 is the minimal fix.
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm

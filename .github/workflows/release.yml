@@ -50,7 +50,7 @@ jobs:
       npmTag: ${{ steps.version.outputs.npmTag }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Need full history so `git tag` can verify uniqueness and the
           # auto-generated GitHub Release notes can diff against the
@@ -58,10 +58,10 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: pnpm
