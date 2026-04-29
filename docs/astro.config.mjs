@@ -33,7 +33,7 @@ export default defineConfig({
     starlight({
       title: 'igcp-aforro',
       description:
-        'TypeScript library and CLI for simulating Portuguese IGCP Aforro (Série F) Treasury Certificates.',
+        'TypeScript library and CLI for simulating Portuguese IGCP Aforro Série E and Série F Treasury Certificates.',
       favicon: '/favicon.svg',
       customCss: ['./src/styles/igcp.css'],
       social: [
