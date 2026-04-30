@@ -1,13 +1,13 @@
 {
   "euribor": {
-    "lastRefreshedAt": "2026-04-24T08:29:31Z",
+    "lastRefreshedAt": "2026-04-30T20:39:26Z",
     "source": "Deutsche Bundesbank time-series (BBIG1) — EMMI EURIBOR® 3-month daily fixings",
     "sourceUrl": "https://api.statistiken.bundesbank.de/rest/download/BBIG1/D.D0.EUR.MMKT.EURIBOR.M03.BID._Z?format=csv&lang=en",
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z",
-    "upstreamLastUpdate": "2026-04-23 13:13:35",
-    "earliestObservation": "2017-09-01",
+    "upstreamLastUpdate": "2026-04-30 13:49:29",
+    "earliestObservation": "2015-01-02",
     "latestObservation": "2026-04-22",
-    "observationCount": 2209,
+    "observationCount": 2894,
     "license": "EMMI EURIBOR® data redistributed by Deutsche Bundesbank under non-commercial terms; commercial use requires an EMMI licence (https://www.emmi-benchmarks.eu/terms-of-use)."
   }
 }

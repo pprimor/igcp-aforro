@@ -21,11 +21,10 @@ export type IsoDate = string;
 export type IsoMonth = string;
 
 /**
- * Identifier for a Treasury Certificate series. Currently in scope: `'E'`
- * (subscriptions closed 2023-06-01) and `'F'` (currently open). Additional
- * codes (`'A' | 'B' | 'D'`) will be added without restructuring.
+ * Identifier for a Treasury Certificate series. Currently in scope: `'D'`,
+ * `'E'` (both closed to new subscriptions) and `'F'` (currently open).
  */
-export type SeriesCode = 'E' | 'F';
+export type SeriesCode = 'D' | 'E' | 'F';
 
 /**
  * One permanence-premium tier. Tiers are 1-indexed and inclusive on both ends:
@@ -74,7 +73,7 @@ export interface SeriesMetadata {
   readonly baseRateDecimals: number;
   /**
    * Decimal places retained for the per-unit net quote after each
-   * capitalization. Série E and F use 5 decimals to mirror IGCP's published
+   * capitalization. Séries D, E and F use 5 decimals to mirror IGCP's published
    * quote precision.
    */
   readonly unitQuoteDecimals: number;

@@ -1,6 +1,40 @@
 import type { PremiumTier, SeriesCode, SeriesMetadata } from '../types/domain.js';
 
 /**
+ * Série D — IGCP-published parameters.
+ *
+ * Source: IGCP technical sheet for Certificados de Aforro Série D. Created by
+ * Portaria n.º 17-B/2015 (30 Jan 2015); subscriptions closed by Portaria
+ * n.º 329-A/2017 (27 Oct 2017). Base-rate formula matches Série E:
+ * `E3 + 1%`, clamped into `[0%, 3.5%]`. Premium tiers: 0.5% from year 2-5,
+ * 1.0% from year 6-10. Maturity is 10 years and the account cap is 250.000€.
+ */
+const SERIE_D_PREMIUM_TIERS: readonly PremiumTier[] = [
+  { fromYear: 1, toYear: 1, ratePct: '0.00' },
+  { fromYear: 2, toYear: 5, ratePct: '0.50' },
+  { fromYear: 6, toYear: 10, ratePct: '1.00' },
+];
+
+const SERIE_D_METADATA: SeriesMetadata = {
+  code: 'D',
+  name: 'Série D',
+  maturityYears: 10,
+  subscriptionStartDate: '2015-02-01',
+  subscriptionEndDate: '2017-10-31',
+  minUnits: 100,
+  maxUnits: 250_000,
+  baseRateClampMinPct: '0',
+  baseRateClampMaxPct: '3.5',
+  baseRateSpreadPct: '1',
+  baseRateDecimals: 3,
+  unitQuoteDecimals: 5,
+  euribor3mAveragingDays: 10,
+  capitalizationFrequency: 'quarterly',
+  defaultIrsRate: '0.28',
+  premiumTiers: SERIE_D_PREMIUM_TIERS,
+};
+
+/**
  * Série F — IGCP-published parameters.
  *
  * Source: IGCP technical sheet ("ficha técnica") for Certificados de Aforro
@@ -81,11 +115,13 @@ const SERIE_E_METADATA: SeriesMetadata = {
  * it remains JSON-serializable and tree-shakable.
  */
 export const Series = {
+  D: 'D',
   E: 'E',
   F: 'F',
 } as const satisfies Record<string, SeriesCode>;
 
 const SERIES_REGISTRY: Readonly<Partial<Record<SeriesCode, SeriesMetadata>>> = {
+  D: SERIE_D_METADATA,
   E: SERIE_E_METADATA,
   F: SERIE_F_METADATA,
 };

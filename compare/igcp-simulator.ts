@@ -2,7 +2,7 @@
 /**
  * `pnpm compare:igcp` — comparison harness that pits our local
  * `simulate()` against the IGCP web simulator's value endpoint and reports
- * any drift. By default it sweeps both Série E and Série F; the
+ * any drift. By default it sweeps Série D, Série E, and Série F; the
  * `--series` flag narrows to a single series.
  *
  * The IGCP "Simulador Certificados de Aforro" page (Drupal Webform) loads a
@@ -92,6 +92,9 @@ interface Scenario {
 /**
  * Per-series window of subscription months that the harness sweeps.
  *
+ * - Série D starts at `2017-10` — the bundled Euribor dataset begins in
+ *   September 2017, so this is the first clean subscription month currently
+ *   comparable with the local simulator.
  * - Série F starts at `2023-09` — one month after the inaugural Série F
  *   subscription month (June 2023's base rate is currently un-derivable
  *   from our bundled Euribor window, see the `baseRate followups`
@@ -106,11 +109,12 @@ interface Scenario {
  * months are sent to IGCP.
  */
 const SERIES_WINDOW_START: Readonly<Record<SeriesCode, { year: number; month: number }>> = {
+  D: { year: 2017, month: 10 },
   E: { year: 2018, month: 1 },
   F: { year: 2023, month: 9 },
 };
 
-export type CompareSeries = SeriesCode | 'both';
+export type CompareSeries = SeriesCode | 'all';
 
 /**
  * Builds the scenario matrix exercised by the harness.
@@ -123,12 +127,12 @@ export type CompareSeries = SeriesCode | 'both';
  * The per-month sweep is what gives us coverage across every fixing-window
  * for the requested series.
  *
- * When `series === 'both'`, the matrix is the concatenation of the per-series
- * sweeps in `E, F` order — `--filter` and `--limit` operate on the merged
+ * When `series === 'all'`, the matrix is the concatenation of the per-series
+ * sweeps in `D, E, F` order — `--filter` and `--limit` operate on the merged
  * list.
  */
 export function buildScenarios(
-  series: CompareSeries = 'both',
+  series: CompareSeries = 'all',
   today: string = todayIsoUtc(),
 ): readonly Scenario[] {
   const [yearStr, monthStr] = today.split('-');
@@ -136,7 +140,7 @@ export function buildScenarios(
   const todayMonth = Number(monthStr);
   const latestComparableMonth = monthIndex(todayYear, todayMonth) - 2;
 
-  const codes: readonly SeriesCode[] = series === 'both' ? ['E', 'F'] : [series];
+  const codes: readonly SeriesCode[] = series === 'all' ? ['D', 'E', 'F'] : [series];
 
   const scenarios: Scenario[] = [];
   for (const code of codes) {
@@ -179,7 +183,7 @@ function monthIndexFromDate(date: string): number {
  * `simulatorFetchResults` jQuery behavior: when the cohort's day-of-month
  * has not yet elapsed this calendar month, IGCP asks for the previous
  * month's snapshot instead. Series A is exempt in their JS, but the
- * series we compare against (E and F) all flow through this same branch.
+ * series we compare against (D, E, and F) all flow through this same branch.
  *
  * Our scenarios all use `01` as the day-of-month, so the "ask for previous
  * month" branch is never taken — we keep the helper anyway so the request
@@ -556,11 +560,11 @@ function parseDelayFlag(raw: unknown): number {
 }
 
 function parseSeriesFlag(raw: unknown): CompareSeries {
-  if (raw === undefined) return 'both';
+  if (raw === undefined) return 'all';
   const value = String(raw).toUpperCase();
-  if (value === 'E' || value === 'F') return value;
-  if (value === 'BOTH') return 'both';
-  throw new Error(`--series must be one of E, F, both (got ${String(raw)})`);
+  if (value === 'D' || value === 'E' || value === 'F') return value;
+  if (value === 'ALL' || value === 'BOTH') return 'all';
+  throw new Error(`--series must be one of D, E, F, all (got ${String(raw)})`);
 }
 
 function parseFilterFlag(raw: unknown): RegExp | undefined {
@@ -588,7 +592,7 @@ async function main(): Promise<void> {
   const cli = cac('compare:igcp');
   cli
     .command('[...args]', 'Compare local simulate() output against the IGCP web simulator')
-    .option('--series <code>', 'Series to compare: E, F, or both', { default: 'both' })
+    .option('--series <code>', 'Series to compare: D, E, F, or all', { default: 'all' })
     .option('--tolerance <eur-per-unit>', 'Max absolute per-unit EUR diff to count as PASS', {
       default: DEFAULT_TOLERANCE_EUR_PER_UNIT,
     })
@@ -601,6 +605,7 @@ async function main(): Promise<void> {
     .option('--out <file>', 'Also write the JSON report to <file>')
     .option('--json', 'Emit the JSON report to stdout instead of the table')
     .example('pnpm compare:igcp')
+    .example('pnpm compare:igcp -- --series D --verbose')
     .example('pnpm compare:igcp -- --series E --verbose')
     .example('pnpm compare:igcp -- --tolerance 0.0005 --verbose')
     .example('pnpm compare:igcp -- --filter ^F:2024- --limit 5')

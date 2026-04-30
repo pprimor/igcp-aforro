@@ -1,34 +1,35 @@
 ---
 title: Methodology
-description: How this library reproduces the Série E and Série F Aforro certificate calculation, with references to IGCP technical sheets.
+description: How this library reproduces the Série D, E, and F Aforro certificate calculation, with references to IGCP technical sheets.
 ---
 
-This page explains how `igcp-aforro` reproduces, step by step, the remuneration calculation for **Série E** and **Série F** Aforro certificates published by [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Each section points to the official technical sheets and identifies the code file where the rule is implemented.
+This page explains how `igcp-aforro` reproduces, step by step, the remuneration calculation for **Série D**, **Série E**, and **Série F** Aforro certificates published by [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Each section points to the official technical sheets and identifies the code file where the rule is implemented.
 
 ::::note[Official sources]
+- Portaria n.º 17-B/2015, approving the Série D conditions.
 - Portaria n.º 329-A/2017, approving the Série E conditions.
 - Portaria n.º 149-A/2023, approving the Série F conditions and closing Série E subscriptions.
-- [IGCP technical sheets](https://www.igcp.pt/) for Série E and Série F Aforro certificates.
-- [EMMI](https://www.emmi-benchmarks.eu/) terms of use for EURIBOR® (both series index to 3-month Euribor).
+- [IGCP technical sheets](https://www.igcp.pt/) for Série D, E, and F Aforro certificates.
+- [EMMI](https://www.emmi-benchmarks.eu/) terms of use for EURIBOR® (all three series index to 3-month Euribor).
 
 This library **does not replace** official IGCP communications and is not financial advice. If values differ, the values published by IGCP prevail.
 ::::
 
 ## Structural parameters
 
-| Parameter | Série F | Série E | Implementation |
+| Parameter | Série F | Séries D/E | Implementation |
 | --- | --- | --- | --- |
 | Maturity | 15 years | 10 years | `SeriesMetadata.maturityYears` in [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts) |
 | Minimum subscription | 100 units (1 unit = EUR 1) | 100 units | `SeriesMetadata.minUnits` |
 | Maximum subscription | 100,000 units | 250,000 units | `SeriesMetadata.maxUnits` |
-| Subscription window | From 1 June 2023 | 1 November 2017 to 1 June 2023 (closed) | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
+| Subscription window | From 1 June 2023 | Série D: 1 February 2015 to 31 October 2017; Série E: 1 November 2017 to 1 June 2023 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
 | Capitalization | Quarterly, automatic | Quarterly, automatic | `SeriesMetadata.capitalizationFrequency` |
 | Unit quote precision | 5 decimal places | 5 decimal places | `SeriesMetadata.unitQuoteDecimals` |
 | IRS withholding | 28% on interest at capitalization | 28% on interest at capitalization | `SeriesMetadata.defaultIrsRate`, overridable with `simulate({ irsRate })` |
 
 ## Monthly base rate
 
-The base rate for each month `M` is calculated from 3-month Euribor according to the technical sheet. The steps common to both series are:
+The base rate for each month `M` is calculated from 3-month Euribor according to the technical sheet. The steps common to all three series are:
 
 1. Determine the **antepenultimate TARGET2 business day** of month `M-1`; this is the `fixingDate`.
 2. Take the sequence of the **10 TARGET2 business days** ending on, and including, `fixingDate`.
@@ -38,9 +39,9 @@ The base rate for each month `M` is calculated from 3-month Euribor according to
 The final step differs by series:
 
 - **Série F**: the rounded result is clamped to `[0%, 2.5%]`.
-- **Série E**: add a fixed **+1 percentage point** spread (`E3 + 1%`) to the rounded mean, then clamp the final value to `[0%, 3.5%]`. The order matters: rounding is applied to the mean **before** adding the spread, and the clamp is applied **after**.
+- **Séries D and E**: add a fixed **+1 percentage point** spread (`E3 + 1%`) to the rounded mean, then clamp the final value to `[0%, 3.5%]`. The order matters: rounding is applied to the mean **before** adding the spread, and the clamp is applied **after**.
 
-The implementation lives in [`src/core/baseRate.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/baseRate.ts) and uses the TARGET2 calendar implemented in [`src/core/calendar.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calendar.ts). The spread is parameterized in `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Série E: `'1'`). The 3-month Euribor fixings come from [`src/data/euribor3m.json`](https://github.com/primor/igcp-aforro/blob/main/src/data/euribor3m.json), sourced from the Deutsche Bundesbank (`BBIG1`, redistributing EMMI EURIBOR®).
+The implementation lives in [`src/core/baseRate.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/baseRate.ts) and uses the TARGET2 calendar implemented in [`src/core/calendar.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calendar.ts). The spread is parameterized in `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). The 3-month Euribor fixings come from [`src/data/euribor3m.json`](https://github.com/primor/igcp-aforro/blob/main/src/data/euribor3m.json), sourced from the Deutsche Bundesbank (`BBIG1`, redistributing EMMI EURIBOR®).
 
 Correctness against IGCP-published values is covered by the golden tests in [`tests/baseRate.test.ts`](https://github.com/primor/igcp-aforro/blob/main/tests/baseRate.test.ts).
 
@@ -59,7 +60,7 @@ A permanence premium is added to the base rate, indexed to the **contract year**
 | 12 to 13 | +1.50% |
 | 14 to 15 | +1.75% |
 
-**Série E** (defined in `SERIE_E_PREMIUM_TIERS`):
+**Séries D and E** (defined in `SERIE_D_PREMIUM_TIERS` / `SERIE_E_PREMIUM_TIERS`):
 
 | Contract years | Premium added to base rate |
 | --- | --- |
@@ -67,7 +68,7 @@ A permanence premium is added to the base rate, indexed to the **contract year**
 | 2 to 5 | +0.50% |
 | 6 to 10 | +1.00% |
 
-In both series, year 1 is represented explicitly as a zero-premium tier so every schedule row can always carry a non-null `premiumTier`. The tiers are defined in [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts).
+In every series, year 1 is represented explicitly as a zero-premium tier so every schedule row can always carry a non-null `premiumTier`. The tiers are defined in [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts).
 
 `premiumTierForYear(series, contractYear)` resolves the applicable tier; `getRateForCohort()` composes the annual rate (`base + premium`).
 
@@ -123,10 +124,12 @@ where `balance` is `units x currentUnitQuote`, quantized to cents with banker's 
 
 - `subscriptionDate` falls outside the series' subscription window:
   - **Série F**: strictly from `2023-06-01`;
+  - **Série D**: between `2015-02-01` and `2017-10-31` (closed to new subscriptions);
   - **Série E**: between `2017-11-01` and `2023-06-01` (closed to new subscriptions);
 - `units` falls outside the series' `[minUnits, maxUnits]` range:
   - **Série F**: `[100, 100000]`;
+  - **Série D**: `[100, 250000]`;
   - **Série E**: `[100, 250000]`;
 - `asOfDate < subscriptionDate`.
 
-After `subscriptionDate + maturityYears` (15 years for Série F, 10 years for Série E), the loop stops at maturity and the result returns `matured: true` with `maturityDate` populated.
+After `subscriptionDate + maturityYears` (15 years for Série F, 10 years for Séries D and E), the loop stops at maturity and the result returns `matured: true` with `maturityDate` populated.

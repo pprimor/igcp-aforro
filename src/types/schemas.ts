@@ -27,7 +27,7 @@ export const isoDateSchema = z
 
 export const isoMonthSchema = z.string().regex(ISO_MONTH_REGEX, 'Expected month in YYYY-MM format');
 
-export const seriesCodeSchema = z.enum(['E', 'F']);
+export const seriesCodeSchema = z.enum(['D', 'E', 'F']);
 
 /**
  * Adds per-series subscription-window issues to `ctx`. Reads bounds from the

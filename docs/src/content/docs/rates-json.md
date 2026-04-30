@@ -29,19 +29,20 @@ O ficheiro é regenerado:
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z"
   },
   "series": {
+    "D": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "E": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "F": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] }
   }
 }
 ```
 
-`series.E` e `series.F` têm a mesma forma e são preenchidas independentemente. As linhas da Série E começam em novembro de 2017 (o primeiro mês com um histórico limpo de >=10 dias úteis de Euribor 3M segundo a regra de média do IGCP); as linhas da Série F começam em junho de 2023.
+`series.D`, `series.E` e `series.F` têm a mesma forma e são preenchidas independentemente. As linhas da Série D começam no primeiro mês resolúvel com o histórico Euribor atualmente incluído, as linhas da Série E começam em novembro de 2017 e as linhas da Série F começam em junho de 2023.
 
 `schemaVersion` é incrementado sempre que é publicada uma alteração incompatível. Adicionar uma nova série em `series.<code>` **não** é considerado uma alteração incompatível.
 
 ## `series.<code>.metadata`
 
-Os `SeriesMetadata` estáticos da série: `maturityYears`, `subscriptionStartDate`, `subscriptionEndDate` (apenas em séries encerradas como a Série E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, `baseRateSpreadPct` (Série F: `'0'`, Série E: `'1'`), `defaultIrsRate`, a lista completa de `premiumTiers`, etc. É a mesma informação devolvida pela biblioteca npm em `getSeries('E')` / `getSeries('F')`.
+Os `SeriesMetadata` estáticos da série: `maturityYears`, `subscriptionStartDate`, `subscriptionEndDate` (apenas em séries encerradas como as Séries D e E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, `baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`), `defaultIrsRate`, a lista completa de `premiumTiers`, etc. É a mesma informação devolvida pela biblioteca npm em `getSeries('D')` / `getSeries('E')` / `getSeries('F')`.
 
 ## `series.<code>.monthlyBaseRates`
 
@@ -59,7 +60,7 @@ Uma entrada por mês de calendário para o qual seja possível resolver um fixin
 | --- | --- | --- |
 | `month` | `YYYY-MM` | Mês de calendário a que a taxa se aplica. |
 | `fixingDate` | `YYYY-MM-DD` | Antepenúltimo dia útil TARGET2 do mês anterior. |
-| `basePct` | string decimal | Taxa-base final, já limitada e arredondada a 3 casas decimais. Para a Série F: média arredondada limitada a `[0, 2.5]`. Para a Série E: média arredondada + `1.000` (o *spread* de `+1pp`), limitada a `[0, 3.5]`. |
+| `basePct` | string decimal | Taxa-base final, já limitada e arredondada a 3 casas decimais. Para a Série F: média arredondada limitada a `[0, 2.5]`. Para as Séries D e E: média arredondada + `1.000` (o *spread* de `+1pp`), limitada a `[0, 3.5]`. |
 
 ## `series.<code>.cohortRates`
 

@@ -16,8 +16,8 @@
  *
  *   - `seed`        -> Replace `src/data/euribor3m.json` with the upstream
  *                      payload filtered to `[--from, --to]`. `--from`
- *                      defaults to {@link SEED_START_DATE} (10 business
- *                      days before the first Série F fixing date).
+ *                      defaults to {@link SEED_START_DATE} (before the
+ *                      first Série D fixing windows this package supports).
  *   - `incremental` -> Default cron mode. Merge upstream into the existing
  *                      dataset, dedup by date, keep both. Incoming wins
  *                      on conflict (Bundesbank/EMMI is authoritative).
@@ -57,13 +57,12 @@ const META_FILE = resolve(REPO_ROOT, 'src/data/_meta.json');
 const RAW_DIR = resolve(REPO_ROOT, 'raw/euribor');
 
 /**
- * Earliest date we keep in the bundled dataset. The first Série F base
- * rate (June 2023) is fixed on 2023-05-30 and averages the 10 TARGET2
- * business days strictly preceding it, so 2023-04-01 leaves a comfortable
- * cushion (~7 business days) without bloating the file with two decades
- * of pre-Aforro history.
+ * Earliest date we keep in the bundled dataset. Série D starts in February
+ * 2015 and needs Euribor observations from the preceding fixing windows, so
+ * January 2015 is the smallest practical seed floor for supported D/E/F
+ * cohorts without bundling pre-Aforro history.
  */
-const SEED_START_DATE = '2023-04-01';
+const SEED_START_DATE = '2015-01-01';
 
 const META_SOURCE_LABEL =
   'Deutsche Bundesbank time-series (BBIG1) — EMMI EURIBOR® 3-month daily fixings';

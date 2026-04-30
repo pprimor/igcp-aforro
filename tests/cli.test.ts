@@ -143,6 +143,19 @@ describe('aforro CLI — JSON contracts', () => {
     });
   });
 
+  it('current --series D --json prints the Série D rate for the as-of month', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli(['current', '--series', 'D', '--as-of', '2026-04-19', '--json']),
+    );
+
+    expect(parsed).toMatchObject({
+      series: 'D',
+      month: '2026-04',
+      fixingDate: '2026-03-27',
+      basePct: '3.138',
+    });
+  });
+
   it('rates --from --to --json returns one row per month in range', async () => {
     const parsed = parseJson<ReadonlyArray<{ month: string; basePct: string }>>(
       await runCli(['rates', '--from', '2025-04', '--to', '2025-07', '--json']),
@@ -159,6 +172,16 @@ describe('aforro CLI — JSON contracts', () => {
 
     expect(parsed).toHaveLength(2);
     expect(parsed.map((row) => row.series)).toEqual(['E', 'E']);
+    expect(parsed.map((row) => row.basePct)).toEqual(['3.415', '3.216']);
+  });
+
+  it('rates --series D --json returns Série D rows in range', async () => {
+    const parsed = parseJson<ReadonlyArray<{ series: string; month: string; basePct: string }>>(
+      await runCli(['rates', '--series', 'D', '--from', '2025-04', '--to', '2025-05', '--json']),
+    );
+
+    expect(parsed).toHaveLength(2);
+    expect(parsed.map((row) => row.series)).toEqual(['D', 'D']);
     expect(parsed.map((row) => row.basePct)).toEqual(['3.415', '3.216']);
   });
 
@@ -204,6 +227,29 @@ describe('aforro CLI — JSON contracts', () => {
       subscriptionDate: '2018-01-15',
       yearsSinceSubscription: 2,
       premiumTier: { fromYear: 2, toYear: 5, ratePct: '0.50' },
+    });
+  });
+
+  it('cohort --series D --json resolves a valid Série D cohort', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'cohort',
+        '--series',
+        'D',
+        '--subscribed',
+        '2017-10-01',
+        '--as-of',
+        '2026-04-19',
+        '--json',
+      ]),
+    );
+
+    expect(parsed).toMatchObject({
+      series: 'D',
+      subscriptionDate: '2017-10-01',
+      yearsSinceSubscription: 8,
+      premiumTier: { fromYear: 6, toYear: 10, ratePct: '1.00' },
+      annualRatePct: '4.138',
     });
   });
 
@@ -295,6 +341,36 @@ describe('aforro CLI — JSON contracts', () => {
       asOfDate: '2018-04-15',
       units: 1000,
       maturityDate: '2028-01-15',
+      matured: false,
+    });
+    const gross = Number(parsed.totalInterestGross);
+    const irs = Number(parsed.totalIrsWithheld);
+    const net = Number(parsed.totalInterestNet);
+    expect(Math.abs(gross - irs - net)).toBeLessThan(0.005);
+  });
+
+  it('simulate --series D --json runs against a Série D cohort end-to-end', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'simulate',
+        '--series',
+        'D',
+        '--subscribed',
+        '2017-10-01',
+        '--units',
+        '1000',
+        '--as-of',
+        '2018-01-01',
+        '--json',
+      ]),
+    );
+
+    expect(parsed).toMatchObject({
+      series: 'D',
+      subscriptionDate: '2017-10-01',
+      asOfDate: '2018-01-01',
+      units: 1000,
+      maturityDate: '2027-10-01',
       matured: false,
     });
     const gross = Number(parsed.totalInterestGross);
@@ -412,7 +488,9 @@ describe('aforro CLI — validation contracts', () => {
     const result = await runCli(['current', '--series', 'X', '--as-of', '2026-04-19']);
 
     expectFailure(result);
-    expect(result.stderr).toContain("series: Invalid enum value. Expected 'E' | 'F', received 'X'");
+    expect(result.stderr).toContain(
+      "series: Invalid enum value. Expected 'D' | 'E' | 'F', received 'X'",
+    );
   });
 
   it('current rejects an invalid --as-of date', async () => {

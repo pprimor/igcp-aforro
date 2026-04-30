@@ -1,34 +1,35 @@
 ---
 title: Metodologia
-description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Série E e Série F, com referências às fichas técnicas do IGCP.
+description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Série D, E e F, com referências às fichas técnicas do IGCP.
 ---
 
-Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a passo, o cálculo da remuneração dos Certificados de Aforro **Série E** e **Série F** publicado pelo [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Cada secção remete para as fichas técnicas oficiais e identifica o ficheiro do código onde a regra está implementada.
+Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a passo, o cálculo da remuneração dos Certificados de Aforro **Série D**, **Série E** e **Série F** publicado pelo [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Cada secção remete para as fichas técnicas oficiais e identifica o ficheiro do código onde a regra está implementada.
 
 :::note[Fontes oficiais]
+- Portaria n.º 17-B/2015, que aprova as condições da Série D.
 - Portaria n.º 329-A/2017, que aprova as condições da Série E.
 - Portaria n.º 149-A/2023, que aprova as condições da Série F e encerra a subscrição da Série E.
-- [Fichas técnicas do IGCP](https://www.igcp.pt/) para os Certificados de Aforro Série E e Série F.
-- Termos de uso da [EMMI](https://www.emmi-benchmarks.eu/) para a EURIBOR® (ambas as séries indexam à Euribor a 3 meses).
+- [Fichas técnicas do IGCP](https://www.igcp.pt/) para os Certificados de Aforro Série D, E e F.
+- Termos de uso da [EMMI](https://www.emmi-benchmarks.eu/) para a EURIBOR® (as três séries indexam à Euribor a 3 meses).
 
 A presente biblioteca **não substitui** as comunicações oficiais do IGCP nem constitui aconselhamento financeiro. Em caso de divergência, prevalecem os valores publicados pelo IGCP.
 :::
 
 ## Parâmetros estruturais
 
-| Parâmetro | Série F | Série E | Implementação |
+| Parâmetro | Série F | Séries D/E | Implementação |
 | --- | --- | --- | --- |
 | Maturidade | 15 anos | 10 anos | `SeriesMetadata.maturityYears` em [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts) |
 | Subscrição mínima | 100 unidades (1 unidade = €1) | 100 unidades | `SeriesMetadata.minUnits` |
 | Subscrição máxima | 100.000 unidades | 250.000 unidades | `SeriesMetadata.maxUnits` |
-| Janela de subscrição | A partir de 1 de junho de 2023 | 1 de novembro de 2017 a 1 de junho de 2023 (encerrada) | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
+| Janela de subscrição | A partir de 1 de junho de 2023 | Série D: 1 de fevereiro de 2015 a 31 de outubro de 2017; Série E: 1 de novembro de 2017 a 1 de junho de 2023 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
 | Capitalização | Trimestral, automática | Trimestral, automática | `SeriesMetadata.capitalizationFrequency` |
 | Precisão da cotação | 5 casas decimais | 5 casas decimais | `SeriesMetadata.unitQuoteDecimals` |
 | Retenção de IRS | 28% sobre os juros, na capitalização | 28% sobre os juros, na capitalização | `SeriesMetadata.defaultIrsRate`, sobreponível via `simulate({ irsRate })` |
 
 ## Taxa-base mensal
 
-A taxa-base aplicável a cada mês `M` é calculada a partir da Euribor a 3 meses, conforme a ficha técnica. Os passos comuns às duas séries são:
+A taxa-base aplicável a cada mês `M` é calculada a partir da Euribor a 3 meses, conforme a ficha técnica. Os passos comuns às três séries são:
 
 1. Determina-se o **antepenúltimo dia útil TARGET2** do mês `M-1` — chamamos-lhe `fixingDate`.
 2. Considera-se a sequência dos **10 dias úteis TARGET2** que terminam (inclusive) em `fixingDate`.
@@ -38,9 +39,9 @@ A taxa-base aplicável a cada mês `M` é calculada a partir da Euribor a 3 mese
 O passo final difere por série:
 
 - **Série F** — o resultado arredondado é limitado ao intervalo `[0%, 2,5%]`.
-- **Série E** — à média já arredondada soma-se um *spread* fixo de **+1 ponto percentual** (`E3 + 1%`); o valor final é depois limitado ao intervalo `[0%, 3,5%]`. A ordem importa: o arredondamento aplica-se à média, **antes** de somar o *spread*, e o *clamp* aplica-se **depois**.
+- **Séries D e E** — à média já arredondada soma-se um *spread* fixo de **+1 ponto percentual** (`E3 + 1%`); o valor final é depois limitado ao intervalo `[0%, 3,5%]`. A ordem importa: o arredondamento aplica-se à média, **antes** de somar o *spread*, e o *clamp* aplica-se **depois**.
 
-A implementação vive em [`src/core/baseRate.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/baseRate.ts) e usa o calendário TARGET2 implementado em [`src/core/calendar.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calendar.ts). O *spread* é parametrizado em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Série E: `'1'`). O conjunto de fixações Euribor 3M usadas vem de [`src/data/euribor3m.json`](https://github.com/primor/igcp-aforro/blob/main/src/data/euribor3m.json), recolhido a partir do Deutsche Bundesbank (série `BBIG1`, redistribuição da EMMI EURIBOR®).
+A implementação vive em [`src/core/baseRate.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/baseRate.ts) e usa o calendário TARGET2 implementado em [`src/core/calendar.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calendar.ts). O *spread* é parametrizado em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). O conjunto de fixações Euribor 3M usadas vem de [`src/data/euribor3m.json`](https://github.com/primor/igcp-aforro/blob/main/src/data/euribor3m.json), recolhido a partir do Deutsche Bundesbank (série `BBIG1`, redistribuição da EMMI EURIBOR®).
 
 A correção contra os valores publicados pelo IGCP é assegurada pelos *golden tests* em [`tests/baseRate.test.ts`](https://github.com/primor/igcp-aforro/blob/main/tests/baseRate.test.ts).
 
@@ -59,7 +60,7 @@ A correção contra os valores publicados pelo IGCP é assegurada pelos *golden 
 | 12 a 13 | +1,50% |
 | 14 a 15 | +1,75% |
 
-**Série E** (definidas em `SERIE_E_PREMIUM_TIERS`):
+**Séries D e E** (definidas em `SERIE_D_PREMIUM_TIERS` / `SERIE_E_PREMIUM_TIERS`):
 
 | Anos contratuais | Prémio (a somar à taxa-base) |
 | --- | --- |
@@ -67,7 +68,7 @@ A correção contra os valores publicados pelo IGCP é assegurada pelos *golden 
 | 2 a 5 | +0,50% |
 | 6 a 10 | +1,00% |
 
-Em ambas as séries, o ano 1 é representado explicitamente como uma faixa de prémio zero para que cada linha do calendário (`schedule`) possa transportar sempre um `premiumTier` não-nulo. As faixas estão definidas em [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts).
+Em todas as séries, o ano 1 é representado explicitamente como uma faixa de prémio zero para que cada linha do calendário (`schedule`) possa transportar sempre um `premiumTier` não-nulo. As faixas estão definidas em [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts).
 
 A função `premiumTierForYear(series, contractYear)` resolve a faixa aplicável; `getRateForCohort()` compõe a taxa anual (`base + prémio`).
 
@@ -123,10 +124,12 @@ em que `saldo` é `units × currentUnitQuote`, quantizado a cêntimos com arredo
 
 - a `subscriptionDate` cai fora da janela de subscrição da série:
   - **Série F** — estritamente a partir de `2023-06-01`;
+  - **Série D** — entre `2015-02-01` e `2017-10-31` (encerrada a novas subscrições);
   - **Série E** — entre `2017-11-01` e `2023-06-01` (encerrada a novas subscrições);
 - `units` cai fora do intervalo `[minUnits, maxUnits]` da série:
   - **Série F** — `[100, 100.000]`;
+  - **Série D** — `[100, 250.000]`;
   - **Série E** — `[100, 250.000]`;
 - `asOfDate < subscriptionDate`.
 
-Após `subscriptionDate + maturityYears` (15 anos para Série F, 10 anos para Série E), o ciclo termina em maturidade e o resultado vem com `matured: true` e `maturityDate` preenchido.
+Após `subscriptionDate + maturityYears` (15 anos para Série F, 10 anos para Séries D e E), o ciclo termina em maturidade e o resultado vem com `matured: true` e `maturityDate` preenchido.

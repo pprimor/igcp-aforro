@@ -46,7 +46,7 @@ import { getSeries, premiumTierForYear } from './series.js';
  *      no premium, year 2 starts the +0.25% tier, etc.).
  *   3. The booked net state is a per-unit quote. Each capitalization computes
  *      gross and net interest per unit, then rounds the resulting unit quote
- *      to the series' configured quote precision (5 decimals for Série E/F)
+ *      to the series' configured quote precision (5 decimals for Séries D/E/F)
  *      using banker's rounding.
  *   4. Gross interest and IRS withholding are also booked in real EUR at the
  *      holding level each quarter: gross = `units × previousUnitQuote ×

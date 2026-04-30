@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Install igcp-aforro, simulate a Série E or Série F cohort, and inspect the schedule.
+description: Install igcp-aforro, simulate a Série D, E, or F cohort, and inspect the schedule.
 ---
 
 ## Install
@@ -30,7 +30,7 @@ console.log(result.matured);
 console.log(result.schedule?.length);
 ```
 
-Pass `series: Series.E` (or the string `'E'`) to simulate a Série E cohort instead. Série E has a different base-rate formula (`E3 + 1%`, clamped to `[0%, 3.5%]`), different premium tiers, a 10-year maturity, and a `[2017-11-01, 2023-06-01]` subscription window:
+Pass `series: Series.D` or `series: Series.E` to simulate historical cohorts. Séries D and E use `E3 + 1%`, clamped to `[0%, 3.5%]`, premium tiers of `+0.50%` in years 2-5 and `+1.00%` in years 6-10, a 10-year maturity, and closed subscription windows:
 
 ```ts
 import { simulate, Series } from 'igcp-aforro';
@@ -74,13 +74,15 @@ getRateTable({ series: 'F', fromMonth: '2023-06', toMonth: '2026-04' });
 
 - a `subscriptionDate` outside the series' subscription window:
   - **Série F**: strictly on or after `2023-06-01`;
+  - **Série D**: within `[2015-02-01, 2017-10-31]` (closed to new subscriptions);
   - **Série E**: within `[2017-11-01, 2023-06-01]` (closed to new subscriptions);
 - `units` outside the series' `[minUnits, maxUnits]` range:
   - **Série F**: `[100, 100000]`;
+  - **Série D**: `[100, 250000]`;
   - **Série E**: `[100, 250000]`;
 - `asOfDate < subscriptionDate`.
 
-Past `subscriptionDate + maturityYears` (15 for Série F, 10 for Série E) the simulation stops at maturity and returns `matured: true`.
+Past `subscriptionDate + maturityYears` (15 for Série F, 10 for Séries D and E) the simulation stops at maturity and returns `matured: true`.
 
 ## Next steps
 

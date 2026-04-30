@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildArtifact } from '../scripts/build-rates-json.js';
 import { getCurrentRate, getRateForCohort, getRateTable } from '../src/core/rates.js';
 import { getSeries, premiumTierForYear } from '../src/core/series.js';
 
@@ -26,8 +27,25 @@ const serieF = getSeries('F');
 
 describe('getSeries', () => {
   it('exposes the per-unit quote precision for supported series', () => {
+    expect(getSeries('D').unitQuoteDecimals).toBe(5);
     expect(getSeries('E').unitQuoteDecimals).toBe(5);
     expect(getSeries('F').unitQuoteDecimals).toBe(5);
+  });
+
+  it('exposes Série D metadata from the IGCP technical sheet', () => {
+    expect(getSeries('D')).toMatchObject({
+      code: 'D',
+      name: 'Série D',
+      maturityYears: 10,
+      subscriptionStartDate: '2015-02-01',
+      subscriptionEndDate: '2017-10-31',
+      minUnits: 100,
+      maxUnits: 250_000,
+      baseRateClampMinPct: '0',
+      baseRateClampMaxPct: '3.5',
+      baseRateSpreadPct: '1',
+      capitalizationFrequency: 'quarterly',
+    });
   });
 });
 
@@ -216,5 +234,67 @@ describe('getRateForCohort — Série E', () => {
         asOfDate: '2026-04-19',
       }),
     ).toThrow(/Série E subscriptions closed/);
+  });
+});
+
+describe('getRateForCohort — Série D', () => {
+  const serieD = getSeries('D');
+
+  it.each([
+    { year: 1, tier: { fromYear: 1, toYear: 1, ratePct: '0.00' } },
+    { year: 2, tier: { fromYear: 2, toYear: 5, ratePct: '0.50' } },
+    { year: 5, tier: { fromYear: 2, toYear: 5, ratePct: '0.50' } },
+    { year: 6, tier: { fromYear: 6, toYear: 10, ratePct: '1.00' } },
+    { year: 10, tier: { fromYear: 6, toYear: 10, ratePct: '1.00' } },
+  ])('resolves Série D premium tier for contract year $year', ({ year, tier }) => {
+    expect(premiumTierForYear(serieD, year)).toEqual(tier);
+  });
+
+  it('resolves the +1.00% premium tier for a year-9 cohort', () => {
+    const result = getRateForCohort({
+      series: 'D',
+      subscriptionDate: '2017-10-01',
+      asOfDate: '2026-04-19',
+    });
+
+    expect(result.series).toBe('D');
+    expect(result.quarterStartDate).toBe('2026-04-01');
+    expect(result.yearsSinceSubscription).toBe(8);
+    expect(result.premiumTier).toEqual({ fromYear: 6, toYear: 10, ratePct: '1.00' });
+    expect(result.baseRatePct).toBe('3.138');
+    expect(result.annualRatePct).toBe('4.138');
+  });
+
+  it('resolves rates for early Série D subscription months', () => {
+    const result = getRateForCohort({
+      series: 'D',
+      subscriptionDate: '2015-03-01',
+      asOfDate: '2015-06-01',
+    });
+
+    expect(result.series).toBe('D');
+    expect(result.quarterStartDate).toBe('2015-06-01');
+    expect(result.baseRatePct).toMatch(/^\d+\.\d{3}$/);
+  });
+
+  it('rejects subscription dates after Série D closed', () => {
+    expect(() =>
+      getRateForCohort({
+        series: 'D',
+        subscriptionDate: '2017-11-01',
+        asOfDate: '2024-04-19',
+      }),
+    ).toThrow(/Série D subscriptions closed/);
+  });
+});
+
+describe('rates.json artifact', () => {
+  it('includes a Série D block with base rates and cohort rows', async () => {
+    const artifact = await buildArtifact(() => {});
+
+    expect(Object.keys(artifact.series).sort()).toEqual(['D', 'E', 'F']);
+    expect(artifact.series.D.metadata.code).toBe('D');
+    expect(artifact.series.D.monthlyBaseRates.length).toBeGreaterThan(0);
+    expect(artifact.series.D.cohortRates.length).toBeGreaterThan(0);
   });
 });

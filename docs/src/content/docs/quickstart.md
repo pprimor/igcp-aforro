@@ -1,6 +1,6 @@
 ---
 title: Início rápido
-description: Instale o igcp-aforro, simule um grupo de subscrição da Série E ou Série F e consulte o calendário.
+description: Instale o igcp-aforro, simule um grupo de subscrição da Série D, E ou F e consulte o calendário.
 ---
 
 ## Instalar
@@ -30,7 +30,7 @@ console.log(result.matured);
 console.log(result.schedule?.length);
 ```
 
-Passe `series: Series.E` (ou a *string* `'E'`) para simular um grupo de subscrição da Série E. A Série E tem uma fórmula de taxa-base diferente (`E3 + 1%`, limitada a `[0%, 3,5%]`), prémios de permanência próprios, maturidade de 10 anos e uma janela de subscrição `[2017-11-01, 2023-06-01]`:
+Passe `series: Series.D` ou `series: Series.E` para simular grupos de subscrição históricos. As Séries D e E usam `E3 + 1%`, limitado a `[0%, 3,5%]`, prémios de permanência de `+0,50%` nos anos 2-5 e `+1,00%` nos anos 6-10, maturidade de 10 anos e janelas de subscrição fechadas:
 
 ```ts
 import { simulate, Series } from 'igcp-aforro';
@@ -74,13 +74,15 @@ getRateTable({ series: 'F', fromMonth: '2023-06', toMonth: '2026-04' });
 
 - a `subscriptionDate` está fora da janela de subscrição da série:
   - **Série F**: estritamente a partir de `2023-06-01`;
+  - **Série D**: dentro de `[2015-02-01, 2017-10-31]` (encerrada a novas subscrições);
   - **Série E**: dentro de `[2017-11-01, 2023-06-01]` (encerrada a novas subscrições);
 - `units` está fora do intervalo `[minUnits, maxUnits]` da série:
   - **Série F**: `[100, 100000]`;
+  - **Série D**: `[100, 250000]`;
   - **Série E**: `[100, 250000]`;
 - `asOfDate < subscriptionDate`.
 
-Depois de `subscriptionDate + maturityYears` (15 anos para a Série F, 10 anos para a Série E), a simulação termina na maturidade e devolve `matured: true`.
+Depois de `subscriptionDate + maturityYears` (15 anos para a Série F, 10 anos para as Séries D e E), a simulação termina na maturidade e devolve `matured: true`.
 
 ## Próximos passos
 

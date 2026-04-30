@@ -23,9 +23,9 @@ import { VERSION } from './index.js';
 const cli = cac('aforro');
 
 cli
-  .command('simulate', 'Simulate an IGCP Aforro cohort (Série E or F) up to an as-of date')
+  .command('simulate', 'Simulate an IGCP Aforro cohort (Série D, E, or F) up to an as-of date')
   .option('--subscribed <date>', 'Subscription date (YYYY-MM-DD)')
-  .option('--units <n>', 'Principal in EUR (integer in [100, 100000])')
+  .option('--units <n>', 'Principal in EUR (integer inside the selected series range)')
   .option('--as-of <date>', 'As-of date (YYYY-MM-DD); defaults to today (UTC)')
   .option('--schedule', 'Include the per-quarter capitalization schedule')
   .option('--irs <rate>', 'IRS withholding rate (e.g. 0.28); defaults to series default')

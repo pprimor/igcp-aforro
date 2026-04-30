@@ -2,7 +2,7 @@
 
 Thanks for helping improve `igcp-aforro`. This project is an independent,
 decimal-safe TypeScript library and CLI for simulating Portuguese IGCP Aforro
-Série E and Série F Treasury Certificates.
+Série D, Série E, and Série F Treasury Certificates.
 
 This is not an official IGCP project and does not provide financial advice. The
 bundled Euribor 3M observations are redistributed from Deutsche Bundesbank under
@@ -106,7 +106,7 @@ pnpm compare:igcp -- --series F --filter '^F:2024-' --limit 3 --verbose
 # Focused Série E smoke for one subscription month.
 pnpm compare:igcp -- --series E --filter '^E:2023-03' --verbose
 
-# Full local sweep across both supported series.
+# Full local sweep across all supported series.
 pnpm compare:igcp -- --verbose
 
 # Machine-readable report outside the repository.
@@ -115,7 +115,7 @@ pnpm compare:igcp -- --json --out /tmp/igcp-compare.json
 
 Useful flags:
 
-- `--series E|F|both` narrows the scenario matrix; the default is `both`.
+- `--series D|E|F|all` narrows the scenario matrix; the default is `all`.
 - `--filter <regex>` keeps scenario IDs matching the regex, such as
   `^F:2024-`.
 - `--limit <n>` caps the run after filtering.

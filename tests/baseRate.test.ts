@@ -159,3 +159,49 @@ describe('computeBaseRate — Série E spread + clamp', () => {
     expect(result.clamped).toBe(true);
   });
 });
+
+describe('computeBaseRate — Série D spread + clamp', () => {
+  const SERIES_D = getSeries('D');
+  const TARGET_YEAR = 2015;
+  const TARGET_MONTH = 5;
+  const OBSERVATION_DATES = [
+    '2015-03-02',
+    '2015-03-03',
+    '2015-03-04',
+    '2015-03-05',
+    '2015-03-06',
+    '2015-03-09',
+    '2015-03-10',
+    '2015-03-11',
+    '2015-03-12',
+    '2015-03-13',
+  ];
+
+  function observationsAt(ratePct: string): readonly RateEntry[] {
+    return OBSERVATION_DATES.map((date) => ({ date, ratePct }));
+  }
+
+  it('uses the same E3 + 1pp formula and 3.500% cap as Série E', () => {
+    const result = computeBaseRate(TARGET_YEAR, TARGET_MONTH, {
+      series: SERIES_D,
+      observations: observationsAt('4.000'),
+    });
+
+    expect(result.roundedAveragePct).toBe('4.000');
+    expect(result.roundedPlusSpreadPct).toBe('5.000');
+    expect(result.basePct).toBe('3.500');
+    expect(result.clamped).toBe(true);
+  });
+
+  it('clamps negative E3 + 1pp results up to 0.000%', () => {
+    const result = computeBaseRate(TARGET_YEAR, TARGET_MONTH, {
+      series: SERIES_D,
+      observations: observationsAt('-1.500'),
+    });
+
+    expect(result.roundedAveragePct).toBe('-1.500');
+    expect(result.roundedPlusSpreadPct).toBe('-0.500');
+    expect(result.basePct).toBe('0.000');
+    expect(result.clamped).toBe(true);
+  });
+});

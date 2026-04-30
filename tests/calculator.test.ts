@@ -151,6 +151,21 @@ describe('simulate — input validation', () => {
       simulate({ series: 'E', subscriptionDate: '2018-01-15', units: 250_001 }),
     ).toThrow();
   });
+
+  it('accepts Série D units up to the 250.000€ ceiling and rejects later subscriptions', () => {
+    expect(() =>
+      simulate({
+        series: 'D',
+        subscriptionDate: '2015-03-01',
+        units: 250_000,
+        asOfDate: '2015-06-01',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      simulate({ series: 'D', subscriptionDate: '2017-10-01', units: 250_001 }),
+    ).toThrow();
+    expect(() => simulate({ series: 'D', subscriptionDate: '2017-11-01', units: 1000 })).toThrow();
+  });
 });
 
 /**
@@ -269,5 +284,48 @@ describe('simulate — Série E per-unit quote parity', () => {
     expect(result.currentValueNet).toBe('1083.40');
     expect(result.schedule).toHaveLength(12);
     expect(actualUnitQuotes).toEqual(expectedUnitQuotes);
+  });
+});
+
+describe('simulate — Série D smoke test', () => {
+  const input: SimulateInput = {
+    series: 'D',
+    subscriptionDate: '2017-10-01',
+    units: 1000,
+    asOfDate: '2026-04-19',
+    includeSchedule: true,
+  };
+
+  it('uses 10-year maturity and Série D metadata', () => {
+    const result = simulate(input);
+
+    expect(result.series).toBe('D');
+    expect(result.seriesMetadata.code).toBe('D');
+    expect(result.maturityDate).toBe('2027-10-01');
+    expect(result.matured).toBe(false);
+    expect(result.schedule).toHaveLength(34);
+  });
+
+  it('crosses the year-5 → year-6 premium boundary with Série D tiers', () => {
+    const result = simulate(input);
+    const schedule = result.schedule;
+
+    expect(schedule).toBeDefined();
+    if (!schedule) return;
+    expect(schedule[0]?.premiumTier).toEqual({ fromYear: 1, toYear: 1, ratePct: '0.00' });
+    expect(schedule[19]?.premiumTier).toEqual({ fromYear: 2, toYear: 5, ratePct: '0.50' });
+    expect(schedule[20]?.premiumTier).toEqual({ fromYear: 6, toYear: 10, ratePct: '1.00' });
+  });
+
+  it('reports matured=true once asOfDate reaches the 10-year maturity date', () => {
+    const result = simulate({
+      series: 'D',
+      subscriptionDate: '2017-10-01',
+      units: 1000,
+      asOfDate: '2027-10-01',
+    });
+
+    expect(result.matured).toBe(true);
+    expect(result.maturityDate).toBe('2027-10-01');
   });
 });

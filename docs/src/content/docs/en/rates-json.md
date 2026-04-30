@@ -29,19 +29,20 @@ The file is regenerated:
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z"
   },
   "series": {
+    "D": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "E": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "F": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] }
   }
 }
 ```
 
-`series.E` and `series.F` carry the same shape and are populated independently — Série E rows start in November 2017 (the first month with a clean >=10-business-day Euribor 3M history under the IGCP averaging rule), Série F rows start in June 2023.
+`series.D`, `series.E`, and `series.F` carry the same shape and are populated independently — Série D rows start at the first resolvable month in the bundled Euribor history, Série E rows start in November 2017, and Série F rows start in June 2023.
 
 `schemaVersion` is bumped whenever a backwards-incompatible change ships, so consumers can pin or assert. Adding a new series under `series.<code>` is **not** considered a breaking change.
 
 ## `series.<code>.metadata`
 
-The static `SeriesMetadata` for the series — `maturityYears`, `subscriptionStartDate`, `subscriptionEndDate` (only present for closed series like Série E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, `baseRateSpreadPct` (Série F: `'0'`, Série E: `'1'`), `defaultIrsRate`, the full `premiumTiers` list, etc. Identical to what the npm library returns from `getSeries('E')` / `getSeries('F')`.
+The static `SeriesMetadata` for the series — `maturityYears`, `subscriptionStartDate`, `subscriptionEndDate` (only present for closed series like Séries D and E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, `baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`), `defaultIrsRate`, the full `premiumTiers` list, etc. Identical to what the npm library returns from `getSeries('D')` / `getSeries('E')` / `getSeries('F')`.
 
 ## `series.<code>.monthlyBaseRates`
 
@@ -59,7 +60,7 @@ One entry per calendar month for which a fixing can be resolved.
 | --- | --- | --- |
 | `month` | `YYYY-MM` | Calendar month the rate applies to. |
 | `fixingDate` | `YYYY-MM-DD` | Antepenultimate TARGET2 business day of the previous month. |
-| `basePct` | decimal string | Final, post-clamp base rate rounded to 3 decimals. For Série F: rounded mean clamped to `[0, 2.5]`. For Série E: rounded mean + `1.000` (the `+1pp` spread), clamped to `[0, 3.5]`. |
+| `basePct` | decimal string | Final, post-clamp base rate rounded to 3 decimals. For Série F: rounded mean clamped to `[0, 2.5]`. For Séries D and E: rounded mean + `1.000` (the `+1pp` spread), clamped to `[0, 3.5]`. |
 
 ## `series.<code>.cohortRates`
 

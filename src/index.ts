@@ -7,7 +7,7 @@
  *
  * The two main calls are:
  *
- * - {@link simulate} — quarterly-compounding simulator for a Série F cohort.
+ * - {@link simulate} — quarterly-compounding simulator for a supported cohort.
  * - {@link getCurrentRate} / {@link getRateForCohort} / {@link getRateTable}
  *   — rate lookups that mirror the IGCP-published methodology.
  *
