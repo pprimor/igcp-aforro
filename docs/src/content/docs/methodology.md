@@ -120,7 +120,7 @@ em que `saldo` é `units × currentUnitQuote`, quantizado a cêntimos com arredo
 
 ## Validações
 
-`simulate()` valida os *inputs* com Zod, lendo limites a partir do `SeriesMetadata` da série escolhida, antes de qualquer cálculo. Atira erro quando:
+`simulate()` valida os *inputs* com Zod, lendo limites a partir do `SeriesMetadata` da série escolhida, antes de qualquer cálculo. Lança erro quando:
 
 - a `subscriptionDate` cai fora da janela de subscrição da série:
   - **Série F** — estritamente a partir de `2023-06-01`;

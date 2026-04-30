@@ -43,7 +43,7 @@ Mostra a taxa-base mensal publicada pelo IGCP para o mês atual, ou para o mês 
 aforro current [--series D|E|F] [--as-of 2026-04-19] [--json]
 ```
 
-Inclui `fixingDate` para que possa auditar o valor até uma observação específica da Euribor 3M em `src/data/euribor3m.json`.
+Inclui `fixingDate` para que possa auditar o valor até uma fixação específica da Euribor 3M em `src/data/euribor3m.json`.
 
 ## `aforro rates`
 
@@ -53,7 +53,7 @@ Mostra as taxas-base mensais entre `--from` e `--to`, inclusive.
 aforro rates --from 2023-06 --to 2026-04 [--series D|E|F] [--json]
 ```
 
-Os meses são aceites no formato `YYYY-MM`. A saída tem uma linha por mês resolúvel; meses sem fixing incluído são omitidos.
+Os meses são aceites no formato `YYYY-MM`. A saída tem uma linha por mês resolúvel; meses sem fixação incluída são omitidos.
 
 ## `aforro cohort`
 
@@ -72,7 +72,7 @@ aforro cohort \
 ## `aforro fetch-euribor`
 
 ::::caution[Apenas para desenvolvimento]
-Este comando atualiza `src/data/euribor3m.json` a partir da [API de séries temporais do Deutsche Bundesbank](https://api.statistiken.bundesbank.de/) (série `BBIG1`, redistribuindo fixings diários da EMMI EURIBOR®). Só funciona dentro de um checkout de desenvolvimento deste repositório e está ligado ao cron `data-refresh.yml`. Utilizadores finais da biblioteca não deverão precisar de o executar.
+Este comando atualiza `src/data/euribor3m.json` a partir da [API de séries temporais do Deutsche Bundesbank](https://api.statistiken.bundesbank.de/) (série `BBIG1`, redistribuindo fixações diárias da EMMI EURIBOR®). Só funciona dentro de um checkout de desenvolvimento deste repositório e está ligado ao cron `data-refresh.yml`. Utilizadores finais da biblioteca não deverão precisar de o executar.
 ::::
 
 ```bash

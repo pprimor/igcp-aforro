@@ -17,5 +17,5 @@ O histórico canónico está na [página de Releases do GitHub](https://github.c
 
 - Estrutura pública inicial: biblioteca TypeScript + CLI `aforro` + snapshot estático `rates.json`.
 - Série F suportada de ponta a ponta (taxa-base, prémios de permanência, capitalização trimestral, retenção de IRS).
-- Dataset Euribor 3M incluído, obtido a partir do Deutsche Bundesbank (`BBIG1`, redistribuição de fixings EMMI EURIBOR®).
+- Dataset Euribor 3M incluído, obtido a partir do Deutsche Bundesbank (`BBIG1`, redistribuição de fixações EMMI EURIBOR®).
 - Site de documentação em Astro Starlight.

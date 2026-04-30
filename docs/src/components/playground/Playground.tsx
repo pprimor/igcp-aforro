@@ -157,7 +157,7 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     effectiveIrsRate: 'Taxa efetiva de IRS',
     maturityDate: 'Data de maturidade',
     pending: 'pendente',
-    midQuarterAccrued: 'Juro acumulado a meio do trimestre',
+    midQuarterAccrued: 'Juro acumulado entre capitalizações',
     grossAccrued: 'Juro bruto acumulado desde a última capitalização:',
     projectedNet: 'Líquido projetado',
     afterIrs: 'após',

@@ -46,7 +46,7 @@ Os `SeriesMetadata` estáticos da série: `maturityYears`, `subscriptionStartDat
 
 ## `series.<code>.monthlyBaseRates`
 
-Uma entrada por mês de calendário para o qual seja possível resolver um fixing.
+Uma entrada por mês de calendário para o qual seja possível resolver uma fixação.
 
 ```json
 {
@@ -60,7 +60,7 @@ Uma entrada por mês de calendário para o qual seja possível resolver um fixin
 | --- | --- | --- |
 | `month` | `YYYY-MM` | Mês de calendário a que a taxa se aplica. |
 | `fixingDate` | `YYYY-MM-DD` | Antepenúltimo dia útil TARGET2 do mês anterior. |
-| `basePct` | string decimal | Taxa-base final, já limitada e arredondada a 3 casas decimais. Para a Série F: média arredondada limitada a `[0, 2.5]`. Para as Séries D e E: média arredondada + `1.000` (o *spread* de `+1pp`), limitada a `[0, 3.5]`. |
+| `basePct` | string decimal | Taxa-base final, já limitada e arredondada a 3 casas decimais. Para a Série F: média arredondada limitada a `[0, 2,5]`. Para as Séries D e E: média arredondada + 1 ponto percentual (o *spread* de `+1pp`), limitada a `[0, 3,5]`. |
 
 ## `series.<code>.cohortRates`
 
@@ -91,7 +91,7 @@ Uma entrada por trimestre ancorado, desde cada mês de subscrição até `min(ma
 | `basePct` | string decimal | Mesmo formato de `monthlyBaseRates`. |
 | `premiumTierYearsRange` | string | Por exemplo, `"2-5"`. |
 | `premiumPct` | string decimal | Prémio somado a `basePct`. |
-| `annualRatePct` | string decimal | Taxa anual composta para esse grupo de subscrição x trimestre. |
+| `annualRatePct` | string decimal | Taxa anual total para esse grupo de subscrição e trimestre. |
 
 ## Convenções
 
