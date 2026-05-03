@@ -49,10 +49,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          # Need full history so `git tag` can verify uniqueness and the
-          # auto-generated GitHub Release notes can diff against the
-          # previous tag.
+          # Need full history so the workflow can verify release tags.
           fetch-depth: 0
+          # The release branch push must use RELEASE_TOKEN. If checkout keeps
+          # the default GITHUB_TOKEN credential, git authenticates as
+          # github-actions[bot] and branch protection rejects the push.
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4.4.0
