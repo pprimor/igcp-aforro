@@ -16,11 +16,13 @@ name: Data refresh
 #    startPeriod/endPeriod on this dataflow).
 # 2. Run fetch-igcp-base-rates.ts for the current month (idempotent;
 #    no-op when the value already matches the fixture).
-# 3. Run `pnpm test` so a drift between our formula and a freshly-
-#    published IGCP base rate fails the workflow loudly (the resulting
-#    PR is still opened, but with `needs-review` so a human inspects).
-# 4. Open / update a PR via peter-evans/create-pull-request when there
-#    is a working-tree diff in the data files; skip silently otherwise.
+# 3. When the current month's IGCP rate is published, run `pnpm test`
+#    so a drift between our formula and the freshly-published IGCP base
+#    rate fails the workflow loudly (the resulting PR is still opened,
+#    but with `needs-review` so a human inspects).
+# 4. Open / update a PR via peter-evans/create-pull-request only when
+#    the current-month IGCP publication is present or a maintainer forced
+#    a PR; log and skip Euribor-only diffs otherwise.
 # 5. Auto-merge clean data-refresh PRs only when the current month's
 #    IGCP-published rate was fetched and all guard checks pass.
 # 6. Freshness gate (independent of the diff): fail the job if the
@@ -120,6 +122,8 @@ jobs:
 
       - name: Detect data file changes
         id: diff
+        env:
+          FORCE_PR: ${{ inputs.forcePr }}
         run: |
           set -euo pipefail
           # Restrict the diff probe to the files our fetchers can write.
@@ -147,15 +151,31 @@ jobs:
             echo "igcp_published=false" >> "$GITHUB_OUTPUT"
             echo "No current-month IGCP publication change detected."
           fi
+          if [ "${FORCE_PR}" = "true" ]; then
+            echo "pr_eligible=true" >> "$GITHUB_OUTPUT"
+            echo "PR eligible because workflow_dispatch forcePr is true."
+          elif printf '%s\n' "${changed}" | grep -qF 'tests/fixtures/igcpPublishedBaseRates.json' \
+            && printf '%s\n' "${changed}" | grep -qF "${igcp_notice}"; then
+            echo "pr_eligible=true" >> "$GITHUB_OUTPUT"
+            echo "PR eligible because the current-month IGCP publication is present."
+          else
+            echo "pr_eligible=false" >> "$GITHUB_OUTPUT"
+            echo "PR not eligible until the current-month IGCP publication is present."
+          fi
+
+      - name: Log skipped Euribor-only changes
+        if: ${{ steps.diff.outputs.changed == 'true' && steps.diff.outputs.igcp_published != 'true' && !inputs.forcePr }}
+        run: |
+          echo "::notice title=Skipping data-refresh PR::Data files changed, but the current-month IGCP publication was not fetched yet. Euribor-only diffs are left on the runner and no PR is opened until IGCP publishes the monthly base rate."
 
       - name: Run golden tests (gate before opening PR)
         id: tests
-        if: ${{ steps.diff.outputs.changed == 'true' || inputs.forcePr }}
+        if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
         continue-on-error: true
         run: pnpm test
 
       - name: Pick PR labels
-        if: ${{ steps.diff.outputs.changed == 'true' || inputs.forcePr }}
+        if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
         id: labels
         env:
           TESTS_OUTCOME: ${{ steps.tests.outcome }}
@@ -169,7 +189,7 @@ jobs:
 
       - name: Create or update PR
         id: cpr
-        if: ${{ steps.diff.outputs.changed == 'true' || inputs.forcePr }}
+        if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -288,7 +308,7 @@ jobs:
           fi
 
       - name: Fail job if tests failed
-        if: ${{ steps.tests.outcome == 'failure' }}
+        if: ${{ steps.diff.outputs.pr_eligible == 'true' && steps.tests.outcome == 'failure' }}
         run: |
           echo "::error title=Golden tests failed against refreshed data::See the create-pull-request step for the PR with the needs-review label."
           exit 1

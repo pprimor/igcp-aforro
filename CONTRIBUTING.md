@@ -171,14 +171,17 @@ Maintainer-only. Normal feature, docs, and bug-fix PRs do not need to run the
 data refresh workflow. The scheduled data refresh is defined in
 [`.github/workflows/data-refresh.yml`](./.github/workflows/data-refresh.yml).
 It runs daily, refreshes the bundled Euribor data and the current IGCP Série F
-base-rate fixture, runs golden tests when data changes, and opens or updates a
-data-refresh PR when there is a diff.
+base-rate fixture, and checks Euribor freshness. Scheduled runs open or update a
+data-refresh PR only after the current month's official IGCP publication has
+been fetched. Euribor-only diffs are logged in the workflow history and discarded
+with the runner workspace rather than kept open as partial PRs.
 
 Clean data-refresh PRs auto-merge only when the current month's official IGCP
-rate has been published and fetched. Euribor-only refresh PRs may stay open
-until the monthly IGCP fixture and raw notice are added; this keeps the merge
-cadence tied to IGCP's monthly base-rate publication instead of daily Euribor
-observations.
+rate has been published and fetched, the golden tests pass, and the workflow's
+guard checks confirm the PR only contains expected refresh files. Maintainers can
+still use the manual `forcePr` dispatch input for debugging, but the normal
+cadence is one meaningful monthly PR tied to IGCP's base-rate publication rather
+than daily Euribor observations.
 
 Maintainers can use local dry-run checks before investigating or forcing a
 refresh:
