@@ -8,6 +8,11 @@ import {
 } from 'igcp-aforro';
 import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
 import {
+  type PlaygroundFormState,
+  parsePlaygroundUrlState,
+  serializePlaygroundUrlState,
+} from '../../../../src/playgroundUrlState';
+import {
   type PlaygroundLocale,
   daysBetween,
   formatDuration,
@@ -17,11 +22,6 @@ import {
   projectNet,
   todayIsoUtc,
 } from './format';
-import {
-  type PlaygroundFormState,
-  parsePlaygroundUrlState,
-  serializePlaygroundUrlState,
-} from './urlState';
 
 const DEBOUNCE_MS = 50;
 const COPY_STATUS_MS = 1500;

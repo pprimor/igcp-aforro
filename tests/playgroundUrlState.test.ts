@@ -3,7 +3,7 @@ import {
   type PlaygroundFormState,
   parsePlaygroundUrlState,
   serializePlaygroundUrlState,
-} from '../docs/src/components/playground/urlState.js';
+} from '../src/playgroundUrlState.js';
 
 const defaults: PlaygroundFormState = {
   series: 'F',
