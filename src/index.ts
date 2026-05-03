@@ -37,7 +37,7 @@
  * Bumped by the release workflow; useful when you want to log which
  * library version produced a given simulation result.
  */
-export const VERSION = '2026.429.0';
+export const VERSION = '2026.503.0';
 
 export { simulate } from './core/calculator.js';
 export { getCurrentRate, getRateForCohort, getRateTable } from './core/rates.js';
