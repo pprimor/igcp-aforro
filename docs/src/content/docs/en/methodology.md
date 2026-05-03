@@ -19,7 +19,7 @@ This library **does not replace** official IGCP communications and is not financ
 
 | Parameter | Série F | Séries D/E | Implementation |
 | --- | --- | --- | --- |
-| Maturity | 15 years | 10 years | `SeriesMetadata.maturityYears` in [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts) |
+| Maturity | 15 years | 10 years | `SeriesMetadata.maturityYears` in [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
 | Minimum subscription | 100 units (1 unit = EUR 1) | 100 units | `SeriesMetadata.minUnits` |
 | Maximum subscription | 100,000 units | 250,000 units | `SeriesMetadata.maxUnits` |
 | Subscription window | From 1 June 2023 | Série D: 1 February 2015 to 31 October 2017; Série E: 1 November 2017 to 1 June 2023 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
@@ -41,9 +41,9 @@ The final step differs by series:
 - **Série F**: the rounded result is clamped to `[0%, 2.5%]`.
 - **Séries D and E**: add a fixed **+1 percentage point** spread (`E3 + 1%`) to the rounded mean, then clamp the final value to `[0%, 3.5%]`. The order matters: rounding is applied to the mean **before** adding the spread, and the clamp is applied **after**.
 
-The implementation lives in [`src/core/baseRate.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/baseRate.ts) and uses the TARGET2 calendar implemented in [`src/core/calendar.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calendar.ts). The spread is parameterized in `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). The 3-month Euribor fixings come from [`src/data/euribor3m.json`](https://github.com/primor/igcp-aforro/blob/main/src/data/euribor3m.json), sourced from the Deutsche Bundesbank (`BBIG1`, redistributing EMMI EURIBOR®).
+The implementation lives in [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts) and uses the TARGET2 calendar implemented in [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). The spread is parameterized in `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). The 3-month Euribor fixings come from [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json), sourced from the Deutsche Bundesbank (`BBIG1`, redistributing EMMI EURIBOR®).
 
-Correctness against IGCP-published values is covered by the golden tests in [`tests/baseRate.test.ts`](https://github.com/primor/igcp-aforro/blob/main/tests/baseRate.test.ts).
+Correctness against IGCP-published values is covered by the golden tests in [`tests/baseRate.test.ts`](https://github.com/pprimor/igcp-aforro/blob/main/tests/baseRate.test.ts).
 
 ## Permanence premium
 
@@ -68,7 +68,7 @@ A permanence premium is added to the base rate, indexed to the **contract year**
 | 2 to 5 | +0.50% |
 | 6 to 10 | +1.00% |
 
-In every series, year 1 is represented explicitly as a zero-premium tier so every schedule row can always carry a non-null `premiumTier`. The tiers are defined in [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts).
+In every series, year 1 is represented explicitly as a zero-premium tier so every schedule row can always carry a non-null `premiumTier`. The tiers are defined in [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts).
 
 `premiumTierForYear(series, contractYear)` resolves the applicable tier; `getRateForCohort()` composes the annual rate (`base + premium`).
 
@@ -82,7 +82,7 @@ At each quarter end `Q`, `simulate()` keeps the net position as a **unit quote**
 4. Apply IRS withholding to the per-unit interest to obtain net interest per unit.
 5. The new quote is `unit_quote + net_interest_per_unit`, rounded to **5 decimal places** using **half-even** rounding.
 
-The loop is implemented in [`src/core/calculator.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calculator.ts) and uses `big.js` (alias `Big`) for exact decimal arithmetic. The initial quote is `1.00000`; after each completed capitalization, `currentUnitQuote` carries the rounded net quote. The reported net value is always:
+The loop is implemented in [`src/core/calculator.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calculator.ts) and uses `big.js` (alias `Big`) for exact decimal arithmetic. The initial quote is `1.00000`; after each completed capitalization, `currentUnitQuote` carries the rounded net quote. The reported net value is always:
 
 ```
 currentValueNet = round(units x currentUnitQuote, 2)
@@ -106,7 +106,7 @@ Each `schedule` row exposes `unitQuoteAfter`, the net quote after that capitaliz
 
 ## Quarters anchored to the subscription day
 
-Each quarter starts on the subscription day shifted by multiples of 3 months. When the target day does not exist in the destination month (for example, subscription on 31 January -> next quarter on 30 April), roll-forward to the first day of the following month is applied according to the technical sheet. `shiftMonths()` in [`src/core/dateMath.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/dateMath.ts) implements this behavior and is used by both the calculator and the `rates.json` generator.
+Each quarter starts on the subscription day shifted by multiples of 3 months. When the target day does not exist in the destination month (for example, subscription on 31 January -> next quarter on 30 April), roll-forward to the first day of the following month is applied according to the technical sheet. `shiftMonths()` in [`src/core/dateMath.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/dateMath.ts) implements this behavior and is used by both the calculator and the `rates.json` generator.
 
 ## Accrued interest between capitalizations
 

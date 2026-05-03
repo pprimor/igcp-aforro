@@ -19,7 +19,7 @@ A presente biblioteca **não substitui** as comunicações oficiais do IGCP nem 
 
 | Parâmetro | Série F | Séries D/E | Implementação |
 | --- | --- | --- | --- |
-| Maturidade | 15 anos | 10 anos | `SeriesMetadata.maturityYears` em [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts) |
+| Maturidade | 15 anos | 10 anos | `SeriesMetadata.maturityYears` em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
 | Subscrição mínima | 100 unidades (1 unidade = €1) | 100 unidades | `SeriesMetadata.minUnits` |
 | Subscrição máxima | 100.000 unidades | 250.000 unidades | `SeriesMetadata.maxUnits` |
 | Janela de subscrição | A partir de 1 de junho de 2023 | Série D: 1 de fevereiro de 2015 a 31 de outubro de 2017; Série E: 1 de novembro de 2017 a 1 de junho de 2023 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
@@ -41,9 +41,9 @@ O passo final difere por série:
 - **Série F** — o resultado arredondado é limitado ao intervalo `[0%, 2,5%]`.
 - **Séries D e E** — à média já arredondada soma-se um *spread* fixo de **+1 ponto percentual** (`E3 + 1%`); o valor final é depois limitado ao intervalo `[0%, 3,5%]`. A ordem importa: o arredondamento aplica-se à média, **antes** de somar o *spread*, e o *clamp* aplica-se **depois**.
 
-A implementação vive em [`src/core/baseRate.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/baseRate.ts) e usa o calendário TARGET2 implementado em [`src/core/calendar.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calendar.ts). O *spread* é parametrizado em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). O conjunto de fixações Euribor 3M usadas vem de [`src/data/euribor3m.json`](https://github.com/primor/igcp-aforro/blob/main/src/data/euribor3m.json), recolhido a partir do Deutsche Bundesbank (série `BBIG1`, redistribuição da EMMI EURIBOR®).
+A implementação vive em [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts) e usa o calendário TARGET2 implementado em [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). O *spread* é parametrizado em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). O conjunto de fixações Euribor 3M usadas vem de [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json), recolhido a partir do Deutsche Bundesbank (série `BBIG1`, redistribuição da EMMI EURIBOR®).
 
-A correção contra os valores publicados pelo IGCP é assegurada pelos *golden tests* em [`tests/baseRate.test.ts`](https://github.com/primor/igcp-aforro/blob/main/tests/baseRate.test.ts).
+A correção contra os valores publicados pelo IGCP é assegurada pelos *golden tests* em [`tests/baseRate.test.ts`](https://github.com/pprimor/igcp-aforro/blob/main/tests/baseRate.test.ts).
 
 ## Prémio de permanência
 
@@ -68,7 +68,7 @@ A correção contra os valores publicados pelo IGCP é assegurada pelos *golden 
 | 2 a 5 | +0,50% |
 | 6 a 10 | +1,00% |
 
-Em todas as séries, o ano 1 é representado explicitamente como uma faixa de prémio zero para que cada linha do calendário (`schedule`) possa transportar sempre um `premiumTier` não-nulo. As faixas estão definidas em [`src/core/series.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/series.ts).
+Em todas as séries, o ano 1 é representado explicitamente como uma faixa de prémio zero para que cada linha do calendário (`schedule`) possa transportar sempre um `premiumTier` não-nulo. As faixas estão definidas em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts).
 
 A função `premiumTierForYear(series, contractYear)` resolve a faixa aplicável; `getRateForCohort()` compõe a taxa anual (`base + prémio`).
 
@@ -82,7 +82,7 @@ A cada fim de trimestre `Q`, `simulate()` mantém a posição líquida como uma 
 4. Aplica-se a retenção de IRS ao juro por unidade para obter o juro líquido por unidade.
 5. A nova cotação é `cotacao_unidade + juro_liquido_por_unidade`, arredondada a **5 casas decimais** com a regra **half-even**.
 
-O ciclo está em [`src/core/calculator.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/calculator.ts) e usa `big.js` (alias `Big`) para garantir aritmética decimal exata. A cotação inicial é `1.00000`; depois de cada capitalização concluída, `currentUnitQuote` transporta a cotação líquida arredondada. O valor líquido apresentado é sempre:
+O ciclo está em [`src/core/calculator.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calculator.ts) e usa `big.js` (alias `Big`) para garantir aritmética decimal exata. A cotação inicial é `1.00000`; depois de cada capitalização concluída, `currentUnitQuote` transporta a cotação líquida arredondada. O valor líquido apresentado é sempre:
 
 ```
 currentValueNet = round(units × currentUnitQuote, 2)
@@ -106,7 +106,7 @@ Cada linha do `schedule` expõe `unitQuoteAfter`, a cotação líquida depois de
 
 ## Trimestres ancorados ao dia da subscrição
 
-O início de cada trimestre é o dia da subscrição deslocado em múltiplos de 3 meses. Quando o dia-alvo não existe no mês destino (por exemplo, subscrição a 31 de janeiro → trimestre seguinte a 30 de abril), aplica-se *roll-forward* para o primeiro dia do mês seguinte, conforme a ficha técnica. A função `shiftMonths()` em [`src/core/dateMath.ts`](https://github.com/primor/igcp-aforro/blob/main/src/core/dateMath.ts) implementa esta semântica e é usada tanto pelo calculador como pelo gerador de `rates.json`.
+O início de cada trimestre é o dia da subscrição deslocado em múltiplos de 3 meses. Quando o dia-alvo não existe no mês destino (por exemplo, subscrição a 31 de janeiro → trimestre seguinte a 30 de abril), aplica-se *roll-forward* para o primeiro dia do mês seguinte, conforme a ficha técnica. A função `shiftMonths()` em [`src/core/dateMath.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/dateMath.ts) implementa esta semântica e é usada tanto pelo calculador como pelo gerador de `rates.json`.
 
 ## *Accrued* entre capitalizações
 

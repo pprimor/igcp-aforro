@@ -5,7 +5,7 @@ description: Versões publicadas do igcp-aforro, no formato CalVer YYYY.MMDD.PAT
 
 `igcp-aforro` usa [CalVer](https://calver.org/) no formato `YYYY.MMDD.PATCH`. Atualizações mensais da Euribor tornam-se releases `YYYY.MMDD.0`; correções no mesmo dia incrementam o componente final (`.1`, `.2`, ...).
 
-O histórico canónico está na [página de Releases do GitHub](https://github.com/primor/igcp-aforro/releases), gerado automaticamente pelo workflow de release em cada `workflow_dispatch`. Esta página replica as entradas principais.
+O histórico canónico está na [página de Releases do GitHub](https://github.com/pprimor/igcp-aforro/releases), gerado automaticamente pelo workflow de release em cada `workflow_dispatch`. Esta página replica as entradas principais.
 
 ## Por publicar
 

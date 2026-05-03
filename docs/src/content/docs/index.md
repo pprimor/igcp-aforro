@@ -15,7 +15,7 @@ hero:
       link: /api/
       variant: minimal
     - text: Ver no GitHub
-      link: https://github.com/primor/igcp-aforro
+      link: https://github.com/pprimor/igcp-aforro
       icon: external
       variant: minimal
 ---
