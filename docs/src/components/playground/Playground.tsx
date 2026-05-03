@@ -17,9 +17,16 @@ import {
   projectNet,
   todayIsoUtc,
 } from './format';
+import {
+  type PlaygroundFormState,
+  parsePlaygroundUrlState,
+  serializePlaygroundUrlState,
+} from './urlState';
 
 const DEBOUNCE_MS = 50;
+const COPY_STATUS_MS = 1500;
 const SERIES_OPTIONS = listSeries();
+const PLAYGROUND_QUERY_KEYS = ['series', 'subscribed', 'units', 'asOf', 'irs', 'schedule'];
 
 const INITIAL_FORM: FormState = {
   series: 'F',
@@ -74,8 +81,11 @@ interface PlaygroundCopy {
   tierYearPrefix: string;
   highlightedRow: string;
   copySnippet: string;
+  copyShareLink: string;
   snippetFormat: string;
   copied: string;
+  shareLinkCopied: string;
+  shareLinkCopyFailed: string;
   copy: string;
 }
 
@@ -126,8 +136,11 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     tierYearPrefix: 'y',
     highlightedRow: 'Highlighted row is the most recent capitalization.',
     copySnippet: 'Copy snippet',
+    copyShareLink: 'Copy share link',
     snippetFormat: 'Snippet format',
     copied: 'Copied!',
+    shareLinkCopied: 'Share link copied!',
+    shareLinkCopyFailed: 'Could not copy share link.',
     copy: 'Copy',
   },
   'pt-PT': {
@@ -177,8 +190,11 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     tierYearPrefix: 'a',
     highlightedRow: 'A linha destacada é a capitalização mais recente.',
     copySnippet: 'Copiar exemplo',
+    copyShareLink: 'Copiar ligação',
     snippetFormat: 'Formato do exemplo',
     copied: 'Copiado!',
+    shareLinkCopied: 'Ligação copiada!',
+    shareLinkCopyFailed: 'Não foi possível copiar a ligação.',
     copy: 'Copiar',
   },
 };
@@ -186,13 +202,8 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
 type FieldErrors = Record<string, string | undefined>;
 type SnippetMode = 'ts' | 'cli' | 'json';
 
-interface FormState {
+interface FormState extends PlaygroundFormState {
   series: SeriesCode;
-  subscriptionDate: string;
-  units: string;
-  asOfDate: string;
-  irsRate: string;
-  includeSchedule: boolean;
 }
 
 interface SimState {
@@ -287,6 +298,26 @@ function buildJsonSnippet(result: SimulateResult | null): string {
   return JSON.stringify(result, null, 2);
 }
 
+function getDefaultForm(): FormState {
+  return { ...INITIAL_FORM, asOfDate: todayIsoUtc() };
+}
+
+function hasPlaygroundQuery(params: URLSearchParams): boolean {
+  return PLAYGROUND_QUERY_KEYS.some((key) => params.has(key));
+}
+
+function replaceCurrentUrl(search: URLSearchParams | null): void {
+  const url = new URL(window.location.href);
+  url.search = search ? search.toString() : '';
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+function buildShareUrl(form: FormState): string {
+  const url = new URL(window.location.href);
+  url.search = serializePlaygroundUrlState(form).toString();
+  return url.toString();
+}
+
 function FieldError({ id, message }: { id: string; message: string | undefined }) {
   if (!message) return null;
   return (
@@ -302,7 +333,11 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
   const [sim, setSim] = useState<SimState>(() => runSimulate(INITIAL_FORM));
   const [snippetMode, setSnippetMode] = useState<SnippetMode>('ts');
   const [copied, setCopied] = useState(false);
+  const [shareCopyStatus, setShareCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const [urlSyncEnabled, setUrlSyncEnabled] = useState(false);
   const debounceRef = useRef<number | null>(null);
+  const shareCopyTimeoutRef = useRef<number | null>(null);
 
   const ids = {
     series: useId(),
@@ -318,6 +353,19 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
   };
 
   useEffect(() => {
+    const defaults = getDefaultForm();
+    const params = new URLSearchParams(window.location.search);
+    const nextForm = hasPlaygroundQuery(params)
+      ? parsePlaygroundUrlState(params, defaults)
+      : defaults;
+
+    setForm(nextForm);
+    setSim(runSimulate(nextForm));
+    setUrlSyncEnabled(hasPlaygroundQuery(params));
+    setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
     if (debounceRef.current !== null) {
       window.clearTimeout(debounceRef.current);
     }
@@ -331,11 +379,24 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
     };
   }, [form]);
 
+  useEffect(() => {
+    if (!hasHydrated || !urlSyncEnabled) return;
+    replaceCurrentUrl(serializePlaygroundUrlState(form));
+  }, [form, hasHydrated, urlSyncEnabled]);
+
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setUrlSyncEnabled(true);
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const reset = () => setForm({ ...INITIAL_FORM, asOfDate: todayIsoUtc() });
+  const reset = () => {
+    const nextForm = getDefaultForm();
+    setUrlSyncEnabled(false);
+    setShareCopyStatus('idle');
+    replaceCurrentUrl(null);
+    setForm(nextForm);
+    setSim(runSimulate(nextForm));
+  };
   const setAsOfToday = () => update('asOfDate', todayIsoUtc());
   const selectedSeries = useMemo(() => getSeries(form.series), [form.series]);
 
@@ -354,10 +415,26 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
     try {
       await navigator.clipboard.writeText(snippet);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      window.setTimeout(() => setCopied(false), COPY_STATUS_MS);
     } catch {
       setCopied(false);
     }
+  };
+
+  const handleShareCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(buildShareUrl(form));
+      setShareCopyStatus('copied');
+    } catch {
+      setShareCopyStatus('failed');
+    }
+    if (shareCopyTimeoutRef.current !== null) {
+      window.clearTimeout(shareCopyTimeoutRef.current);
+    }
+    shareCopyTimeoutRef.current = window.setTimeout(
+      () => setShareCopyStatus('idle'),
+      COPY_STATUS_MS,
+    );
   };
 
   const { result, fieldErrors, generalError } = sim;
@@ -521,9 +598,21 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
             />
             {copy.includeSchedule}
           </label>
-          <button type="button" class="aforro-pg-link-btn" onClick={reset}>
-            {copy.reset}
-          </button>
+          <div class="aforro-pg-form-actions">
+            <button type="button" class="aforro-pg-link-btn" onClick={reset}>
+              {copy.reset}
+            </button>
+            <button type="button" class="aforro-pg-link-btn" onClick={handleShareCopy}>
+              {copy.copyShareLink}
+            </button>
+          </div>
+          <output class="aforro-pg-copy-status" aria-live="polite">
+            {shareCopyStatus === 'copied'
+              ? copy.shareLinkCopied
+              : shareCopyStatus === 'failed'
+                ? copy.shareLinkCopyFailed
+                : ''}
+          </output>
         </div>
       </form>
 
@@ -792,6 +881,11 @@ const STYLES = `
   font-weight: 500;
   justify-content: flex-start;
 }
+.aforro-pg-form-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+}
 .aforro-pg-link-btn {
   background: transparent;
   border: 0;
@@ -811,6 +905,12 @@ const STYLES = `
   outline: 2px solid var(--sl-color-accent);
   outline-offset: 2px;
   border-radius: 2px;
+}
+.aforro-pg-copy-status {
+  min-height: 1rem;
+  color: var(--sl-color-text);
+  font-size: 0.78rem;
+  opacity: 0.72;
 }
 .aforro-pg-error {
   margin: 0;
