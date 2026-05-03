@@ -1,8 +1,8 @@
 name: Release
 
-# Manually-triggered release: bumps the CalVer (YYYY.MMDD.PATCH) version,
-# publishes to npm, and deploys the Astro Starlight docs + the precomputed
-# `rates.json` artifact (current + versioned snapshot) to Cloudflare Pages.
+# Manually-triggered release preparation: bumps the CalVer
+# (YYYY.MMDD.PATCH) version and opens a temporary release PR. Publishing,
+# tagging, and docs deployment happen after that PR is merged to `main`.
 #
 # `bumpKind` semantics (see igcp-aforro_library_e6bcf217.plan.md):
 #   - today      -> `<UTC year>.<MMDD-as-int>.0` (e.g. 2026-04-20 -> 2026.420.0).
@@ -36,18 +36,15 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write       # tag + push + GitHub Release
-  id-token: write       # npm provenance
+  contents: read
 
 jobs:
   release:
-    name: Build, version, publish
+    name: Prepare release PR
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
       version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
-      npmTag: ${{ steps.version.outputs.npmTag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -137,6 +134,21 @@ jobs:
             console.log(`current=${current} -> next=${next} (tag=${tag}, npm=${npmTag})`);
           EOF
 
+      - name: Validate release target
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "::error::Tag ${TAG} already exists. Pick another bump kind or clean up the stale tag first."
+            exit 1
+          fi
+          if git ls-remote --exit-code --heads origin "release/${VERSION}" >/dev/null 2>&1; then
+            echo "::error::Branch release/${VERSION} already exists."
+            exit 1
+          fi
+
       - name: Bump package.json
         run: |
           set -euo pipefail
@@ -168,52 +180,41 @@ jobs:
       - name: Reformat bumped files
         # `pnpm version` rewrites package.json with multi-line arrays, which
         # Biome's formatter rejects. Run Biome's formatter on the touched
-        # files so prepublishOnly's `biome check` passes during npm publish.
+        # files so the release PR starts from a clean formatter state.
         run: pnpm exec biome format --write package.json src/index.ts
 
-      - name: Commit and tag
+      - name: Show dry-run diff
+        if: ${{ inputs.dryRun }}
+        run: git diff -- package.json src/index.ts
+
+      - name: Create release PR
         if: ${{ !inputs.dryRun }}
         env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
-          TAG: ${{ steps.version.outputs.tag }}
+          BRANCH: release/${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           set -euo pipefail
+          if [[ -z "${RELEASE_TOKEN}" ]]; then
+            echo "::error::Missing RELEASE_TOKEN secret. Use a fine-grained PAT with Contents and Pull requests write access so the generated PR triggers CI."
+            exit 1
+          fi
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b "${BRANCH}"
           git add package.json src/index.ts
           git commit -m "release: ${VERSION}"
-          git tag -a "${TAG}" -m "Release ${VERSION}"
-          git push origin HEAD --tags
+          git remote set-url origin "https://x-access-token:${RELEASE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --set-upstream origin "${BRANCH}"
+          gh pr create \
+            --base main \
+            --head "${BRANCH}" \
+            --title "release: ${VERSION}" \
+            --body "$(cat <<EOF
+          Prepares release ${VERSION}.
 
-      - name: Publish to npm
-        if: ${{ !inputs.dryRun }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          set -euo pipefail
-          pnpm publish --access public --no-git-checks --tag "${{ steps.version.outputs.npmTag }}" --provenance
-
-      - name: Create GitHub Release
-        if: ${{ !inputs.dryRun }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.version.outputs.tag }}
-          PRERELEASE_FLAG: ${{ steps.version.outputs.npmTag == 'next' && '--prerelease' || '' }}
-        run: |
-          set -euo pipefail
-          gh release create "${TAG}" \
-            --title "${TAG}" \
-            --generate-notes \
-            ${PRERELEASE_FLAG}
-
-  deploy-docs:
-    name: Deploy docs
-    needs: release
-    if: ${{ !inputs.dryRun }}
-    # The actual deploy lives in a standalone workflow so it can also be
-    # triggered manually for any branch, SHA, or past tag (e.g. when only
-    # the docs need a deploy and we don't want to bump the npm version).
-    uses: ./.github/workflows/deploy-docs.yml
-    with:
-      ref: ${{ needs.release.outputs.tag }}
-    secrets: inherit
+          After this PR is merged, the Publish release workflow will tag v${VERSION}, publish to npm, create the GitHub Release, and deploy docs.
+          EOF
+          )"

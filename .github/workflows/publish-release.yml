@@ -1,0 +1,145 @@
+name: Publish release
+
+# Publishes only after a temporary release PR is merged into `main`.
+# This keeps branch protection intact: the version bump goes through PR CI,
+# then the accepted `main` commit is tagged and published.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Main ref to publish from
+        required: true
+        default: main
+        type: string
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write       # tag + GitHub Release
+  id-token: write       # npm provenance
+
+jobs:
+  publish:
+    name: Tag, publish, release
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      npmTag: ${{ steps.version.outputs.npmTag }}
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || 'main' }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve release version
+        id: version
+        env:
+          HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'EOF'
+            import { readFileSync, appendFileSync } from 'node:fs';
+
+            const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+            const version = pkg.version;
+            const index = readFileSync('src/index.ts', 'utf8');
+            const match = index.match(/export const VERSION = '([^']+)';/);
+
+            if (!match) {
+              throw new Error('Could not find VERSION export in src/index.ts.');
+            }
+            if (match[1] !== version) {
+              throw new Error(`package.json version (${version}) does not match src/index.ts VERSION (${match[1]}).`);
+            }
+
+            const headRef = process.env.HEAD_REF;
+            if (headRef && headRef !== `release/${version}`) {
+              throw new Error(`Merged release branch ${headRef} does not match package version ${version}.`);
+            }
+
+            const tag = `v${version}`;
+            const npmTag = version.includes('-') ? 'next' : 'latest';
+            appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);
+            appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
+            appendFileSync(process.env.GITHUB_OUTPUT, `npmTag=${npmTag}\n`);
+            console.log(`Publishing ${version} (tag=${tag}, npm=${npmTag})`);
+          EOF
+
+      - name: Ensure release is new
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "::error::Tag ${TAG} already exists. Clean it up before publishing this release."
+            exit 1
+          fi
+          if npm view "igcp-aforro@${VERSION}" version >/dev/null 2>&1; then
+            echo "::error::igcp-aforro@${VERSION} is already published to npm."
+            exit 1
+          fi
+
+      - name: Create and push tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "${TAG}" -m "Release ${VERSION}"
+          git push origin "${TAG}"
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          pnpm publish --access public --no-git-checks --tag "${{ steps.version.outputs.npmTag }}" --provenance
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          NPM_TAG: ${{ steps.version.outputs.npmTag }}
+        run: |
+          set -euo pipefail
+          args=(--title "${TAG}" --generate-notes)
+          if [[ "${NPM_TAG}" == "next" ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${TAG}" "${args[@]}"
+
+  deploy-docs:
+    name: Deploy docs
+    needs: publish
+    if: ${{ needs.publish.result == 'success' }}
+    uses: ./.github/workflows/deploy-docs.yml
+    with:
+      ref: ${{ needs.publish.outputs.tag }}
+    secrets: inherit
