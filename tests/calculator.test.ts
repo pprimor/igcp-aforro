@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { simulate } from '../src/core/calculator.js';
 import type { SimulateInput, SimulateResult } from '../src/types/domain.js';
+import { syntheticEuriborFlat } from './helpers/syntheticEuribor.js';
 import fixture from './fixtures/golden-simulations.json' with { type: 'json' };
+
+/** Long-run scenarios that exceed bundled Euribor — deterministic flat curve. */
+const LONG_HORIZON_EURIBOR = syntheticEuriborFlat('2015-01-01', '2040-12-31', '2.500');
 
 /**
  * Golden quarterly-compounding regression scenarios.
@@ -239,12 +243,15 @@ describe('simulate — Série E smoke test', () => {
   });
 
   it('reports matured=true once asOfDate reaches the 10-year maturity date', () => {
-    const result = simulate({
-      series: 'E',
-      subscriptionDate: '2018-01-15',
-      units: 1000,
-      asOfDate: '2028-01-15',
-    });
+    const result = simulate(
+      {
+        series: 'E',
+        subscriptionDate: '2018-01-15',
+        units: 1000,
+        asOfDate: '2028-01-15',
+      },
+      { observations: LONG_HORIZON_EURIBOR },
+    );
     expect(result.matured).toBe(true);
     expect(result.maturityDate).toBe('2028-01-15');
   });
@@ -318,12 +325,15 @@ describe('simulate — Série D smoke test', () => {
   });
 
   it('reports matured=true once asOfDate reaches the 10-year maturity date', () => {
-    const result = simulate({
-      series: 'D',
-      subscriptionDate: '2017-10-01',
-      units: 1000,
-      asOfDate: '2027-10-01',
-    });
+    const result = simulate(
+      {
+        series: 'D',
+        subscriptionDate: '2017-10-01',
+        units: 1000,
+        asOfDate: '2027-10-01',
+      },
+      { observations: LONG_HORIZON_EURIBOR },
+    );
 
     expect(result.matured).toBe(true);
     expect(result.maturityDate).toBe('2027-10-01');

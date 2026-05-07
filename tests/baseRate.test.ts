@@ -95,20 +95,20 @@ describe('computeBaseRate — Série E spread + clamp', () => {
   const SERIES_E = getSeries('E');
   const TARGET_YEAR = 2018;
   const TARGET_MONTH = 2;
-  // Ten consecutive weekday observations in early November 2017 — strictly
-  // before the antepenultimate TARGET2 business day of January 2018 and
-  // safely after Série E's 2017-11-01 subscription start.
+  // Ten consecutive TARGET2 business days ending 2018-01-26 (strictly before
+  // fixing 2018-01-29), after Série E's 2017-11-01 subscription start.
+  // Ten business days strictly before fixing 2018-01-29 → ends 2018-01-26.
   const OBSERVATION_DATES = [
-    '2017-11-01',
-    '2017-11-02',
-    '2017-11-03',
-    '2017-11-06',
-    '2017-11-07',
-    '2017-11-08',
-    '2017-11-09',
-    '2017-11-10',
-    '2017-11-13',
-    '2017-11-14',
+    '2018-01-15',
+    '2018-01-16',
+    '2018-01-17',
+    '2018-01-18',
+    '2018-01-19',
+    '2018-01-22',
+    '2018-01-23',
+    '2018-01-24',
+    '2018-01-25',
+    '2018-01-26',
   ];
 
   function observationsAt(ratePct: string): readonly RateEntry[] {
@@ -164,17 +164,18 @@ describe('computeBaseRate — Série D spread + clamp', () => {
   const SERIES_D = getSeries('D');
   const TARGET_YEAR = 2015;
   const TARGET_MONTH = 5;
+  // Ten business days strictly before fixing 2015-04-28 → ends 2015-04-27.
   const OBSERVATION_DATES = [
-    '2015-03-02',
-    '2015-03-03',
-    '2015-03-04',
-    '2015-03-05',
-    '2015-03-06',
-    '2015-03-09',
-    '2015-03-10',
-    '2015-03-11',
-    '2015-03-12',
-    '2015-03-13',
+    '2015-04-14',
+    '2015-04-15',
+    '2015-04-16',
+    '2015-04-17',
+    '2015-04-20',
+    '2015-04-21',
+    '2015-04-22',
+    '2015-04-23',
+    '2015-04-24',
+    '2015-04-27',
   ];
 
   function observationsAt(ratePct: string): readonly RateEntry[] {

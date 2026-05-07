@@ -739,19 +739,21 @@ describe('aforro CLI — validation contracts', () => {
     const parsed = parseJson<JsonObject>(
       await runCli([
         'simulate',
+        '--series',
+        'D',
         '--subscribed',
-        '2024-03-15',
+        '2015-07-01',
         '--units',
         '1000',
         '--as-of',
-        '2039-03-15',
+        '2025-07-01',
         '--json',
       ]),
     );
 
     expect(parsed).toMatchObject({
       matured: true,
-      maturityDate: '2039-03-15',
+      maturityDate: '2025-07-01',
     });
   });
 
