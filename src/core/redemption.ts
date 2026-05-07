@@ -1,9 +1,9 @@
 import type { RedemptionInput, RedemptionResult } from '../types/domain.js';
 import { redemptionInputSchema } from '../types/schemas.js';
+import { type SimulateOptions, simulate } from './calculator.js';
 import { shiftMonths } from './dateMath.js';
 import { formatCents, quantizeCents, toBig } from './money.js';
 import { getSeries } from './series.js';
-import { simulate, type SimulateOptions } from './calculator.js';
 
 /**
  * Computes the payable value of an early redemption (full or partial) for a
@@ -37,9 +37,12 @@ export function simulateRedemption(
 
   const unitQuoteAtRedemption = simulation.currentUnitQuote;
   const redemptionValue = quantizeCents(toBig(unitsToRedeem).times(unitQuoteAtRedemption));
-  const remainingValueAtRedemption = quantizeCents(toBig(remainingUnits).times(unitQuoteAtRedemption));
-  const forfeitedAccruedGross = toBig(simulation.accruedSinceLastCapitalization)
-    .times(toBig(unitsToRedeem).div(parsed.units));
+  const remainingValueAtRedemption = quantizeCents(
+    toBig(remainingUnits).times(unitQuoteAtRedemption),
+  );
+  const forfeitedAccruedGross = toBig(simulation.accruedSinceLastCapitalization).times(
+    toBig(unitsToRedeem).div(parsed.units),
+  );
 
   return {
     series: parsed.series,

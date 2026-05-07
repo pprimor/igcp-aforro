@@ -1,5 +1,5 @@
-import { ZodError } from 'zod';
 import { describe, expect, it } from 'vitest';
+import { ZodError } from 'zod';
 import { simulateRedemption } from '../src/core/redemption.js';
 
 function cents(amount: string): number {

@@ -137,7 +137,10 @@ export const redemptionInputSchema = z
         path: ['unitsToRedeem'],
       });
     }
-    const earliestRedemptionDate = shiftMonths(data.subscriptionDate, metadata.minimumHoldingMonths);
+    const earliestRedemptionDate = shiftMonths(
+      data.subscriptionDate,
+      metadata.minimumHoldingMonths,
+    );
     if (data.redemptionDate < earliestRedemptionDate) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

@@ -95,7 +95,16 @@ describe('aforro CLI — global contracts', () => {
     ['cohort', ['--subscribed', '--as-of', '--series', '--json']],
     [
       'redeem',
-      ['--subscribed', '--units', '--redeem-on', '--redeem-units', '--series', '--irs', '--schedule', '--json'],
+      [
+        '--subscribed',
+        '--units',
+        '--redeem-on',
+        '--redeem-units',
+        '--series',
+        '--irs',
+        '--schedule',
+        '--json',
+      ],
     ],
   ] as const)('%s --help includes the command flags', async (command, flags) => {
     const result = await runCli([command, '--help']);
