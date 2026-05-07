@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { simulate } from '../src/core/calculator.js';
 import type { SimulateInput, SimulateResult } from '../src/types/domain.js';
-import { syntheticEuriborFlat } from './helpers/syntheticEuribor.js';
 import fixture from './fixtures/golden-simulations.json' with { type: 'json' };
+import { syntheticEuriborFlat } from './helpers/syntheticEuribor.js';
 
 /** Long-run scenarios that exceed bundled Euribor — deterministic flat curve. */
 const LONG_HORIZON_EURIBOR = syntheticEuriborFlat('2015-01-01', '2040-12-31', '2.500');
