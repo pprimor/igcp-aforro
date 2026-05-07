@@ -40,6 +40,7 @@
 export const VERSION = '2026.507.0';
 
 export { simulate } from './core/calculator.js';
+export { simulatePortfolio } from './core/portfolio.js';
 export { simulateRedemption } from './core/redemption.js';
 export { getCurrentRate, getRateForCohort, getRateTable } from './core/rates.js';
 export { Series, getSeries, listSeries } from './core/series.js';
@@ -51,6 +52,9 @@ export type {
   IsoMonth,
   MonthlyBaseRate,
   PremiumTier,
+  PortfolioResult,
+  PortfolioSeriesBreakdown,
+  PortfolioSubscription,
   RedemptionInput,
   RedemptionResult,
   RateEntry,
@@ -59,5 +63,6 @@ export type {
   SeriesCode,
   SeriesMetadata,
   SimulateInput,
+  SimulatePortfolioInput,
   SimulateResult,
 } from './types/domain.js';

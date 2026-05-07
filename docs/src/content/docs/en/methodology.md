@@ -132,6 +132,18 @@ Applied rules:
 
 Reconciliation note: for partial redemptions, `round(unitsToRedeem x quote, 2) + round(remainingUnits x quote, 2)` can differ from `round(units x quote, 2)` by one cent due to independent rounding.
 
+## Portfolio and top-ups
+
+`simulatePortfolio()` models a portfolio as a list of independent subscription cohorts. Each top-up is represented as a new row, even when it has the same series and the same subscription date as an existing row.
+
+Applied rules:
+
+- Each cohort is simulated through `simulate()` using the same portfolio-level `asOfDate`.
+- The units cap is enforced per series by summing all rows in that series (assumption: one Conta Aforro per series).
+- Portfolio aggregation sums already-cent-quantized cohort fields (`currentValueNet`, `totalInterestNet`, `totalIrsWithheld`, and related totals).
+
+Because totals are built from direct sums of quantized cohort values, every `PortfolioResult.total*` field reconciles exactly with the corresponding sum over `PortfolioResult.cohorts[]`.
+
 ## Validations
 
 `simulate()` validates inputs with Zod, reading limits from the selected series' `SeriesMetadata`, before any calculation. It throws when:

@@ -132,6 +132,18 @@ Regras aplicadas:
 
 Nota de reconciliação: em resgates parciais, `round(unitsToRedeem × quote, 2) + round(remainingUnits × quote, 2)` pode diferir de `round(units × quote, 2)` em 1 cêntimo por efeito de arredondamentos independentes.
 
+## Portefólio e reforços
+
+`simulatePortfolio()` modela uma carteira como uma lista de grupos de subscrição independentes (coortes). Cada reforço entra como uma nova linha, mesmo quando tem a mesma série e a mesma data de subscrição de outra linha já existente.
+
+Regras aplicadas:
+
+- Cada coorte é simulada com `simulate()` usando o mesmo `asOfDate` de portefólio.
+- O limite de unidades é aplicado por série, somando todas as linhas dessa série na carteira (assunção: uma Conta Aforro por série).
+- A agregação do portefólio soma campos já quantizados ao cêntimo em cada coorte (`currentValueNet`, `totalInterestNet`, `totalIrsWithheld`, etc.).
+
+Como os totais são soma direta de valores já quantizados em cada coorte, `PortfolioResult.total*` reconcilia exatamente com a soma dos mesmos campos em `PortfolioResult.cohorts[]`.
+
 ## Validações
 
 `simulate()` valida os *inputs* com Zod, lendo limites a partir do `SeriesMetadata` da série escolhida, antes de qualquer cálculo. Lança erro quando:
