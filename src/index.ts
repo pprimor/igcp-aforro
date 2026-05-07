@@ -40,6 +40,7 @@
 export const VERSION = '2026.503.0';
 
 export { simulate } from './core/calculator.js';
+export { simulateRedemption } from './core/redemption.js';
 export { getCurrentRate, getRateForCohort, getRateTable } from './core/rates.js';
 export { Series, getSeries, listSeries } from './core/series.js';
 export type {
@@ -50,6 +51,8 @@ export type {
   IsoMonth,
   MonthlyBaseRate,
   PremiumTier,
+  RedemptionInput,
+  RedemptionResult,
   RateEntry,
   RateTableInput,
   ScheduleRow,

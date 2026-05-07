@@ -18,6 +18,7 @@ const SERIE_D_PREMIUM_TIERS: readonly PremiumTier[] = [
 const SERIE_D_METADATA: SeriesMetadata = {
   code: 'D',
   name: 'Série D',
+  minimumHoldingMonths: 3,
   maturityYears: 10,
   subscriptionStartDate: '2015-02-01',
   subscriptionEndDate: '2017-10-31',
@@ -57,6 +58,7 @@ const SERIE_F_PREMIUM_TIERS: readonly PremiumTier[] = [
 const SERIE_F_METADATA: SeriesMetadata = {
   code: 'F',
   name: 'Série F',
+  minimumHoldingMonths: 3,
   maturityYears: 15,
   subscriptionStartDate: '2023-06-01',
   minUnits: 100,
@@ -93,6 +95,7 @@ const SERIE_E_PREMIUM_TIERS: readonly PremiumTier[] = [
 const SERIE_E_METADATA: SeriesMetadata = {
   code: 'E',
   name: 'Série E',
+  minimumHoldingMonths: 3,
   maturityYears: 10,
   subscriptionStartDate: '2017-11-01',
   subscriptionEndDate: '2023-06-01',

@@ -50,6 +50,8 @@ export type CapitalizationFrequency = 'quarterly';
 export interface SeriesMetadata {
   readonly code: SeriesCode;
   readonly name: string;
+  /** Minimum whole-calendar-month holding period before redemption is allowed. */
+  readonly minimumHoldingMonths: number;
   readonly maturityYears: number;
   readonly subscriptionStartDate: IsoDate;
   /**
@@ -142,6 +144,22 @@ export interface SimulateInput {
 }
 
 /**
+ * Inputs accepted by {@link simulateRedemption}.
+ *
+ * `unitsToRedeem` defaults to full redemption (`units`) when omitted. `irsRate`
+ * is forwarded to the embedded {@link simulate} call so the schedule uses the
+ * same withholding assumptions as caller-defined what-if scenarios.
+ */
+export interface RedemptionInput {
+  readonly series: SeriesCode;
+  readonly subscriptionDate: IsoDate;
+  readonly units: number;
+  readonly redemptionDate: IsoDate;
+  readonly unitsToRedeem?: number;
+  readonly irsRate?: number;
+}
+
+/**
  * Result returned by {@link simulate}.
  *
  * Every monetary field is a banker's-rounded decimal string in EUR; rate
@@ -216,6 +234,28 @@ export interface SimulateResult {
   readonly accruedSinceLastCapitalization: string;
   readonly seriesMetadata: SeriesMetadata;
   readonly schedule?: readonly ScheduleRow[];
+}
+
+/**
+ * Result returned by {@link simulateRedemption}.
+ *
+ * Mid-quarter accrued interest is surfaced as `forfeitedAccruedGross` for the
+ * redeemed slice and is **not** added to `redemptionValue`, matching IGCP's
+ * capitalization-only interest booking.
+ */
+export interface RedemptionResult {
+  readonly series: SeriesCode;
+  readonly subscriptionDate: IsoDate;
+  readonly redemptionDate: IsoDate;
+  readonly units: number;
+  readonly unitsToRedeem: number;
+  readonly unitQuoteAtRedemption: string;
+  readonly redemptionValue: string;
+  readonly remainingUnits: number;
+  readonly remainingValueAtRedemption: string;
+  readonly forfeitedAccruedGross: string;
+  readonly earliestRedemptionDate: IsoDate;
+  readonly simulation: SimulateResult;
 }
 
 /**
