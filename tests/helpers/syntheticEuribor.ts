@@ -18,7 +18,11 @@ function toIsoDate(d: Date): IsoDate {
  * without depending on the bundled Bundesbank series reaching arbitrary future
  * dates.
  */
-export function syntheticEuriborFlat(fromDate: IsoDate, toDate: IsoDate, ratePct: string): RateEntry[] {
+export function syntheticEuriborFlat(
+  fromDate: IsoDate,
+  toDate: IsoDate,
+  ratePct: string,
+): RateEntry[] {
   const out: RateEntry[] = [];
   const start = Date.parse(`${fromDate}T00:00:00Z`);
   const end = Date.parse(`${toDate}T00:00:00Z`);
