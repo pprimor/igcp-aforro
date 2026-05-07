@@ -94,6 +94,7 @@ export default defineConfig({
       sidebar: [
         { label: 'Início rápido', slug: 'quickstart', translations: { en: 'Quickstart' } },
         { label: 'Simulador', slug: 'playground', translations: { en: 'Playground' } },
+        { label: 'Portefólio', slug: 'portfolio', translations: { en: 'Portfolio' } },
         { label: 'Referência da CLI', slug: 'cli', translations: { en: 'CLI reference' } },
         {
           label: 'Esquema rates.json',

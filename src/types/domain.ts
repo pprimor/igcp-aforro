@@ -144,6 +144,34 @@ export interface SimulateInput {
 }
 
 /**
+ * One subscription cohort inside a portfolio simulation.
+ *
+ * This mirrors {@link SimulateInput} but moves `asOfDate` and
+ * `includeSchedule` to portfolio level so all cohorts share the same
+ * reporting date and schedule toggle.
+ */
+export interface PortfolioSubscription {
+  readonly series: SeriesCode;
+  readonly subscriptionDate: IsoDate;
+  readonly units: number;
+  readonly irsRate?: number;
+}
+
+/**
+ * Inputs accepted by {@link simulatePortfolio}.
+ *
+ * - `subscriptions` must contain at least one cohort.
+ * - `asOfDate` defaults to today (UTC) when omitted, matching
+ *   {@link simulate}.
+ * - `includeSchedule` applies to every embedded cohort simulation.
+ */
+export interface SimulatePortfolioInput {
+  readonly subscriptions: readonly PortfolioSubscription[];
+  readonly asOfDate?: IsoDate;
+  readonly includeSchedule?: boolean;
+}
+
+/**
  * Inputs accepted by {@link simulateRedemption}.
  *
  * `unitsToRedeem` defaults to full redemption (`units`) when omitted. `irsRate`
@@ -234,6 +262,43 @@ export interface SimulateResult {
   readonly accruedSinceLastCapitalization: string;
   readonly seriesMetadata: SeriesMetadata;
   readonly schedule?: readonly ScheduleRow[];
+}
+
+/**
+ * Per-series aggregate row returned by {@link simulatePortfolio}.
+ *
+ * Values are sums of already-cent-quantized cohort totals from the matching
+ * series, preserving exact reconciliation with `cohorts`.
+ */
+export interface PortfolioSeriesBreakdown {
+  readonly series: SeriesCode;
+  readonly units: number;
+  readonly cohortCount: number;
+  readonly valueNet: string;
+  readonly interestNet: string;
+  readonly irsWithheld: string;
+}
+
+/**
+ * Result returned by {@link simulatePortfolio}.
+ *
+ * Portfolio totals are built by summing cent-quantized cohort fields, so each
+ * `total*` field reconciles byte-for-byte with the corresponding sum across
+ * `cohorts`.
+ */
+export interface PortfolioResult {
+  readonly asOfDate: IsoDate;
+  readonly totalUnits: number;
+  readonly totalValueGross: string;
+  readonly totalValueNet: string;
+  readonly totalInterestGross: string;
+  readonly totalInterestNet: string;
+  readonly totalIrsWithheld: string;
+  readonly totalAccruedGross: string;
+  readonly allMatured: boolean;
+  readonly anyMatured: boolean;
+  readonly bySeries: readonly PortfolioSeriesBreakdown[];
+  readonly cohorts: readonly SimulateResult[];
 }
 
 /**

@@ -1,0 +1,10 @@
+---
+title: Portfolio
+description: Simulate a portfolio with multiple subscription cohorts, including top-ups and mixed series.
+---
+
+import PortfolioPlayground from '../../../components/playground/PortfolioPlayground.tsx';
+
+Each top-up should be represented as its own cohort row with its own `series`, `subscriptionDate`, and `units`. The playground below calls `simulatePortfolio()` with a shared `asOfDate` and shows aggregate totals plus per-series breakdown.
+
+<PortfolioPlayground locale="en" client:load />

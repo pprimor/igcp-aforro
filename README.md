@@ -78,6 +78,25 @@ console.log(result.matured);           // false
 console.log(result.schedule?.length);  // 8 quarters since subscription
 ```
 
+### Simulate a portfolio of cohorts
+
+```ts
+import { simulatePortfolio, Series } from 'igcp-aforro';
+
+const portfolio = simulatePortfolio({
+  asOfDate: '2026-04-19',
+  subscriptions: [
+    { series: Series.F, subscriptionDate: '2024-03-15', units: 1000 },
+    { series: Series.E, subscriptionDate: '2018-01-15', units: 2500 },
+    { series: Series.D, subscriptionDate: '2017-10-01', units: 1500 },
+  ],
+});
+
+console.log(portfolio.totalValueNet);
+console.log(portfolio.totalInterestNet);
+console.log(portfolio.bySeries);
+```
+
 All money and rate fields come back as **decimal strings** (e.g. `"1078.42"`, `"0.02750"`). Feed them into `Big` (or your own decimal library) on the consumer side; never coerce them with `Number()` if you care about precision.
 
 ### CLI
@@ -209,6 +228,7 @@ const projectedNet = Big(r.currentValueNet).plus(accruedNet);
 ```ts
 import {
   simulate,
+  simulatePortfolio,
   simulateRedemption,
   getCurrentRate,
   getRateForCohort,
@@ -226,6 +246,10 @@ import type {
   RateEntry,
   ScheduleRow,
   SimulateInput,
+  PortfolioSubscription,
+  SimulatePortfolioInput,
+  PortfolioSeriesBreakdown,
+  PortfolioResult,
   SimulateResult,
   RedemptionInput,
   RedemptionResult,
