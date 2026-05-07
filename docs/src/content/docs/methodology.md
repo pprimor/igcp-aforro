@@ -118,6 +118,20 @@ accrued = saldo × taxa_trimestral × dias_decorridos / dias_totais
 
 em que `saldo` é `units × currentUnitQuote`, quantizado a cêntimos com arredondamento bancário. **Este número é uma convenção da biblioteca, não uma grandeza publicada pelo IGCP**: a retenção de IRS *não* é aplicada (só ocorre na capitalização). Quem quiser estimar um "valor de resgate hoje" deve subtrair `accrued × IRS` por sua conta.
 
+## Resgate antecipado
+
+`simulateRedemption()` em [`src/core/redemption.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/redemption.ts) calcula o valor pago num resgate antecipado (total ou parcial), reutilizando internamente `simulate({ asOfDate: redemptionDate })` para manter exatamente a mesma cadência de cotação.
+
+Regras aplicadas:
+
+- **Período mínimo de detenção**: o resgate só é permitido a partir de `subscriptionDate + 3 meses` (`SeriesMetadata.minimumHoldingMonths`, atualmente `3` em D/E/F).
+- **Fronteira de maturidade**: `redemptionDate >= maturityDate` não é "resgate antecipado" e é rejeitado; nesse caso use `simulate()` para o valor em maturidade.
+- **Valor pago no resgate**: `redemptionValue = round(unitsToRedeem × currentUnitQuote, 2)`, em que `currentUnitQuote` é a cotação líquida depois da última capitalização concluída na data de resgate.
+- **Accrued entre capitalizações**: o `accruedSinceLastCapitalization` correspondente à fração resgatada é reportado como `forfeitedAccruedGross` e **não é pago** no resgate (juros só são pagos em datas de capitalização).
+- **Resgate parcial**: `unitsToRedeem` tem de estar em `[1, units]` e o remanescente tem de ser `0` (resgate total) ou pelo menos `minUnits` da série.
+
+Nota de reconciliação: em resgates parciais, `round(unitsToRedeem × quote, 2) + round(remainingUnits × quote, 2)` pode diferir de `round(units × quote, 2)` em 1 cêntimo por efeito de arredondamentos independentes.
+
 ## Validações
 
 `simulate()` valida os *inputs* com Zod, lendo limites a partir do `SeriesMetadata` da série escolhida, antes de qualquer cálculo. Lança erro quando:

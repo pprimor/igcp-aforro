@@ -35,6 +35,33 @@ aforro simulate \
 | `--series <code>` | Código da série. Aceita `D`, `E` ou `F`. Por omissão, `F`. |
 | `--json` | Emite JSON em vez do formato visual. |
 
+## `aforro redeem`
+
+Calcula o valor de resgate antecipado (total ou parcial) para uma posição Série D, E ou F.
+
+```bash
+aforro redeem \
+  --subscribed 2024-03-15 \
+  --units 1000 \
+  --redeem-on 2026-04-19 \
+  [--redeem-units 400] \
+  [--series F] \
+  [--irs 0.28] \
+  [--schedule] \
+  [--json]
+```
+
+| Opção | Descrição |
+| --- | --- |
+| `--subscribed <date>` | Data de subscrição (`YYYY-MM-DD`). Obrigatória. |
+| `--units <n>` | Posição original em EUR (unidades inteiras). Obrigatória. |
+| `--redeem-on <date>` | Data de resgate (`YYYY-MM-DD`). Obrigatória. |
+| `--redeem-units <n>` | Unidades a resgatar. Omissão = resgate total. |
+| `--series <code>` | Código da série (`D`, `E`, `F`). Por omissão, `F`. |
+| `--irs <rate>` | Taxa de IRS usada na simulação embebida. Por omissão, usa a taxa da série. |
+| `--schedule` | Inclui o calendário trimestral da simulação embebida. |
+| `--json` | Emite JSON em vez do formato visual. |
+
 ## `aforro current`
 
 Mostra a taxa-base mensal publicada pelo IGCP para o mês atual, ou para o mês indicado.

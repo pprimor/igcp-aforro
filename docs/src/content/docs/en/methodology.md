@@ -118,6 +118,20 @@ accrued = balance x quarterly_rate x elapsed_days / total_days
 
 where `balance` is `units x currentUnitQuote`, quantized to cents with banker's rounding. **This number is a library convention, not a value published by IGCP**: IRS withholding is *not* applied (it only occurs at capitalization). Consumers estimating a "redemption value today" should subtract `accrued x IRS` themselves.
 
+## Early redemption
+
+`simulateRedemption()` in [`src/core/redemption.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/redemption.ts) computes the payable value of an early redemption (full or partial) while delegating quote math to `simulate({ asOfDate: redemptionDate })` so quote cadence remains identical.
+
+Applied rules:
+
+- **Minimum holding period**: redemption is only allowed from `subscriptionDate + 3 months` onward (`SeriesMetadata.minimumHoldingMonths`, currently `3` for D/E/F).
+- **Maturity boundary**: `redemptionDate >= maturityDate` is not considered early redemption and is rejected; use `simulate()` for matured payouts.
+- **Payable redemption value**: `redemptionValue = round(unitsToRedeem x currentUnitQuote, 2)`, where `currentUnitQuote` is the booked quote after the last completed capitalization at redemption date.
+- **Accrued between capitalizations**: the redeemed slice of `accruedSinceLastCapitalization` is reported as `forfeitedAccruedGross` and is **not paid** at redemption (interest is only paid on capitalization dates).
+- **Partial redemption guardrails**: `unitsToRedeem` must be in `[1, units]`, and the residual position must be either `0` (full redemption) or at least the series `minUnits`.
+
+Reconciliation note: for partial redemptions, `round(unitsToRedeem x quote, 2) + round(remainingUnits x quote, 2)` can differ from `round(units x quote, 2)` by one cent due to independent rounding.
+
 ## Validations
 
 `simulate()` validates inputs with Zod, reading limits from the selected series' `SeriesMetadata`, before any calculation. It throws when:

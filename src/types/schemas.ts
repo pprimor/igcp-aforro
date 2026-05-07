@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { shiftMonths } from '../core/dateMath.js';
 import { getSeries } from '../core/series.js';
 import type { SeriesCode } from './domain.js';
 
@@ -102,6 +103,66 @@ export const cohortRateInputSchema = z
     path: ['asOfDate'],
   });
 
+export const redemptionInputSchema = z
+  .object({
+    series: seriesCodeSchema,
+    subscriptionDate: isoDateSchema,
+    units: z.number().int('units must be an integer'),
+    redemptionDate: isoDateSchema,
+    unitsToRedeem: z.number().int('unitsToRedeem must be an integer').optional(),
+    irsRate: z.number().min(0, 'irsRate must be >= 0').max(1, 'irsRate must be <= 1').optional(),
+  })
+  .superRefine((data, ctx) => {
+    refineSubscriptionWindow(ctx, data.series, data.subscriptionDate);
+    const metadata = getSeries(data.series);
+    if (data.units < metadata.minUnits) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `units must be >= ${metadata.minUnits}`,
+        path: ['units'],
+      });
+    }
+    if (data.units > metadata.maxUnits) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `units must be <= ${metadata.maxUnits.toLocaleString('en-US')}`,
+        path: ['units'],
+      });
+    }
+    const unitsToRedeem = data.unitsToRedeem ?? data.units;
+    if (unitsToRedeem < 1 || unitsToRedeem > data.units) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `unitsToRedeem must be in [1, ${data.units}]`,
+        path: ['unitsToRedeem'],
+      });
+    }
+    const earliestRedemptionDate = shiftMonths(data.subscriptionDate, metadata.minimumHoldingMonths);
+    if (data.redemptionDate < earliestRedemptionDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `redemptionDate must be on or after ${earliestRedemptionDate} (${metadata.minimumHoldingMonths}-month minimum holding)`,
+        path: ['redemptionDate'],
+      });
+    }
+    const maturityDate = shiftMonths(data.subscriptionDate, metadata.maturityYears * 12);
+    if (data.redemptionDate >= maturityDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'redemptionDate is on or after maturity; use simulate() for matured payouts',
+        path: ['redemptionDate'],
+      });
+    }
+    const remainingUnits = data.units - unitsToRedeem;
+    if (remainingUnits !== 0 && remainingUnits < metadata.minUnits) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `remaining balance after partial redemption must be 0 or at least ${metadata.minUnits}`,
+        path: ['unitsToRedeem'],
+      });
+    }
+  });
+
 export const currentRateInputSchema = z.object({
   series: seriesCodeSchema.optional(),
   asOfDate: isoDateSchema.optional(),
@@ -122,3 +183,4 @@ export type SimulateInputSchema = z.infer<typeof simulateInputSchema>;
 export type CohortRateInputSchema = z.infer<typeof cohortRateInputSchema>;
 export type CurrentRateInputSchema = z.infer<typeof currentRateInputSchema>;
 export type RateTableInputSchema = z.infer<typeof rateTableInputSchema>;
+export type RedemptionInputSchema = z.infer<typeof redemptionInputSchema>;

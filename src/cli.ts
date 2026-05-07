@@ -3,6 +3,7 @@ import { runCohort } from './cli/commands/cohort.js';
 import { runCurrent } from './cli/commands/current.js';
 import { runFetchEuribor } from './cli/commands/fetchEuribor.js';
 import { runRates } from './cli/commands/rates.js';
+import { runRedeem } from './cli/commands/redeem.js';
 import { runSimulate } from './cli/commands/simulate.js';
 import { VERSION } from './index.js';
 
@@ -33,6 +34,18 @@ cli
   .option('--json', 'Emit JSON instead of a pretty table')
   .example('aforro simulate --subscribed 2024-03-15 --units 1000 --schedule')
   .action(runSimulate);
+
+cli
+  .command('redeem', 'Compute the redemption value of a Série D/E/F holding on a given date')
+  .option('--subscribed <date>', 'Subscription date (YYYY-MM-DD)')
+  .option('--units <n>', 'Original principal in EUR')
+  .option('--redeem-on <date>', 'Redemption date (YYYY-MM-DD)')
+  .option('--redeem-units <n>', 'Units to redeem; defaults to full balance')
+  .option('--series <code>', 'Series code', { default: 'F' })
+  .option('--irs <rate>', 'IRS withholding rate; defaults to series default')
+  .option('--schedule', 'Include the per-quarter schedule of the embedded simulation')
+  .option('--json', 'Emit JSON instead of a pretty table')
+  .action(runRedeem);
 
 cli
   .command('current', 'Print the IGCP-published monthly base rate for the current (or given) month')

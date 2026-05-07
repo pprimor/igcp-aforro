@@ -81,6 +81,7 @@ describe('aforro CLI — global contracts', () => {
     expect(result.stdout).toContain('current');
     expect(result.stdout).toContain('rates');
     expect(result.stdout).toContain('cohort');
+    expect(result.stdout).toContain('redeem');
     expect(result.stdout).toContain('fetch-euribor');
   });
 
@@ -92,6 +93,10 @@ describe('aforro CLI — global contracts', () => {
     ['current', ['--series', '--as-of', '--json']],
     ['rates', ['--series', '--from', '--to', '--json']],
     ['cohort', ['--subscribed', '--as-of', '--series', '--json']],
+    [
+      'redeem',
+      ['--subscribed', '--units', '--redeem-on', '--redeem-units', '--series', '--irs', '--schedule', '--json'],
+    ],
   ] as const)('%s --help includes the command flags', async (command, flags) => {
     const result = await runCli([command, '--help']);
 
@@ -319,6 +324,50 @@ describe('aforro CLI — JSON contracts', () => {
     expect(parsed.totalInterestNet).toBe(parsed.totalInterestGross);
   });
 
+  it('redeem --json returns redemption values and embedded simulation', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'redeem',
+        '--subscribed',
+        '2024-03-15',
+        '--units',
+        '1000',
+        '--redeem-on',
+        '2024-09-20',
+        '--json',
+      ]),
+    );
+
+    expect(parsed).toMatchObject({
+      series: 'F',
+      subscriptionDate: '2024-03-15',
+      redemptionDate: '2024-09-20',
+      units: 1000,
+      unitsToRedeem: 1000,
+      remainingUnits: 0,
+    });
+    expect(parsed).toHaveProperty('simulation');
+  });
+
+  it('redeem --redeem-units supports partial redemption', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli([
+        'redeem',
+        '--subscribed',
+        '2024-03-15',
+        '--units',
+        '1000',
+        '--redeem-on',
+        '2024-09-20',
+        '--redeem-units',
+        '400',
+        '--json',
+      ]),
+    );
+    expect(parsed.unitsToRedeem).toBe(400);
+    expect(parsed.remainingUnits).toBe(600);
+  });
+
   it('simulate --series E --json runs against a Série E cohort end-to-end', async () => {
     const parsed = parseJson<JsonObject>(
       await runCli([
@@ -480,6 +529,54 @@ describe('aforro CLI — pretty output contracts', () => {
     );
     expect(lines.slice(scheduleIndex + 3)).toHaveLength(2);
     expect(lines[scheduleIndex + 3]).toContain('2024-06-15');
+  });
+
+  it('redeem prints the summary key set without schedule by default', async () => {
+    const result = await runCli([
+      'redeem',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--redeem-on',
+      '2024-09-20',
+    ]);
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines.map((line) => line.split(/\s{2,}/)[0])).toEqual([
+      'series',
+      'subscriptionDate',
+      'redemptionDate',
+      'units',
+      'unitsToRedeem',
+      'unitQuoteAtRedemption',
+      'redemptionValue',
+      'remainingUnits',
+      'remainingValueAtRedemption',
+      'forfeitedAccruedGross',
+      'earliestRedemptionDate',
+    ]);
+    expect(lines).not.toContain('schedule');
+  });
+
+  it('redeem --schedule prints embedded simulation schedule section', async () => {
+    const result = await runCli([
+      'redeem',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--redeem-on',
+      '2024-09-20',
+      '--schedule',
+    ]);
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    const scheduleIndex = lines.indexOf('schedule');
+    expect(scheduleIndex).toBeGreaterThan(0);
+    expect(lines[scheduleIndex + 1]).toMatch(
+      /^quarterEndDate\s{2,}annualRate\s{2,}quarterlyRate\s{2,}interestGross\s{2,}irsWithheld\s{2,}interestNet\s{2,}balanceAfter\s{2,}tier\s*$/,
+    );
   });
 });
 
@@ -647,6 +744,46 @@ describe('aforro CLI — validation contracts', () => {
       matured: true,
       maturityDate: '2039-03-15',
     });
+  });
+
+  it('redeem requires --redeem-on', async () => {
+    const result = await runCli(['redeem', '--subscribed', '2024-03-15', '--units', '1000']);
+    expectFailure(result);
+    expect(result.stderr).toContain('--redeem-on is required');
+  });
+
+  it('redeem rejects non-finite --redeem-units', async () => {
+    const result = await runCli([
+      'redeem',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--redeem-on',
+      '2024-09-20',
+      '--redeem-units',
+      'abc',
+    ]);
+    expectFailure(result);
+    expect(result.stderr).toContain('--redeem-units must be a finite number');
+  });
+
+  it('redeem rejects units below residual minimum', async () => {
+    const result = await runCli([
+      'redeem',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--redeem-on',
+      '2024-09-20',
+      '--redeem-units',
+      '901',
+    ]);
+    expectFailure(result);
+    expect(result.stderr).toContain(
+      'unitsToRedeem: remaining balance after partial redemption must be 0 or at least 100',
+    );
   });
 });
 

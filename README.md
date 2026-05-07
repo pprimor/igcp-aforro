@@ -30,7 +30,7 @@ This package reproduces that math end-to-end, with all monetary fields returned 
 - **aforro.net parity** — booked values are derived from the same per-unit quote cadence aforro.net displays: quote rounded to 5 decimals each quarter, then `round(units × quote, 2)`.
 - **Validated inputs** — Zod-checked at the public boundary; the library throws on out-of-window subscriptions, invalid units, or impossible as-of dates.
 - **Cohort-aware rate lookup** — resolve the annual rate that applies to a given subscription on a given quarter, with the base + premium components surfaced for auditability.
-- **CLI included** — `aforro simulate | current | rates | cohort` with stable `--json` output for scripting.
+- **CLI included** — `aforro simulate | redeem | current | rates | cohort` with stable `--json` output for scripting.
 - **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate for Série D, Série E, and Série F, precomputed and published with the docs site for Python / Java / Excel users.
 - **Golden-tested** — every IGCP-published monthly base rate since the inaugural June 2023 Série F cohort is asserted in CI; Série D and Série E base rates are validated against the IGCP technical sheet's E3+1% formula.
 - **TypeScript-first** — full `.d.ts` typings, ESM + CJS dual bundles, Node ≥ 20.
@@ -84,6 +84,7 @@ All money and rate fields come back as **decimal strings** (e.g. `"1078.42"`, `"
 
 ```bash
 aforro simulate --subscribed 2024-03-15 --units 1000 --schedule
+aforro redeem --subscribed 2024-03-15 --units 1000 --redeem-on 2026-04-19
 aforro current
 aforro rates --from 2023-06 --to 2026-04
 aforro cohort --subscribed 2024-03 --as-of 2026-04
@@ -169,7 +170,23 @@ simulate({
 
 ### Project an "if I redeemed today" value
 
-`accruedSinceLastCapitalization` reports the gross interest accrued since the last capitalization on a calendar-day pro-rata basis. IRS is **not** withheld on this amount (withholding only happens at capitalization), so subtract it yourself:
+`accruedSinceLastCapitalization` is informational (gross accrued mid-quarter) and is **not** paid by IGCP on an early redemption date. For payable value, use `simulateRedemption()`:
+
+```ts
+import { simulateRedemption } from 'igcp-aforro';
+
+const redemption = simulateRedemption({
+  series: 'F',
+  subscriptionDate: '2024-03-15',
+  units: 1000,
+  redemptionDate: '2026-04-19',
+});
+
+console.log(redemption.redemptionValue); // payable amount at redemption date
+console.log(redemption.forfeitedAccruedGross); // accrued slice forfeited on redemption
+```
+
+If you still need an accrued-based projection from `simulate()`, subtract IRS manually:
 
 ```ts
 import Big from 'big.js';
@@ -192,6 +209,7 @@ const projectedNet = Big(r.currentValueNet).plus(accruedNet);
 ```ts
 import {
   simulate,
+  simulateRedemption,
   getCurrentRate,
   getRateForCohort,
   getRateTable,
@@ -209,6 +227,8 @@ import type {
   ScheduleRow,
   SimulateInput,
   SimulateResult,
+  RedemptionInput,
+  RedemptionResult,
   CohortRateInput,
   CohortRateResult,
   CurrentRateInput,
