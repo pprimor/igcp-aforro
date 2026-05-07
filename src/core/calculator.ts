@@ -106,10 +106,11 @@ function rateForQuarter(
  * in {@link SimulateResult.schedule} with the rate components, gross / IRS /
  * net interest, and the running balance after capitalization.
  *
- * @throws when input fails Zod validation, when the bundled Euribor 3M
- *   dataset cannot resolve the base rate for any quarter the loop must
- *   process (including the in-flight quarter when computing accrued), or
- *   when the resolved series has no premium tier for the contract year.
+ * @throws when input fails Zod validation, when the Euribor 3M series (bundled
+ *   dataset or {@link BaseRateOptions.observations} override) cannot resolve
+ *   the IGCP fixing window for any quarter the loop must process (including
+ *   the in-flight quarter when computing accrued), or when the resolved series
+ *   has no premium tier for the contract year.
  */
 export function simulate(input: SimulateInput, options: SimulateOptions = {}): SimulateResult {
   const parsed = simulateInputSchema.parse(input);

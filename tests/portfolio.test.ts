@@ -3,6 +3,9 @@ import { ZodError } from 'zod';
 import { simulate } from '../src/core/calculator.js';
 import { toBig } from '../src/core/money.js';
 import { simulatePortfolio } from '../src/core/portfolio.js';
+import { syntheticEuriborFlat } from './helpers/syntheticEuribor.js';
+
+const LONG_HORIZON_EURIBOR = syntheticEuriborFlat('2015-01-01', '2045-12-31', '2.500');
 
 describe('simulatePortfolio — reconciliation and composition', () => {
   it('single-cohort portfolio matches simulate() headline fields', () => {
@@ -166,20 +169,26 @@ describe('simulatePortfolio — validation guards', () => {
 
 describe('simulatePortfolio — maturity rollups and schedule propagation', () => {
   it('rolls up allMatured/anyMatured correctly', () => {
-    const allMatured = simulatePortfolio({
-      asOfDate: '2039-03-15',
-      subscriptions: [{ series: 'F', subscriptionDate: '2024-03-15', units: 1000 }],
-    });
+    const allMatured = simulatePortfolio(
+      {
+        asOfDate: '2039-03-15',
+        subscriptions: [{ series: 'F', subscriptionDate: '2024-03-15', units: 1000 }],
+      },
+      { observations: LONG_HORIZON_EURIBOR },
+    );
     expect(allMatured.allMatured).toBe(true);
     expect(allMatured.anyMatured).toBe(true);
 
-    const mixed = simulatePortfolio({
-      asOfDate: '2030-03-15',
-      subscriptions: [
-        { series: 'E', subscriptionDate: '2018-01-15', units: 1000 },
-        { series: 'F', subscriptionDate: '2024-03-15', units: 1000 },
-      ],
-    });
+    const mixed = simulatePortfolio(
+      {
+        asOfDate: '2030-03-15',
+        subscriptions: [
+          { series: 'E', subscriptionDate: '2018-01-15', units: 1000 },
+          { series: 'F', subscriptionDate: '2024-03-15', units: 1000 },
+        ],
+      },
+      { observations: LONG_HORIZON_EURIBOR },
+    );
     expect(mixed.allMatured).toBe(false);
     expect(mixed.anyMatured).toBe(true);
   });

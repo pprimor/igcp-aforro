@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 import { simulateRedemption } from '../src/core/redemption.js';
+import { syntheticEuriborFlat } from './helpers/syntheticEuribor.js';
+
+const LONG_HORIZON_EURIBOR = syntheticEuriborFlat('2015-01-01', '2040-12-31', '2.500');
 
 function cents(amount: string): number {
   const [euros, centsPart = ''] = amount.split('.');
@@ -132,13 +135,16 @@ describe('simulateRedemption — per-series coverage and determinism', () => {
     ['E', '2018-01-15', '2024-07-20'],
     ['F', '2024-03-15', '2030-09-18'],
   ] as const)('supports series %s', (series, subscriptionDate, redemptionDate) => {
-    const result = simulateRedemption({
-      series,
-      subscriptionDate,
-      units: 1000,
-      redemptionDate,
-      unitsToRedeem: 400,
-    });
+    const result = simulateRedemption(
+      {
+        series,
+        subscriptionDate,
+        units: 1000,
+        redemptionDate,
+        unitsToRedeem: 400,
+      },
+      { observations: LONG_HORIZON_EURIBOR },
+    );
     expect(result.series).toBe(series);
     expect(result.unitsToRedeem).toBe(400);
   });

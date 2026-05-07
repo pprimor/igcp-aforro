@@ -1,6 +1,6 @@
 import euribor3mObservations from '../data/euribor3m.json' with { type: 'json' };
 import type { IsoDate, RateEntry, SeriesMetadata } from '../types/domain.js';
-import { antepenultimateBusinessDay } from './calendar.js';
+import { antepenultimateBusinessDay, previousBusinessDay } from './calendar.js';
 import { Big, ROUND_HALF_EVEN, formatPercent, toBig } from './money.js';
 import { getSeries } from './series.js';
 
@@ -67,6 +67,13 @@ export interface BaseRateOptions {
    * Defaults to Série F.
    */
   readonly series?: SeriesMetadata;
+  /**
+   * When `true` (default), require a Euribor fixing on the TARGET2 business day
+   * immediately before the IGCP fixing date so the 10-day average matches the
+   * published methodology. Set to `false` only for isolated tests with synthetic
+   * observation gaps.
+   */
+  readonly strictWindowEnd?: boolean;
 }
 
 /** Rich result of a base-rate computation, useful for audit and diagnostics. */
@@ -174,20 +181,30 @@ export function computeBaseRate(
     );
   }
 
-  // Per Portaria 149-A/2023 the window is the 10 business days *strictly
-  // preceding* the fixing date, so we anchor at `fixingDate - 1` and walk
-  // back `windowSize` observations from there.
-  const fixingIndex = findLastIndexAtOrBefore(observations, fixingDate);
-  const lastWindowIndex =
-    fixingIndex >= 0 && observations[fixingIndex]?.date === fixingDate
-      ? fixingIndex - 1
-      : fixingIndex;
+  // Per Portaria 149-A/2023 the window is the 10 TARGET2 business days strictly
+  // preceding the fixing date — i.e. ending on the business day immediately
+  // before `fixingDate`. Anchoring on "last row ≤ fixingDate" alone is unsafe
+  // when the dataset omits late-month fixings: the mean would otherwise use the
+  // wrong 10 days (see May 2026: missing 23–27 Apr shifted the average by 0.005pp).
+  const windowEndDate = previousBusinessDay(fixingDate);
+  const lastWindowIndex = findLastIndexAtOrBefore(observations, windowEndDate);
+  const lastSeen = lastWindowIndex >= 0 ? observations[lastWindowIndex]?.date : undefined;
+  const strictWindowEnd = options.strictWindowEnd ?? true;
+
+  if (strictWindowEnd && lastSeen !== windowEndDate) {
+    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+    throw new Error(
+      `Insufficient Euribor 3M data to compute base rate for ${targetMonth}: ` +
+        `need a fixing on ${windowEndDate} (last TARGET2 day before fixing ${fixingDate}) ` +
+        `but the latest observation on or before that date is ${lastSeen ?? 'none'}`,
+    );
+  }
   if (lastWindowIndex < windowSize - 1) {
     const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
     throw new Error(
       `Insufficient Euribor 3M data to compute base rate for ${targetMonth}: ` +
-        `fixing date ${fixingDate} requires ${windowSize} observations strictly before that ` +
-        `date but only ${lastWindowIndex + 1} are available in the bundled dataset`,
+        `fixing date ${fixingDate} requires ${windowSize} observations on or before ${windowEndDate} ` +
+        `but only ${lastWindowIndex + 1} are available in the bundled dataset`,
     );
   }
 
