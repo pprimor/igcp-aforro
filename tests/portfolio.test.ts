@@ -51,17 +51,18 @@ describe('simulatePortfolio — reconciliation and composition', () => {
     );
   });
 
-  it('keeps bySeries in canonical D, E, F order', () => {
+  it('keeps bySeries in canonical C, D, E, F order', () => {
     const result = simulatePortfolio({
       asOfDate: '2026-04-19',
       subscriptions: [
         { series: 'F', subscriptionDate: '2024-03-15', units: 1000 },
         { series: 'D', subscriptionDate: '2017-10-01', units: 1000 },
         { series: 'E', subscriptionDate: '2018-01-15', units: 1000 },
+        { series: 'C', subscriptionDate: '2010-06-01', units: 1000 },
       ],
     });
 
-    expect(result.bySeries.map((row) => row.series)).toEqual(['D', 'E', 'F']);
+    expect(result.bySeries.map((row) => row.series)).toEqual(['C', 'D', 'E', 'F']);
   });
 
   it('allows reforco rows with same series and same subscription date', () => {

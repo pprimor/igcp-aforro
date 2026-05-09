@@ -1,6 +1,7 @@
 import euribor3mObservations from '../data/euribor3m.json' with { type: 'json' };
-import type { IsoDate, RateEntry, SeriesMetadata } from '../types/domain.js';
+import type { IsoDate, IsoMonth, RateEntry, SeriesMetadata } from '../types/domain.js';
 import { antepenultimateBusinessDay, previousBusinessDay } from './calendar.js';
+import { formatIsoMonth } from './dateMath.js';
 import { Big, ROUND_HALF_EVEN, formatPercent, toBig } from './money.js';
 import { getSeries } from './series.js';
 
@@ -21,13 +22,16 @@ import { getSeries } from './series.js';
  *      window — it only anchors which 10 prior observations are averaged.
  *   3. Compute the arithmetic mean and round it to **3 decimal places** using
  *      banker's rounding (`ROUND_HALF_EVEN`).
- *   4. Add the series' additive spread (`baseRateSpreadPct`): `0pp` for
- *      Série F (the formula is just E3) or `+1pp` for Série E (the formula
- *      is `E3 + 1%`). The "sendo o resultado arredondado à terceira casa
- *      decimal" clause applies to the *mean*, so rounding happens before
- *      the spread, not after.
- *   5. Clamp the result into the series' published window:
- *      `[0%, 2.5%]` for Série F and `[0%, 3.5%]` for Série E.
+ *   4. Scale the rounded mean by {@link SeriesMetadata.baseRateEuriborMultiplierPct}
+ *      (defaults to `1`) and add the active offset: either the piecewise
+ *      {@link SeriesMetadata.baseRatePostMeanOffsets} schedule (Série C:
+ *      `0,85 × E3 − 0,25` through February 2009, then `0,85 × E3 + 0,25`) or
+ *      else {@link SeriesMetadata.baseRateSpreadPct} (`0pp` for Série F,
+ *      `+1pp` for Séries D/E). The Euribor mean is rounded **before** scaling.
+ *   5. Round the scaled value again to {@link SeriesMetadata.baseRateDecimals}
+ *      (banker's rounding), then clamp into the series' published window
+ *      (`[0%, 2.5%]` for Série F, `[0%, 3.5%]` for Séries D/E, `[0%, +∞)`
+ *      practically capped for Série C).
  *
  * The bundled dataset (`src/data/euribor3m.json`) only contains TARGET2
  * business days for which Bundesbank actually published a fixing —
@@ -92,11 +96,9 @@ export interface BaseRateResult {
   /** Mean rounded to 3 decimals (`ROUND_HALF_EVEN`), pre-spread, pre-clamp. */
   readonly roundedAveragePct: string;
   /**
-   * {@link roundedAveragePct} after adding the series' additive spread
-   * ({@link SeriesMetadata.baseRateSpreadPct}), pre-clamp. For Série F the
-   * spread is `"0"` so this equals {@link roundedAveragePct} byte-for-byte;
-   * for Série E the published formula is `E3 + 1%` so this is the rounded
-   * Euribor mean plus `1`.
+   * Scaled mean + offset, rounded to {@link SeriesMetadata.baseRateDecimals},
+   * pre-clamp. For Séries D/E/F this matches the former “rounded mean +
+   * spread” step; for Série C it is `round(0,85 × E3 + k, 3dp)`.
    */
   readonly roundedPlusSpreadPct: string;
   /**
@@ -126,6 +128,23 @@ function previousMonth(year: number, month: number): { year: number; month: numb
  * by `date`. Implemented as a binary search because the dataset grows daily
  * and `baseRate()` is called once per quarter per cohort by `simulate()`.
  */
+function postMeanOffsetPct(series: SeriesMetadata, targetMonth: IsoMonth): string {
+  const schedule = series.baseRatePostMeanOffsets;
+  if (schedule && schedule.length > 0) {
+    let picked = schedule[0];
+    if (!picked) {
+      throw new Error(`${series.name}: baseRatePostMeanOffsets is empty`);
+    }
+    for (const row of schedule) {
+      if (targetMonth >= row.effectiveFromMonth) {
+        picked = row;
+      }
+    }
+    return picked.offsetPct;
+  }
+  return series.baseRateSpreadPct;
+}
+
 function findLastIndexAtOrBefore(observations: readonly RateEntry[], cutoff: IsoDate): number {
   let lo = 0;
   let hi = observations.length - 1;
@@ -216,16 +235,21 @@ export function computeBaseRate(
   }
   const rawAverage = sum.div(windowSize);
   const rounded = rawAverage.round(series.baseRateDecimals, ROUND_HALF_EVEN);
-  // Per the Série E ficha técnica ("E3+1%, sendo o resultado arredondado à
-  // terceira casa decimal"), the +1pp spread is added *after* the mean is
-  // rounded and *before* the [0%, 3.5%] clamp is applied. Série F sets
-  // `baseRateSpreadPct: '0'`, making this a no-op for the existing formula.
-  const withSpread = rounded.plus(toBig(series.baseRateSpreadPct));
+  const mult = toBig(series.baseRateEuriborMultiplierPct ?? '1');
+  const targetMonth = formatIsoMonth(year, month);
+  const offset = toBig(postMeanOffsetPct(series, targetMonth));
+  const scaledPreRound = rounded.times(mult).plus(offset);
+  const usesPiecewiseOffsets =
+    series.baseRatePostMeanOffsets !== undefined && series.baseRatePostMeanOffsets.length > 0;
+  const preClamp =
+    usesPiecewiseOffsets || !mult.eq(1)
+      ? scaledPreRound.round(series.baseRateDecimals, ROUND_HALF_EVEN)
+      : scaledPreRound;
 
   const min = toBig(series.baseRateClampMinPct);
   const max = toBig(series.baseRateClampMaxPct);
   let clamped = false;
-  let final = withSpread;
+  let final = preClamp;
   if (final.lt(min)) {
     final = min;
     clamped = true;
@@ -241,7 +265,7 @@ export function computeBaseRate(
     observations: window,
     rawAveragePct: rawAverage.toString(),
     roundedAveragePct: formatPercent(rounded, series.baseRateDecimals),
-    roundedPlusSpreadPct: formatPercent(withSpread, series.baseRateDecimals),
+    roundedPlusSpreadPct: formatPercent(preClamp, series.baseRateDecimals),
     basePct: formatPercent(final, series.baseRateDecimals),
     clamped,
   };

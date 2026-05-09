@@ -1,15 +1,15 @@
 #!/usr/bin/env tsx
 /**
  * Precompute a single, self-contained `rates.json` artifact covering
- * every series registered in {@link listSeries} (currently Série D, Série E,
- * and Série F), with one block per series enumerating every published month
+ * every series registered in {@link listSeries} (Séries C, D, E, and F),
+ * with one block per series enumerating every published month
  * and every anchored-quarter cohort, then write it to
  * `public/rates.json` (the path published with the docs site).
  *
  * The artifact exists so non-JS consumers (Python, Java, Excel,
  * spreadsheets) can use the same numbers the npm library returns
  * without re-implementing the IGCP methodology themselves: they fetch
- * one JSON file, pick the series block (`series.D`, `series.E`, or `series.F`),
+ * one JSON file, pick the series block (`series.C`, `series.D`, `series.E`, or `series.F`),
  * then look up `monthlyBaseRates[month]` for the monthly base rate or
  * `cohortRates` filtered by cohort and quarter for the composite
  * annual rate.
@@ -29,6 +29,7 @@
  *     "libraryVersion": "YYYY.MMDD.PATCH",
  *     "euriborSourceMeta": { ...src/data/_meta.json["euribor"] },
  *     "series": {
+ *       "C": { "metadata": { ...SeriesMetadata }, "monthlyBaseRates": [...], "cohortRates": [...] },
  *       "D": { "metadata": { ...SeriesMetadata }, "monthlyBaseRates": [...], "cohortRates": [...] },
  *       "E": { "metadata": { ...SeriesMetadata }, "monthlyBaseRates": [...], "cohortRates": [...] },
  *       "F": {
@@ -298,7 +299,7 @@ function buildCohortRows(
       break;
     }
 
-    const tier = premiumTierForYear(series, yearsSinceSubscription + 1);
+    const tier = premiumTierForYear(series, yearsSinceSubscription + 1, quarterStartDate);
     const annualPct = toBig(baseRow.basePct).plus(toBig(tier.ratePct));
 
     rows.push({

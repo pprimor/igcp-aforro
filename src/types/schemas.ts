@@ -28,7 +28,7 @@ export const isoDateSchema = z
 
 export const isoMonthSchema = z.string().regex(ISO_MONTH_REGEX, 'Expected month in YYYY-MM format');
 
-export const seriesCodeSchema = z.enum(['D', 'E', 'F']);
+export const seriesCodeSchema = z.enum(['C', 'D', 'E', 'F']);
 
 /**
  * Adds per-series subscription-window issues to `ctx`. Reads bounds from the
@@ -199,7 +199,7 @@ export const simulatePortfolioInputSchema = z
     includeSchedule: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
-    const runningUnitsBySeries: Record<SeriesCode, number> = { D: 0, E: 0, F: 0 };
+    const runningUnitsBySeries: Record<SeriesCode, number> = { C: 0, D: 0, E: 0, F: 0 };
 
     for (const [index, subscription] of data.subscriptions.entries()) {
       const itemPath: readonly (string | number)[] = ['subscriptions', index];

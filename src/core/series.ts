@@ -1,5 +1,68 @@
 import type { PremiumTier, SeriesCode, SeriesMetadata } from '../types/domain.js';
 
+/** Quarters starting before this date use {@link SeriesMetadata.premiumTiersLegacy} for Série C. */
+export const SERIE_C_PREMIUM_TIER_MODERNIZATION = '2009-03-01';
+
+/**
+ * Série C — IGCP-published parameters.
+ *
+ * Created by Portaria n.º 73-A/2008 (23 January 2008, effective 26 January 2008).
+ * Subscriptions closed when Série D opened (Portaria n.º 17-B/2015); last
+ * subscriptions 31 January 2015. Base rate: `0,85 × E3 + k`, where E3 is the
+ * 10 TARGET2-business-day Euribor 3M mean rounded to 3 decimals; `k` was
+ * `−0,25` until February 2009 and `+0,25` from March 2009 onward (Portaria
+ * n.º 230-A/2009, effective 1 March 2009). Cap per Conta Aforro was 1M units
+ * until 230-A/2009 aligned it to 250.000 units. Permanence premiums were
+ * revised in 230-A/2009; quarters whose start is still before 1 March 2009
+ * keep the pre-reform tier table.
+ */
+const SERIE_C_LEGACY_PREMIUM_TIERS: readonly PremiumTier[] = [
+  { fromYear: 1, toYear: 1, ratePct: '0.00' },
+  { fromYear: 2, toYear: 2, ratePct: '0.25' },
+  { fromYear: 3, toYear: 3, ratePct: '0.50' },
+  { fromYear: 4, toYear: 7, ratePct: '0.75' },
+  { fromYear: 8, toYear: 8, ratePct: '1.00' },
+  { fromYear: 9, toYear: 9, ratePct: '1.50' },
+  { fromYear: 10, toYear: 10, ratePct: '2.50' },
+];
+
+const SERIE_C_PREMIUM_TIERS: readonly PremiumTier[] = [
+  { fromYear: 1, toYear: 1, ratePct: '0.00' },
+  { fromYear: 2, toYear: 2, ratePct: '0.50' },
+  { fromYear: 3, toYear: 3, ratePct: '0.75' },
+  { fromYear: 4, toYear: 7, ratePct: '1.00' },
+  { fromYear: 8, toYear: 8, ratePct: '1.25' },
+  { fromYear: 9, toYear: 9, ratePct: '1.50' },
+  { fromYear: 10, toYear: 10, ratePct: '2.50' },
+];
+
+const SERIE_C_METADATA: SeriesMetadata = {
+  code: 'C',
+  name: 'Série C',
+  minimumHoldingMonths: 3,
+  maturityYears: 10,
+  subscriptionStartDate: '2008-01-26',
+  subscriptionEndDate: '2015-01-31',
+  minUnits: 100,
+  maxUnits: 250_000,
+  baseRateClampMinPct: '0',
+  baseRateClampMaxPct: '100',
+  baseRateSpreadPct: '0',
+  baseRateEuriborMultiplierPct: '0.85',
+  baseRatePostMeanOffsets: [
+    { effectiveFromMonth: '2008-01', offsetPct: '-0.25' },
+    { effectiveFromMonth: '2009-03', offsetPct: '0.25' },
+  ],
+  baseRateDecimals: 3,
+  unitQuoteDecimals: 5,
+  euribor3mAveragingDays: 10,
+  capitalizationFrequency: 'quarterly',
+  defaultIrsRate: '0.28',
+  premiumTiers: SERIE_C_PREMIUM_TIERS,
+  premiumTiersLegacy: SERIE_C_LEGACY_PREMIUM_TIERS,
+  premiumTierModernizationDate: SERIE_C_PREMIUM_TIER_MODERNIZATION,
+};
+
 /**
  * Série D — IGCP-published parameters.
  *
@@ -118,12 +181,14 @@ const SERIE_E_METADATA: SeriesMetadata = {
  * it remains JSON-serializable and tree-shakable.
  */
 export const Series = {
+  C: 'C',
   D: 'D',
   E: 'E',
   F: 'F',
 } as const satisfies Record<string, SeriesCode>;
 
 const SERIES_REGISTRY: Readonly<Partial<Record<SeriesCode, SeriesMetadata>>> = {
+  C: SERIE_C_METADATA,
   D: SERIE_D_METADATA,
   E: SERIE_E_METADATA,
   F: SERIE_F_METADATA,
@@ -156,8 +221,33 @@ export function getSeries(code: SeriesCode): SeriesMetadata {
  * @throws {Error} when no tier covers `contractYear` — guards against
  *   accidentally indexing past maturity.
  */
-export function premiumTierForYear(series: SeriesMetadata, contractYear: number): PremiumTier {
-  for (const tier of series.premiumTiers) {
+function premiumTiersForQuarter(
+  series: SeriesMetadata,
+  quarterStartDate?: string,
+): readonly PremiumTier[] {
+  if (
+    series.premiumTiersLegacy &&
+    series.premiumTierModernizationDate &&
+    quarterStartDate !== undefined &&
+    quarterStartDate < series.premiumTierModernizationDate
+  ) {
+    return series.premiumTiersLegacy;
+  }
+  return series.premiumTiers;
+}
+
+/**
+ * @param quarterStartDate — when provided for series with
+ *   {@link SeriesMetadata.premiumTiersLegacy}, selects the legacy vs modern
+ *   tier table (Série C around March 2009).
+ */
+export function premiumTierForYear(
+  series: SeriesMetadata,
+  contractYear: number,
+  quarterStartDate?: string,
+): PremiumTier {
+  const tiers = premiumTiersForQuarter(series, quarterStartDate);
+  for (const tier of tiers) {
     if (contractYear >= tier.fromYear && contractYear <= tier.toYear) {
       return tier;
     }

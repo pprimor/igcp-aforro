@@ -108,11 +108,20 @@ interface Scenario {
  * quarterly capitalization to compare against and only valid subscription
  * months are sent to IGCP.
  */
-const SERIES_WINDOW_START: Readonly<Record<SeriesCode, { year: number; month: number }>> = {
-  D: { year: 2017, month: 10 },
-  E: { year: 2018, month: 1 },
-  F: { year: 2023, month: 9 },
-};
+/**
+ * Subscription-month sweep lower bounds for series the IGCP
+ * `/api/simulator-value/query` endpoint actually materializes.
+ *
+ * **Série C** is intentionally omitted: the public simulator (and aforro.net)
+ * only cover Séries D/E/F in the comparison matrix, mirroring how Série A is
+ * out of scope in IGCP's own client-side code paths.
+ */
+const SERIES_WINDOW_START: Readonly<Partial<Record<SeriesCode, { year: number; month: number }>>> =
+  {
+    D: { year: 2017, month: 10 },
+    E: { year: 2018, month: 1 },
+    F: { year: 2023, month: 9 },
+  };
 
 export type CompareSeries = SeriesCode | 'all';
 
@@ -146,6 +155,9 @@ export function buildScenarios(
   for (const code of codes) {
     const metadata = getSeries(code);
     const start = SERIES_WINDOW_START[code];
+    if (!start) {
+      continue;
+    }
     const end = metadata.subscriptionEndDate
       ? Math.min(latestComparableMonth, monthIndexFromDate(metadata.subscriptionEndDate))
       : latestComparableMonth;
@@ -376,6 +388,14 @@ export async function runCompareSuite(options: CompareOptions): Promise<number> 
     .slice(0, options.limit ?? allScenarios.length);
 
   if (filtered.length === 0) {
+    if (options.series === 'C') {
+      options.writeErr(
+        'Série C is skipped: the IGCP simulator API and aforro.net do not expose Série C ' +
+          'in the same query surface as D/E/F. Use the IGCP-published golden tests in ' +
+          '`tests/fixtures/igcpPublishedBaseRates.json` and `tests/baseRate.test.ts` instead.\n',
+      );
+      return 0;
+    }
     options.writeErr('No scenarios matched the supplied filters.\n');
     return 1;
   }
@@ -562,9 +582,9 @@ function parseDelayFlag(raw: unknown): number {
 function parseSeriesFlag(raw: unknown): CompareSeries {
   if (raw === undefined) return 'all';
   const value = String(raw).toUpperCase();
-  if (value === 'D' || value === 'E' || value === 'F') return value;
+  if (value === 'C' || value === 'D' || value === 'E' || value === 'F') return value;
   if (value === 'ALL' || value === 'BOTH') return 'all';
-  throw new Error(`--series must be one of D, E, F, all (got ${String(raw)})`);
+  throw new Error(`--series must be one of C, D, E, F, all (got ${String(raw)})`);
 }
 
 function parseFilterFlag(raw: unknown): RegExp | undefined {
@@ -592,7 +612,11 @@ async function main(): Promise<void> {
   const cli = cac('compare:igcp');
   cli
     .command('[...args]', 'Compare local simulate() output against the IGCP web simulator')
-    .option('--series <code>', 'Series to compare: D, E, F, or all', { default: 'all' })
+    .option(
+      '--series <code>',
+      'Series to compare: D, E, F, or all (C is accepted but skipped — no IGCP API coverage)',
+      { default: 'all' },
+    )
     .option('--tolerance <eur-per-unit>', 'Max absolute per-unit EUR diff to count as PASS', {
       default: DEFAULT_TOLERANCE_EUR_PER_UNIT,
     })

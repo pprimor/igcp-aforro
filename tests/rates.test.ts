@@ -32,6 +32,7 @@ const serieF = getSeries('F');
 
 describe('getSeries', () => {
   it('exposes the per-unit quote precision for supported series', () => {
+    expect(getSeries('C').unitQuoteDecimals).toBe(5);
     expect(getSeries('D').unitQuoteDecimals).toBe(5);
     expect(getSeries('E').unitQuoteDecimals).toBe(5);
     expect(getSeries('F').unitQuoteDecimals).toBe(5);
@@ -51,6 +52,32 @@ describe('getSeries', () => {
       baseRateSpreadPct: '1',
       capitalizationFrequency: 'quarterly',
     });
+  });
+
+  it('exposes Série C metadata from the Diário da República fichas técnicas', () => {
+    expect(getSeries('C')).toMatchObject({
+      code: 'C',
+      name: 'Série C',
+      maturityYears: 10,
+      subscriptionStartDate: '2008-01-26',
+      subscriptionEndDate: '2015-01-31',
+      minUnits: 100,
+      maxUnits: 250_000,
+      baseRateEuriborMultiplierPct: '0.85',
+      capitalizationFrequency: 'quarterly',
+    });
+  });
+});
+
+describe('premiumTierForYear — Série C legacy vs Portaria 230-A/2009 tiers', () => {
+  const serieC = getSeries('C');
+
+  it('uses the 73-A/2008 table for quarters starting before 2009-03-01', () => {
+    expect(premiumTierForYear(serieC, 2, '2009-02-01').ratePct).toBe('0.25');
+  });
+
+  it('uses the 230-A/2009 table for quarters starting on or after 2009-03-01', () => {
+    expect(premiumTierForYear(serieC, 2, '2009-03-01').ratePct).toBe('0.50');
   });
 });
 
@@ -303,12 +330,39 @@ describe('getRateForCohort — Série D', () => {
 });
 
 describe('rates.json artifact', () => {
-  it('includes a Série D block with base rates and cohort rows', async () => {
+  it('includes series blocks with base rates and cohort rows', async () => {
     const artifact = await buildArtifact(() => {});
 
-    expect(Object.keys(artifact.series).sort()).toEqual(['D', 'E', 'F']);
+    expect(Object.keys(artifact.series).sort()).toEqual(['C', 'D', 'E', 'F']);
+    expect(artifact.series.C.metadata.code).toBe('C');
+    expect(artifact.series.C.monthlyBaseRates.length).toBeGreaterThan(0);
+    expect(artifact.series.C.cohortRates.length).toBeGreaterThan(0);
     expect(artifact.series.D.metadata.code).toBe('D');
     expect(artifact.series.D.monthlyBaseRates.length).toBeGreaterThan(0);
     expect(artifact.series.D.cohortRates.length).toBeGreaterThan(0);
+  });
+});
+
+describe('getRateForCohort — Série C', () => {
+  it('resolves a mid-life quarter on bundled Euribor', () => {
+    const result = getRateForCohort({
+      series: 'C',
+      subscriptionDate: '2010-06-01',
+      asOfDate: '2012-09-15',
+    });
+
+    expect(result.series).toBe('C');
+    expect(result.baseRatePct).toMatch(/^\d+\.\d{3}$/);
+    expect(result.annualRatePct).toMatch(/^\d+\.\d{3}$/);
+  });
+
+  it('rejects cohorts past maturity', () => {
+    expect(() =>
+      getRateForCohort({
+        series: 'C',
+        subscriptionDate: '2008-06-01',
+        asOfDate: '2019-01-01',
+      }),
+    ).toThrow(/matured/);
   });
 });

@@ -1,35 +1,36 @@
 ---
 title: Metodologia
-description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Série D, E e F, com referências às fichas técnicas do IGCP.
+description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Séries C, D, E e F, com referências às fichas técnicas do IGCP e ao Diário da República.
 ---
 
-Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a passo, o cálculo da remuneração dos Certificados de Aforro **Série D**, **Série E** e **Série F** publicado pelo [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Cada secção remete para as fichas técnicas oficiais e identifica o ficheiro do código onde a regra está implementada.
+Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a passo, o cálculo da remuneração dos Certificados de Aforro **Série C** (encerrada a novas subscrições), **Série D**, **Série E** e **Série F** publicado pelo [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Cada secção remete para as fichas técnicas oficiais e identifica o ficheiro do código onde a regra está implementada. Nota de pesquisa e arquivo PDF: [Série C — pesquisa e parâmetros](/serie-c-research/).
 
 :::note[Fontes oficiais]
+- Portaria n.º 73-A/2008 e Portaria n.º 230-A/2009 (Série C — *Diário da República*).
 - Portaria n.º 17-B/2015, que aprova as condições da Série D.
 - Portaria n.º 329-A/2017, que aprova as condições da Série E.
 - Portaria n.º 149-A/2023, que aprova as condições da Série F e encerra a subscrição da Série E.
-- [Fichas técnicas do IGCP](https://www.igcp.pt/) para os Certificados de Aforro Série D, E e F.
-- Termos de uso da [EMMI](https://www.emmi-benchmarks.eu/) para a EURIBOR® (as três séries indexam à Euribor a 3 meses).
+- [Fichas técnicas do IGCP](https://www.igcp.pt/) para os Certificados de Aforro.
+- Termos de uso da [EMMI](https://www.emmi-benchmarks.eu/) para a EURIBOR® (as séries em âmbito indexam à Euribor a 3 meses).
 
 A presente biblioteca **não substitui** as comunicações oficiais do IGCP nem constitui aconselhamento financeiro. Em caso de divergência, prevalecem os valores publicados pelo IGCP.
 :::
 
 ## Parâmetros estruturais
 
-| Parâmetro | Série F | Séries D/E | Implementação |
-| --- | --- | --- | --- |
-| Maturidade | 15 anos | 10 anos | `SeriesMetadata.maturityYears` em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
-| Subscrição mínima | 100 unidades (1 unidade = €1) | 100 unidades | `SeriesMetadata.minUnits` |
-| Subscrição máxima | 100.000 unidades | 250.000 unidades | `SeriesMetadata.maxUnits` |
-| Janela de subscrição | A partir de 1 de junho de 2023 | Série D: 1 de fevereiro de 2015 a 31 de outubro de 2017; Série E: 1 de novembro de 2017 a 1 de junho de 2023 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
-| Capitalização | Trimestral, automática | Trimestral, automática | `SeriesMetadata.capitalizationFrequency` |
-| Precisão da cotação | 5 casas decimais | 5 casas decimais | `SeriesMetadata.unitQuoteDecimals` |
-| Retenção de IRS | 28% sobre os juros, na capitalização | 28% sobre os juros, na capitalização | `SeriesMetadata.defaultIrsRate`, sobreponível via `simulate({ irsRate })` |
+| Parâmetro | Série F | Séries D/E | Série C | Implementação |
+| --- | --- | --- | --- | --- |
+| Maturidade | 15 anos | 10 anos | 10 anos | `SeriesMetadata.maturityYears` em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
+| Subscrição mínima | 100 unidades (1 unidade = €1) | 100 unidades | 100 unidades | `SeriesMetadata.minUnits` |
+| Subscrição máxima | 100.000 unidades | 250.000 unidades | 250.000 unidades (pós-230-A/2009) | `SeriesMetadata.maxUnits` |
+| Janela de subscrição | A partir de 1 de junho de 2023 | Série D: 1 de fevereiro de 2015 a 31 de outubro de 2017; Série E: 1 de novembro de 2017 a 1 de junho de 2023 | 26 de janeiro de 2008 a 31 de janeiro de 2015 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
+| Capitalização | Trimestral, automática | Trimestral, automática | Trimestral, automática | `SeriesMetadata.capitalizationFrequency` |
+| Precisão da cotação | 5 casas decimais | 5 casas decimais | 5 casas decimais | `SeriesMetadata.unitQuoteDecimals` |
+| Retenção de IRS | 28% sobre os juros, na capitalização | 28% sobre os juros, na capitalização | 28% (valor por omissão, alinhado às outras séries) | `SeriesMetadata.defaultIrsRate`, sobreponível via `simulate({ irsRate })` |
 
 ## Taxa-base mensal
 
-A taxa-base aplicável a cada mês `M` é calculada a partir da Euribor a 3 meses, conforme a ficha técnica. Os passos comuns às três séries são:
+A taxa-base aplicável a cada mês `M` é calculada a partir da Euribor a 3 meses, conforme a ficha técnica. Os passos comuns às séries em âmbito são:
 
 1. Determina-se o **antepenúltimo dia útil TARGET2** do mês `M-1` — chamamos-lhe `fixingDate`.
 2. Considera-se a sequência dos **10 dias úteis TARGET2** que terminam (inclusive) em `fixingDate`.
@@ -40,8 +41,9 @@ O passo final difere por série:
 
 - **Série F** — o resultado arredondado é limitado ao intervalo `[0%, 2,5%]`.
 - **Séries D e E** — à média já arredondada soma-se um *spread* fixo de **+1 ponto percentual** (`E3 + 1%`); o valor final é depois limitado ao intervalo `[0%, 3,5%]`. A ordem importa: o arredondamento aplica-se à média, **antes** de somar o *spread*, e o *clamp* aplica-se **depois**.
+- **Série C** — aplica-se **0,85 × E3 + *k***, em que E3 é a média **já** arredondada a 3 d.p.; *k* é **−0,25** para os meses de publicação até fevereiro de 2009 e **+0,25** a partir de março de 2009 (Portarias n.º 73-A/2008 e 230-A/2009). O produto é arredondado de novo a 3 d.p. antes de um *clamp* inferior a `0%` (sem teto superior à escala das outras séries).
 
-A implementação vive em [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts) e usa o calendário TARGET2 implementado em [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). O *spread* é parametrizado em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). O conjunto de fixações Euribor 3M usadas vem de [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json), recolhido a partir do Deutsche Bundesbank (série `BBIG1`, redistribuição da EMMI EURIBOR®).
+A implementação vive em [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts) e usa o calendário TARGET2 implementado em [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). Séries D/E/F parametrizam o *spread* em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`); a Série C usa `baseRateEuriborMultiplierPct` (`'0.85'`) e o calendário mensal `baseRatePostMeanOffsets`. O conjunto de fixações Euribor 3M usadas vem de [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json), recolhido a partir do Deutsche Bundesbank (série `BBIG1`, redistribuição da EMMI EURIBOR®).
 
 A correção contra os valores publicados pelo IGCP é assegurada pelos *golden tests* em [`tests/baseRate.test.ts`](https://github.com/pprimor/igcp-aforro/blob/main/tests/baseRate.test.ts).
 
@@ -68,9 +70,18 @@ A correção contra os valores publicados pelo IGCP é assegurada pelos *golden 
 | 2 a 5 | +0,50% |
 | 6 a 10 | +1,00% |
 
+**Série C** — duas tabelas: trimestres com início **antes** de `2009-03-01` usam os prémios da **73-A/2008** (`premiumTiersLegacy`); a partir dessa data, os da **230-A/2009** (`premiumTiers`).
+
+| Regime | Anos 2–3 | Anos 4–7 | Ano 8 | Ano 9 | Ano 10 |
+| --- | --- | --- | --- | --- | --- |
+| 73-A/2008 | +0,25% / +0,50% | +0,75% | +1,00% | +1,50% | +2,50% |
+| 230-A/2009 | +0,50% / +0,75% | +1,00% | +1,25% | +1,50% | +2,50% |
+
+(Ano 1 = 0,00% em ambos.)
+
 Em todas as séries, o ano 1 é representado explicitamente como uma faixa de prémio zero para que cada linha do calendário (`schedule`) possa transportar sempre um `premiumTier` não-nulo. As faixas estão definidas em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts).
 
-A função `premiumTierForYear(series, contractYear)` resolve a faixa aplicável; `getRateForCohort()` compõe a taxa anual (`base + prémio`).
+A função `premiumTierForYear(series, contractYear, quarterStartDate?)` resolve a faixa aplicável (o terceiro argumento escolhe a tabela legado/moderna na Série C); `getRateForCohort()` compõe a taxa anual (`base + prémio`).
 
 ## Capitalização trimestral e retenção de IRS
 
