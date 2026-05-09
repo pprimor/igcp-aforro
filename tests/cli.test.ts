@@ -90,7 +90,7 @@ describe('aforro CLI — global contracts', () => {
       'simulate',
       ['--subscribed', '--units', '--as-of', '--schedule', '--irs', '--series', '--json'],
     ],
-    ['current', ['--series', '--as-of', '--json']],
+    ['current', ['--series', '--as-of', '--subscribed', '--json']],
     ['rates', ['--series', '--from', '--to', '--json']],
     ['cohort', ['--subscribed', '--as-of', '--series', '--json']],
     [
@@ -439,18 +439,43 @@ describe('aforro CLI — JSON contracts', () => {
 });
 
 describe('aforro CLI — pretty output contracts', () => {
-  it('current prints the exact pretty key set', async () => {
+  it('current prints base key-values, tier table, and optional cohort block', async () => {
     const result = await runCli(['current', '--as-of', '2026-04-19']);
 
     expectSuccess(result);
     const lines = linesOf(result.stdout);
-    expect(lines.map((line) => line.split(/\s{2,}/)[0])).toEqual([
+    expect(lines.map((line) => line.split(/\s{2,}/)[0]).slice(0, 4)).toEqual([
       'series',
       'month',
       'fixingDate',
       'basePct',
     ]);
     expect(lines).toContain('basePct     2.138');
+    const headerIdx = lines.findIndex((line) => line.startsWith('contractYears'));
+    expect(headerIdx).toBeGreaterThan(-1);
+    expect(lines[headerIdx + 1]).toMatch(/^-{10,}/);
+    expect(lines.some((line) => line.includes('y1') && line.includes('2.138'))).toBe(true);
+  });
+
+  it('current --series E --json includes annualByPremiumTier and expected May 2026 tiers', async () => {
+    const parsed = parseJson<JsonObject>(
+      await runCli(['current', '--series', 'E', '--as-of', '2026-05-15', '--json']),
+    );
+
+    expect(parsed.series).toBe('E');
+    expect(parsed.basePct).toBe('3.195');
+    const tiers = parsed.annualByPremiumTier as ReadonlyArray<JsonObject>;
+    expect(tiers.some((t) => t.fromContractYear === 2 && t.annualRatePct === '3.695')).toBe(true);
+    expect(tiers.some((t) => t.fromContractYear === 6 && t.annualRatePct === '4.195')).toBe(true);
+  });
+
+  it('current --subscribed appends cohort key-values after the tier table', async () => {
+    const result = await runCli(['current', '--subscribed', '2024-03', '--as-of', '2026-04']);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines.some((line) => line.startsWith('quarterStartDate'))).toBe(true);
+    expect(lines.some((line) => line.startsWith('annualRatePct'))).toBe(true);
   });
 
   it('rates prints a table with headers, separator, and one row per month', async () => {
@@ -603,7 +628,7 @@ describe('aforro CLI — validation contracts', () => {
     const result = await runCli(['current', '--as-of', '2026-4-19']);
 
     expectFailure(result);
-    expect(result.stderr).toContain('asOfDate: Expected date in YYYY-MM-DD format');
+    expect(result.stderr).toContain('--as-of must be YYYY-MM or YYYY-MM-DD');
   });
 
   it('rates requires --from before checking --to', async () => {

@@ -4,6 +4,7 @@ import type {
   CurrentRateInput,
   IsoDate,
   MonthlyBaseRate,
+  PremiumTierAnnualRate,
   RateTableInput,
   SeriesCode,
   SeriesMetadata,
@@ -102,6 +103,22 @@ export function getCurrentRate(
   const asOf = parsed.asOfDate ?? todayIsoUtc();
   const { year, month } = parseIsoDateParts(asOf);
   return toMonthlyBaseRate(series, year, month, options);
+}
+
+/**
+ * For a published monthly {@link MonthlyBaseRate.basePct}, returns the gross
+ * annual rate in each permanence band (`base + premium`) for the series.
+ */
+export function annualRatesByPremiumTier(
+  series: SeriesMetadata,
+  basePct: string,
+): readonly PremiumTierAnnualRate[] {
+  return series.premiumTiers.map((tier) => ({
+    fromContractYear: tier.fromYear,
+    toContractYear: tier.toYear,
+    premiumPct: tier.ratePct,
+    annualRatePct: formatPercent(toBig(basePct).plus(toBig(tier.ratePct)), series.baseRateDecimals),
+  }));
 }
 
 /**

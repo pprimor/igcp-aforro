@@ -383,6 +383,17 @@ export interface CurrentRateInput {
 }
 
 /**
+ * Annual gross rate for one permanence-premium band: {@link MonthlyBaseRate.basePct}
+ * plus the tier's `premiumPct`, rounded like {@link getRateForCohort}.
+ */
+export interface PremiumTierAnnualRate {
+  readonly fromContractYear: number;
+  readonly toContractYear: number;
+  readonly premiumPct: string;
+  readonly annualRatePct: string;
+}
+
+/**
  * Inputs accepted by `getRateTable`.
  *
  * Returns one {@link MonthlyBaseRate} per calendar month in
