@@ -131,6 +131,7 @@ describe('simulateRedemption — math contracts', () => {
 
 describe('simulateRedemption — per-series coverage and determinism', () => {
   it.each([
+    ['C', '2010-01-15', '2013-06-10'],
     ['D', '2017-10-01', '2023-11-01'],
     ['E', '2018-01-15', '2024-07-20'],
     ['F', '2024-03-15', '2030-09-18'],
@@ -143,7 +144,7 @@ describe('simulateRedemption — per-series coverage and determinism', () => {
         redemptionDate,
         unitsToRedeem: 400,
       },
-      { observations: LONG_HORIZON_EURIBOR },
+      series === 'C' ? {} : { observations: LONG_HORIZON_EURIBOR },
     );
     expect(result.series).toBe(series);
     expect(result.unitsToRedeem).toBe(400);

@@ -21,10 +21,10 @@ export type IsoDate = string;
 export type IsoMonth = string;
 
 /**
- * Identifier for a Treasury Certificate series. Currently in scope: `'D'`,
- * `'E'` (both closed to new subscriptions) and `'F'` (currently open).
+ * Identifier for a Treasury Certificate series. In scope: `'C'` (closed),
+ * `'D'`, `'E'` (both closed to new subscriptions) and `'F'` (currently open).
  */
-export type SeriesCode = 'D' | 'E' | 'F';
+export type SeriesCode = 'C' | 'D' | 'E' | 'F';
 
 /**
  * One permanence-premium tier. Tiers are 1-indexed and inclusive on both ends:
@@ -65,17 +65,52 @@ export interface SeriesMetadata {
   readonly baseRateClampMinPct: string;
   readonly baseRateClampMaxPct: string;
   /**
+   * Multiplier applied to the **rounded** Euribor 3M mean (after the 10-day
+   * average is rounded to {@link baseRateDecimals}). Séries D/E/F use the
+   * default implicit `1`; Série C uses `0.85` per Portaria n.º 73-A/2008 and
+   * n.º 230-A/2009.
+   */
+  readonly baseRateEuriborMultiplierPct?: string;
+  /**
+   * Optional piecewise additive offset (percentage points) after the scaled
+   * rounded mean, keyed by the calendar month of the **published** base rate
+   * (`YYYY-MM`). When set, the row with the greatest `effectiveFromMonth`
+   * that is still `<=` the target month wins. Série C uses this for the
+   * `0,85 × E3 − 0,25` → `0,85 × E3 + 0,25` transition (March 2009).
+   * When absent, {@link baseRateSpreadPct} is the sole additive term after
+   * multiplication (with multiplier defaulting to `1`).
+   */
+  readonly baseRatePostMeanOffsets?: readonly {
+    readonly effectiveFromMonth: IsoMonth;
+    readonly offsetPct: string;
+  }[];
+  /**
+   * Permanence-premium tiers that apply to quarters with `quarterStartDate`
+   * strictly before {@link premiumTierModernizationDate}. Only Série C
+   * carries a legacy table (Portaria n.º 73-A/2008) before Portaria n.º
+   * 230-A/2009.
+   */
+  readonly premiumTiersLegacy?: readonly PremiumTier[];
+  /**
+   * First `quarterStartDate` (inclusive) that uses {@link premiumTiers}
+   * instead of {@link premiumTiersLegacy} for series that define a legacy
+   * table. ISO `YYYY-MM-DD` string compared lexicographically to dates.
+   */
+  readonly premiumTierModernizationDate?: IsoDate;
+  /**
    * Additive spread (in percentage points, as a decimal string) applied to
-   * the rounded Euribor 3M mean **before** clamping into the
+   * the rounded Euribor 3M mean **after** {@link baseRateEuriborMultiplierPct}
+   * (default `1`) **before** clamping into the
    * `[baseRateClampMinPct, baseRateClampMaxPct]` window. Série F uses
    * `"0"` (the published formula has no spread); Série E uses `"1"`
-   * (the published formula is `E3 + 1%`).
+   * (the published formula is `E3 + 1%`). Série C leaves this at `"0"` and
+   * uses {@link baseRatePostMeanOffsets} instead.
    */
   readonly baseRateSpreadPct: string;
   readonly baseRateDecimals: number;
   /**
    * Decimal places retained for the per-unit net quote after each
-   * capitalization. Séries D, E and F use 5 decimals to mirror IGCP's published
+   * capitalization. Séries C, D, E and F use 5 decimals to mirror IGCP's published
    * quote precision.
    */
   readonly unitQuoteDecimals: number;

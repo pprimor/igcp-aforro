@@ -85,7 +85,7 @@ function rateForQuarter(
   const { year, month } = parseIsoDateParts(quarterStart);
   const base = computeBaseRate(year, month, { ...options, series });
   const yearsSince = floorYearsBetween(subscriptionDate, quarterStart);
-  const tier = premiumTierForYear(series, yearsSince + 1);
+  const tier = premiumTierForYear(series, yearsSince + 1, quarterStart);
   const annualPct = toBig(base.basePct).plus(toBig(tier.ratePct));
   const annualRate = percentToRate(annualPct);
   const quarterlyRate = annualRate.div(4);

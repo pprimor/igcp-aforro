@@ -37,6 +37,25 @@ function parseYearMonth(isoMonth: string): { year: number; month: number } {
 }
 
 describe('computeBaseRate vs IGCP-published monthly base rates', () => {
+  it('fixture covers every Série C month from 2008-02 onwards without gaps', () => {
+    const serieC = publishedRates
+      .filter((entry) => entry.series === 'C')
+      .map((entry) => entry.month)
+      .sort();
+    expect(serieC.length).toBeGreaterThan(0);
+    expect(serieC[0]).toBe('2008-02');
+
+    for (let i = 1; i < serieC.length; i += 1) {
+      const prev = parseYearMonth(serieC[i - 1] as string);
+      const curr = parseYearMonth(serieC[i] as string);
+      const expectedNext =
+        prev.month === 12
+          ? `${prev.year + 1}-01`
+          : `${prev.year}-${String(prev.month + 1).padStart(2, '0')}`;
+      expect(`${curr.year}-${String(curr.month).padStart(2, '0')}`).toBe(expectedNext);
+    }
+  });
+
   it('fixture covers every Série F month from 2023-06 onwards without gaps', () => {
     const serieF = publishedRates
       .filter((entry) => entry.series === 'F')
@@ -62,7 +81,7 @@ describe('computeBaseRate vs IGCP-published monthly base rates', () => {
     const { year, month } = parseYearMonth(entry.month);
 
     testFn(`${entry.series} ${entry.month} → ${entry.basePct}%`, () => {
-      const result = computeBaseRate(year, month);
+      const result = computeBaseRate(year, month, { series: getSeries(entry.series) });
       expect(result.basePct).toBe(entry.basePct);
     });
   }

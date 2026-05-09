@@ -156,7 +156,7 @@ export function getRateForCohort(
 
   const { year, month } = parseIsoDateParts(quarterStartDate);
   const base = computeBaseRate(year, month, { ...options, series });
-  const premiumTier = premiumTierForYear(series, yearsSinceSubscription + 1);
+  const premiumTier = premiumTierForYear(series, yearsSinceSubscription + 1, quarterStartDate);
 
   const annualPct = toBig(base.basePct).plus(toBig(premiumTier.ratePct));
 

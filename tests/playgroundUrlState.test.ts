@@ -39,6 +39,12 @@ describe('playground URL state', () => {
     expect(search).toBe('series=F&subscribed=2024-03-15&units=1000&asOf=2026-05-03');
   });
 
+  it('round-trips series C in the query string', () => {
+    const form: PlaygroundFormState = { ...defaults, series: 'C' };
+    const search = serializePlaygroundUrlState(form).toString();
+    expect(parsePlaygroundUrlState(new URLSearchParams(search), defaults).series).toBe('C');
+  });
+
   it('falls back to the default series when the query contains an unknown series', () => {
     const parsed = parsePlaygroundUrlState(
       new URLSearchParams('series=Z&subscribed=2020-01-15'),

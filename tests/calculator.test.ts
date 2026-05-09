@@ -339,3 +339,32 @@ describe('simulate — Série D smoke test', () => {
     expect(result.maturityDate).toBe('2027-10-01');
   });
 });
+
+describe('simulate — Série C smoke test', () => {
+  it('reports matured=true after the 10-year maturity for an early cohort', () => {
+    const result = simulate({
+      series: 'C',
+      subscriptionDate: '2008-06-01',
+      units: 1000,
+      asOfDate: '2019-06-01',
+    });
+
+    expect(result.series).toBe('C');
+    expect(result.maturityDate).toBe('2018-06-01');
+    expect(result.matured).toBe(true);
+  });
+
+  it('runs a mid-life simulation on bundled Euribor without throwing', () => {
+    const result = simulate({
+      series: 'C',
+      subscriptionDate: '2010-01-15',
+      units: 5000,
+      asOfDate: '2014-06-20',
+      includeSchedule: true,
+    });
+
+    expect(result.matured).toBe(false);
+    expect(result.schedule?.length).toBeGreaterThan(10);
+    expect(Number(result.currentValueNet)).toBeGreaterThan(5000);
+  });
+});

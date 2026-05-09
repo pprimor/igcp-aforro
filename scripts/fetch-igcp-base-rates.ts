@@ -38,6 +38,11 @@
  * suite can exercise the fetch + parse + merge pipeline against a
  * msw-mocked HTTP server without ever touching disk -- and so
  * `--dry-run` short-circuits cleanly.
+ *
+ * **Série C** is intentionally out of scope here: IGCP's current news slugs
+ * target Séries B/D/E/F only. Historical Série C monthly base rates are
+ * backfilled once in `tests/fixtures/igcpPublishedBaseRates.json` from press
+ * archives (see `docs/src/content/docs/serie-c-research.md`).
  */
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises';

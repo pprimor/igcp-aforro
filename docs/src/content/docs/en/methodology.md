@@ -1,35 +1,36 @@
 ---
 title: Methodology
-description: How this library reproduces the Série D, E, and F Aforro certificate calculation, with references to IGCP technical sheets.
+description: How this library reproduces the Série C, D, E, and F Aforro certificate calculation, with references to IGCP technical sheets and Portuguese legal instruments.
 ---
 
-This page explains how `igcp-aforro` reproduces, step by step, the remuneration calculation for **Série D**, **Série E**, and **Série F** Aforro certificates published by [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Each section points to the official technical sheets and identifies the code file where the rule is implemented.
+This page explains how `igcp-aforro` reproduces, step by step, the remuneration calculation for **Série C** (closed to new subscriptions), **Série D**, **Série E**, and **Série F** Aforro certificates published by [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Each section points to the official technical sheets and identifies the code file where the rule is implemented. Research note and PDF mirrors: [Série C — pesquisa e parâmetros](/serie-c-research/) (Portuguese).
 
 ::::note[Official sources]
+- Portaria n.º 73-A/2008 and Portaria n.º 230-A/2009 (Série C — *Diário da República*).
 - Portaria n.º 17-B/2015, approving the Série D conditions.
 - Portaria n.º 329-A/2017, approving the Série E conditions.
 - Portaria n.º 149-A/2023, approving the Série F conditions and closing Série E subscriptions.
-- [IGCP technical sheets](https://www.igcp.pt/) for Série D, E, and F Aforro certificates.
-- [EMMI](https://www.emmi-benchmarks.eu/) terms of use for EURIBOR® (all three series index to 3-month Euribor).
+- [IGCP technical sheets](https://www.igcp.pt/) for Aforro certificates.
+- [EMMI](https://www.emmi-benchmarks.eu/) terms of use for EURIBOR® (in-scope series index to 3-month Euribor).
 
 This library **does not replace** official IGCP communications and is not financial advice. If values differ, the values published by IGCP prevail.
 ::::
 
 ## Structural parameters
 
-| Parameter | Série F | Séries D/E | Implementation |
-| --- | --- | --- | --- |
-| Maturity | 15 years | 10 years | `SeriesMetadata.maturityYears` in [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
-| Minimum subscription | 100 units (1 unit = EUR 1) | 100 units | `SeriesMetadata.minUnits` |
-| Maximum subscription | 100,000 units | 250,000 units | `SeriesMetadata.maxUnits` |
-| Subscription window | From 1 June 2023 | Série D: 1 February 2015 to 31 October 2017; Série E: 1 November 2017 to 1 June 2023 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
-| Capitalization | Quarterly, automatic | Quarterly, automatic | `SeriesMetadata.capitalizationFrequency` |
-| Unit quote precision | 5 decimal places | 5 decimal places | `SeriesMetadata.unitQuoteDecimals` |
-| IRS withholding | 28% on interest at capitalization | 28% on interest at capitalization | `SeriesMetadata.defaultIrsRate`, overridable with `simulate({ irsRate })` |
+| Parameter | Série F | Séries D/E | Série C | Implementation |
+| --- | --- | --- | --- | --- |
+| Maturity | 15 years | 10 years | 10 years | `SeriesMetadata.maturityYears` in [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
+| Minimum subscription | 100 units (1 unit = EUR 1) | 100 units | 100 units | `SeriesMetadata.minUnits` |
+| Maximum subscription | 100,000 units | 250,000 units | 250,000 units (post-230-A/2009) | `SeriesMetadata.maxUnits` |
+| Subscription window | From 1 June 2023 | Série D: 1 February 2015 to 31 October 2017; Série E: 1 November 2017 to 1 June 2023 | 26 January 2008 to 31 January 2015 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
+| Capitalization | Quarterly, automatic | Quarterly, automatic | Quarterly, automatic | `SeriesMetadata.capitalizationFrequency` |
+| Unit quote precision | 5 decimal places | 5 decimal places | 5 decimal places | `SeriesMetadata.unitQuoteDecimals` |
+| IRS withholding | 28% on interest at capitalization | 28% on interest at capitalization | 28% default (aligned with other series) | `SeriesMetadata.defaultIrsRate`, overridable with `simulate({ irsRate })` |
 
 ## Monthly base rate
 
-The base rate for each month `M` is calculated from 3-month Euribor according to the technical sheet. The steps common to all three series are:
+The base rate for each month `M` is calculated from 3-month Euribor according to the technical sheet. The steps common to all in-scope series are:
 
 1. Determine the **antepenultimate TARGET2 business day** of month `M-1`; this is the `fixingDate`.
 2. Take the sequence of the **10 TARGET2 business days** ending on, and including, `fixingDate`.
@@ -40,8 +41,9 @@ The final step differs by series:
 
 - **Série F**: the rounded result is clamped to `[0%, 2.5%]`.
 - **Séries D and E**: add a fixed **+1 percentage point** spread (`E3 + 1%`) to the rounded mean, then clamp the final value to `[0%, 3.5%]`. The order matters: rounding is applied to the mean **before** adding the spread, and the clamp is applied **after**.
+- **Série C**: apply **`0.85 × E3 + k`**, where E3 is the **already** 3dp-rounded mean; `k` is **−0.25** for published months through February 2009 and **+0.25** from March 2009 onward (Portarias n.º 73-A/2008 and 230-A/2009). The scaled value is rounded again to 3dp before a **floor** clamp at `0%` (no upper cap like D/E/F).
 
-The implementation lives in [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts) and uses the TARGET2 calendar implemented in [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). The spread is parameterized in `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). The 3-month Euribor fixings come from [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json), sourced from the Deutsche Bundesbank (`BBIG1`, redistributing EMMI EURIBOR®).
+The implementation lives in [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts) and uses the TARGET2 calendar implemented in [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). Séries D/E/F parameterize the additive spread in `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`). Série C uses `baseRateEuriborMultiplierPct` (`'0.85'`) and the monthly schedule `baseRatePostMeanOffsets`. The 3-month Euribor fixings come from [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json), sourced from the Deutsche Bundesbank (`BBIG1`, redistributing EMMI EURIBOR®).
 
 Correctness against IGCP-published values is covered by the golden tests in [`tests/baseRate.test.ts`](https://github.com/pprimor/igcp-aforro/blob/main/tests/baseRate.test.ts).
 
@@ -68,9 +70,18 @@ A permanence premium is added to the base rate, indexed to the **contract year**
 | 2 to 5 | +0.50% |
 | 6 to 10 | +1.00% |
 
+**Série C** — two tables: quarters starting **before** `2009-03-01` use the **73-A/2008** premiums (`premiumTiersLegacy`); on or after that date, the **230-A/2009** table (`premiumTiers`).
+
+| Regime | Years 2–3 | Years 4–7 | Year 8 | Year 9 | Year 10 |
+| --- | --- | --- | --- | --- | --- |
+| 73-A/2008 | +0.25% / +0.50% | +0.75% | +1.00% | +1.50% | +2.50% |
+| 230-A/2009 | +0.50% / +0.75% | +1.00% | +1.25% | +1.50% | +2.50% |
+
+(Year 1 = 0.00% in both.)
+
 In every series, year 1 is represented explicitly as a zero-premium tier so every schedule row can always carry a non-null `premiumTier`. The tiers are defined in [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts).
 
-`premiumTierForYear(series, contractYear)` resolves the applicable tier; `getRateForCohort()` composes the annual rate (`base + premium`).
+`premiumTierForYear(series, contractYear, quarterStartDate?)` resolves the applicable tier (the third argument selects legacy vs modern on Série C); `getRateForCohort()` composes the annual rate (`base + premium`).
 
 ## Quarterly capitalization and IRS withholding
 

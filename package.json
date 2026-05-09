@@ -1,7 +1,7 @@
 {
   "name": "igcp-aforro",
   "version": "2026.507.1",
-  "description": "TypeScript library and CLI for simulating Portuguese IGCP Aforro Treasury Certificates (Série D, Série E, and Série F): deterministic quarterly compounding with Euribor 3M-derived base rates and permanence-tier premiums.",
+  "description": "TypeScript library and CLI for simulating Portuguese IGCP Aforro Treasury Certificates (Séries C, D, E, and F): deterministic quarterly compounding with Euribor 3M-derived base rates and permanence-tier premiums.",
   "license": "MIT",
   "author": "Pedro Primor <pedro.primor@pm.me>",
   "homepage": "https://github.com/pprimor/igcp-aforro#readme",

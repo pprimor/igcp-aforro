@@ -10,7 +10,7 @@ import { type SimulateOptions, simulate } from './calculator.js';
 import { todayIsoUtc } from './dateMath.js';
 import { type Big, formatCents, toBig } from './money.js';
 
-const SERIES_ORDER: readonly SeriesCode[] = ['D', 'E', 'F'];
+const SERIES_ORDER: readonly SeriesCode[] = ['C', 'D', 'E', 'F'];
 
 /**
  * Simulates a portfolio made of multiple subscription cohorts.
@@ -66,6 +66,13 @@ export function simulatePortfolio(
     SeriesCode,
     { units: number; cohortCount: number; valueNet: Big; interestNet: Big; irsWithheld: Big }
   > = {
+    C: {
+      units: 0,
+      cohortCount: 0,
+      valueNet: toBig(0),
+      interestNet: toBig(0),
+      irsWithheld: toBig(0),
+    },
     D: {
       units: 0,
       cohortCount: 0,

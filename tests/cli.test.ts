@@ -620,7 +620,7 @@ describe('aforro CLI — validation contracts', () => {
 
     expectFailure(result);
     expect(result.stderr).toContain(
-      "series: Invalid enum value. Expected 'D' | 'E' | 'F', received 'X'",
+      "series: Invalid enum value. Expected 'C' | 'D' | 'E' | 'F', received 'X'",
     );
   });
 

@@ -1,7 +1,7 @@
-const VALID_SERIES = new Set(['D', 'E', 'F']);
+const VALID_SERIES = new Set(['C', 'D', 'E', 'F']);
 
 export interface PlaygroundFormState {
-  series: 'D' | 'E' | 'F';
+  series: 'C' | 'D' | 'E' | 'F';
   subscriptionDate: string;
   units: string;
   asOfDate: string;

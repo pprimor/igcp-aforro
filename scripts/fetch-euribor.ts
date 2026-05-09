@@ -57,12 +57,12 @@ const META_FILE = resolve(REPO_ROOT, 'src/data/_meta.json');
 const RAW_DIR = resolve(REPO_ROOT, 'raw/euribor');
 
 /**
- * Earliest date we keep in the bundled dataset. Série D starts in February
- * 2015 and needs Euribor observations from the preceding fixing windows, so
- * January 2015 is the smallest practical seed floor for supported D/E/F
- * cohorts without bundling pre-Aforro history.
+ * Earliest date we keep in the bundled dataset on a fresh `seed` run.
+ * Série C (Jan 2008–Jan 2015) needs Euribor from 2007 fixing windows, so the
+ * default floor is 1999-01-01 (BBIG1 coverage). Incremental/range merges may
+ * still layer in earlier rows without re-seeding the whole file.
  */
-const SEED_START_DATE = '2015-01-01';
+const SEED_START_DATE = '1999-01-01';
 
 const META_SOURCE_LABEL =
   'Deutsche Bundesbank time-series (BBIG1) — EMMI EURIBOR® 3-month daily fixings';

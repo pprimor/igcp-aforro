@@ -29,6 +29,7 @@ The file is regenerated:
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z"
   },
   "series": {
+    "C": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "D": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "E": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "F": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] }
@@ -36,13 +37,13 @@ The file is regenerated:
 }
 ```
 
-`series.D`, `series.E`, and `series.F` carry the same shape and are populated independently — Série D rows start at the first resolvable month in the bundled Euribor history, Série E rows start in November 2017, and Série F rows start in June 2023.
+`series.C`, `series.D`, `series.E`, and `series.F` carry the same shape and are populated independently — Série C rows start at the first resolvable month after the series subscription floor (typically 2008-02), Série D at the first resolvable month in the bundled Euribor history, Série E in November 2017, and Série F in June 2023.
 
 `schemaVersion` is bumped whenever a backwards-incompatible change ships, so consumers can pin or assert. Adding a new series under `series.<code>` is **not** considered a breaking change.
 
 ## `series.<code>.metadata`
 
-The static `SeriesMetadata` for the series — `maturityYears`, `subscriptionStartDate`, `subscriptionEndDate` (only present for closed series like Séries D and E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, `baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`), `defaultIrsRate`, the full `premiumTiers` list, etc. Identical to what the npm library returns from `getSeries('D')` / `getSeries('E')` / `getSeries('F')`.
+The static `SeriesMetadata` for the series — `maturityYears`, `subscriptionStartDate`, `subscriptionEndDate` (closed series: C, D, and E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, base-rate fields (`baseRateSpreadPct` on D/E/F; `baseRateEuriborMultiplierPct` and `baseRatePostMeanOffsets` on C), `defaultIrsRate`, `premiumTiers` (plus `premiumTiersLegacy` on C), etc. Identical to what the npm library returns from `getSeries('C')` / `getSeries('D')` / `getSeries('E')` / `getSeries('F')`.
 
 ## `series.<code>.monthlyBaseRates`
 
