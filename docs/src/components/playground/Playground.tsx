@@ -983,8 +983,8 @@ const STYLES = `
   text-transform: uppercase;
 }
 .aforro-pg-badge-matured {
-  background: var(--sl-color-accent);
-  color: var(--sl-color-white, #fff);
+  background: var(--aforro-color-accent-warm, #c8102e);
+  color: #ffffff;
   border-color: transparent;
 }
 .aforro-pg-grid {
