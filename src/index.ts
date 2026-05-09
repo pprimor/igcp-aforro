@@ -42,7 +42,12 @@ export const VERSION = '2026.507.1';
 export { simulate } from './core/calculator.js';
 export { simulatePortfolio } from './core/portfolio.js';
 export { simulateRedemption } from './core/redemption.js';
-export { getCurrentRate, getRateForCohort, getRateTable } from './core/rates.js';
+export {
+  annualRatesByPremiumTier,
+  getCurrentRate,
+  getRateForCohort,
+  getRateTable,
+} from './core/rates.js';
 export { Series, getSeries, listSeries } from './core/series.js';
 export type {
   CohortRateInput,
@@ -52,6 +57,7 @@ export type {
   IsoMonth,
   MonthlyBaseRate,
   PremiumTier,
+  PremiumTierAnnualRate,
   PortfolioResult,
   PortfolioSeriesBreakdown,
   PortfolioSubscription,

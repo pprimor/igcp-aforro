@@ -48,12 +48,20 @@ cli
   .action(runRedeem);
 
 cli
-  .command('current', 'Print the IGCP-published monthly base rate for the current (or given) month')
+  .command(
+    'current',
+    'Print the monthly base rate and gross annual rates by permanence tier for the as-of month',
+  )
   .option('--series <code>', 'Series code', { default: 'F' })
   .option('--as-of <date>', 'As-of date (YYYY-MM-DD); defaults to today (UTC)')
+  .option(
+    '--subscribed <date>',
+    'Optional subscription date (YYYY-MM or YYYY-MM-DD); also print cohort rate for the quarter containing --as-of',
+  )
   .option('--json', 'Emit JSON instead of a pretty table')
   .example('aforro current')
   .example('aforro current --as-of 2026-04-19')
+  .example('aforro current --series E --subscribed 2022-06-15')
   .action(runCurrent);
 
 cli

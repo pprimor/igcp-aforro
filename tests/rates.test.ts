@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { buildArtifact } from '../scripts/build-rates-json.js';
-import { getCurrentRate, getRateForCohort, getRateTable } from '../src/core/rates.js';
+import {
+  annualRatesByPremiumTier,
+  getCurrentRate,
+  getRateForCohort,
+  getRateTable,
+} from '../src/core/rates.js';
 import { getSeries, premiumTierForYear } from '../src/core/series.js';
 
 /**
@@ -161,6 +166,15 @@ describe('getCurrentRate', () => {
     expect(rate.month).toBe('2026-04');
     expect(rate.fixingDate).toBe('2026-03-27');
     expect(rate.basePct).toBe('3.138');
+  });
+});
+
+describe('annualRatesByPremiumTier', () => {
+  it('composes base + premium for each Série E band', () => {
+    const tiers = annualRatesByPremiumTier(getSeries('E'), '3.195');
+    expect(tiers.find((t) => t.fromContractYear === 1)?.annualRatePct).toBe('3.195');
+    expect(tiers.find((t) => t.fromContractYear === 2)?.annualRatePct).toBe('3.695');
+    expect(tiers.find((t) => t.fromContractYear === 6)?.annualRatePct).toBe('4.195');
   });
 });
 
