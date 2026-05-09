@@ -50,12 +50,10 @@
 
 /*
  * Route the warm red to the surfaces where IGCP brand red carries meaning:
- * the "matured" badge and error states in the playground.
+ * error states in the playground. The "matured" badge styles its own background
+ * directly inside the playground component so the inline <style> block can't
+ * defeat the override via cascade order.
  */
-.aforro-pg-badge-matured {
-  background: var(--aforro-color-accent-warm);
-}
-
 .aforro-pg-error,
 .aforro-pg-card-error {
   color: var(--aforro-color-accent-warm);
