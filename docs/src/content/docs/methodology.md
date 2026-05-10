@@ -1,36 +1,38 @@
 ---
 title: Metodologia
-description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Séries C, D, E e F, com referências às fichas técnicas do IGCP e ao Diário da República.
+description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Séries B, C, D, E e F, com referências às fichas técnicas do IGCP e ao Diário da República.
 ---
 
-Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a passo, o cálculo da remuneração dos Certificados de Aforro **Série C** (encerrada a novas subscrições), **Série D**, **Série E** e **Série F** publicado pelo [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Cada secção remete para as fichas técnicas oficiais e identifica o ficheiro do código onde a regra está implementada. Nota de pesquisa e arquivo PDF: [Série C — pesquisa e parâmetros](/serie-c-research/).
+Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a passo, o cálculo da remuneração dos Certificados de Aforro **Série B** (encerrada a novas subscrições; sem maturidade contratual), **Série C** (encerrada), **Série D**, **Série E** e **Série F** publicado pelo [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Cada secção remete para as fichas técnicas oficiais e identifica o ficheiro do código onde a regra está implementada. Nota de pesquisa e arquivo PDF: [Série C — pesquisa e parâmetros](/serie-c-research/).
 
 :::note[Fontes oficiais]
+- Portaria n.º 73-B/2008 (Série B — taxa-base em função da TBA) e Portaria n.º 1219/1991 (prémio de permanência, entre outros diplomas citados pelo IGCP).
+- Decreto-Lei n.º 11/1999 (definição da TBA a partir de médias móveis da Euribor 3M e 12M).
 - Portaria n.º 73-A/2008 e Portaria n.º 230-A/2009 (Série C — *Diário da República*).
 - Portaria n.º 17-B/2015, que aprova as condições da Série D.
 - Portaria n.º 329-A/2017, que aprova as condições da Série E.
 - Portaria n.º 149-A/2023, que aprova as condições da Série F e encerra a subscrição da Série E.
 - [Fichas técnicas do IGCP](https://www.igcp.pt/) para os Certificados de Aforro.
-- Termos de uso da [EMMI](https://www.emmi-benchmarks.eu/) para a EURIBOR® (as séries em âmbito indexam à Euribor a 3 meses).
+- Termos de uso da [EMMI](https://www.emmi-benchmarks.eu/) para a EURIBOR® (Séries C–F: Euribor 3M; Série B: Euribor 3M e 12M via TBA).
 
 A presente biblioteca **não substitui** as comunicações oficiais do IGCP nem constitui aconselhamento financeiro. Em caso de divergência, prevalecem os valores publicados pelo IGCP.
 :::
 
 ## Parâmetros estruturais
 
-| Parâmetro | Série F | Séries D/E | Série C | Implementação |
-| --- | --- | --- | --- | --- |
-| Maturidade | 15 anos | 10 anos | 10 anos | `SeriesMetadata.maturityYears` em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
-| Subscrição mínima | 100 unidades (1 unidade = €1) | 100 unidades | 100 unidades | `SeriesMetadata.minUnits` |
-| Subscrição máxima | 100.000 unidades | 250.000 unidades | 250.000 unidades (pós-230-A/2009) | `SeriesMetadata.maxUnits` |
-| Janela de subscrição | A partir de 1 de junho de 2023 | Série D: 1 de fevereiro de 2015 a 31 de outubro de 2017; Série E: 1 de novembro de 2017 a 1 de junho de 2023 | 26 de janeiro de 2008 a 31 de janeiro de 2015 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
-| Capitalização | Trimestral, automática | Trimestral, automática | Trimestral, automática | `SeriesMetadata.capitalizationFrequency` |
-| Precisão da cotação | 5 casas decimais | 5 casas decimais | 5 casas decimais | `SeriesMetadata.unitQuoteDecimals` |
-| Retenção de IRS | 28% sobre os juros, na capitalização | 28% sobre os juros, na capitalização | 28% (valor por omissão, alinhado às outras séries) | `SeriesMetadata.defaultIrsRate`, sobreponível via `simulate({ irsRate })` |
+| Parâmetro | Série F | Séries D/E | Série C | Série B | Implementação |
+| --- | --- | --- | --- | --- | --- |
+| Maturidade | 15 anos | 10 anos | 10 anos | Sem data de maturidade (perpétuo até resgate) | `SeriesMetadata.maturityYears` (`null` na B) em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
+| Subscrição mínima | 100 unidades (1 unidade = €1) | 100 unidades | 100 unidades | 100 unidades | `SeriesMetadata.minUnits` |
+| Subscrição máxima | 100.000 unidades | 250.000 unidades | 250.000 unidades (pós-230-A/2009) | 250.000 unidades | `SeriesMetadata.maxUnits` |
+| Janela de subscrição | A partir de 1 de junho de 2023 | Série D: 1 de fevereiro de 2015 a 31 de outubro de 2017; Série E: 1 de novembro de 2017 a 1 de junho de 2023 | 26 de janeiro de 2008 a 31 de janeiro de 2015 | 1 de julho de 1986 a 25 de janeiro de 2008 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
+| Capitalização | Trimestral, automática | Trimestral, automática | Trimestral, automática | Trimestral, automática | `SeriesMetadata.capitalizationFrequency` |
+| Precisão da cotação | 5 casas decimais | 5 casas decimais | 5 casas decimais | 5 casas decimais | `SeriesMetadata.unitQuoteDecimals` |
+| Retenção de IRS | 28% sobre os juros, na capitalização | 28% sobre os juros, na capitalização | 28% (valor por omissão, alinhado às outras séries) | 28% (por omissão) | `SeriesMetadata.defaultIrsRate`, sobreponível via `simulate({ irsRate })` |
 
 ## Taxa-base mensal
 
-A taxa-base aplicável a cada mês `M` é calculada a partir da Euribor a 3 meses, conforme a ficha técnica. Os passos comuns às séries em âmbito são:
+Para as **Séries C, D, E e F**, a taxa-base aplicável a cada mês `M` parte da Euribor a **3 meses**, conforme a ficha técnica. Os passos comuns são:
 
 1. Determina-se o **antepenúltimo dia útil TARGET2** do mês `M-1` — chamamos-lhe `fixingDate`.
 2. Considera-se a sequência dos **10 dias úteis TARGET2** que terminam (inclusive) em `fixingDate`.
@@ -43,7 +45,9 @@ O passo final difere por série:
 - **Séries D e E** — à média já arredondada soma-se um *spread* fixo de **+1 ponto percentual** (`E3 + 1%`); o valor final é depois limitado ao intervalo `[0%, 3,5%]`. A ordem importa: o arredondamento aplica-se à média, **antes** de somar o *spread*, e o *clamp* aplica-se **depois**.
 - **Série C** — aplica-se **0,85 × E3 + *k***, em que E3 é a média **já** arredondada a 3 d.p.; *k* é **−0,25** para os meses de publicação até fevereiro de 2009 e **+0,25** a partir de março de 2009 (Portarias n.º 73-A/2008 e 230-A/2009). O produto é arredondado de novo a 3 d.p. antes de um *clamp* inferior a `0%` (sem teto superior à escala das outras séries).
 
-A implementação vive em [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts) e usa o calendário TARGET2 implementado em [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). Séries D/E/F parametrizam o *spread* em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`); a Série C usa `baseRateEuriborMultiplierPct` (`'0.85'`) e o calendário mensal `baseRatePostMeanOffsets`. O conjunto de fixações Euribor 3M usadas vem de [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json), recolhido a partir do Deutsche Bundesbank (série `BBIG1`, redistribuição da EMMI EURIBOR®).
+**Série B** — a taxa-base mensal é **0,60 × TBA** (Portaria n.º 73-B/2008). A **TBA** segue o Decreto-Lei n.º 11/1999: médias móveis simples de **20** dias úteis TARGET2 das séries **Euribor 3M e 12M**, com a **mesma** `fixingDate` (antepenúltimo dia útil de `M-1`). Os detalhes de composição, janela e arredondamento estão em [`src/core/tba.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/tba.ts); o ramo da Série B em [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts). As fixações 3M e 12M vêm de [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json) e [`src/data/euribor12m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor12m.json) (Deutsche Bundesbank / EMMI).
+
+A implementação das Séries C–F em `baseRate.ts` usa o calendário TARGET2 em [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). Séries D/E/F parametrizam o *spread* em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`); a Série C usa `baseRateEuriborMultiplierPct` (`'0.85'`) e o calendário mensal `baseRatePostMeanOffsets`.
 
 A correção contra os valores publicados pelo IGCP é assegurada pelos *golden tests* em [`tests/baseRate.test.ts`](https://github.com/pprimor/igcp-aforro/blob/main/tests/baseRate.test.ts).
 
@@ -78,6 +82,20 @@ A correção contra os valores publicados pelo IGCP é assegurada pelos *golden 
 | 230-A/2009 | +0,50% / +0,75% | +1,00% | +1,25% | +1,50% | +2,50% |
 
 (Ano 1 = 0,00% em ambos.)
+
+**Série B** (escada em `SERIE_B_PREMIUM_TIERS`, alinhada ao quadro legal citado pelo IGCP — Portaria n.º 1219/1991 e diplomas posteriores):
+
+| Anos contratuais | Prémio (a somar à taxa-base) |
+| --- | --- |
+| 1 | 0,00% |
+| 2 | +0,25% |
+| 3 | +0,50% |
+| 4 | +0,75% |
+| 5 | +1,00% |
+| 6 | +1,25% |
+| 7 | +1,50% |
+| 8 | +1,75% |
+| 9 em diante | +2,00% |
 
 Em todas as séries, o ano 1 é representado explicitamente como uma faixa de prémio zero para que cada linha do calendário (`schedule`) possa transportar sempre um `premiumTier` não-nulo. As faixas estão definidas em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts).
 
@@ -135,8 +153,8 @@ em que `saldo` é `units × currentUnitQuote`, quantizado a cêntimos com arredo
 
 Regras aplicadas:
 
-- **Período mínimo de detenção**: o resgate só é permitido a partir de `subscriptionDate + 3 meses` (`SeriesMetadata.minimumHoldingMonths`, atualmente `3` em D/E/F).
-- **Fronteira de maturidade**: `redemptionDate >= maturityDate` não é "resgate antecipado" e é rejeitado; nesse caso use `simulate()` para o valor em maturidade.
+- **Período mínimo de detenção**: o resgate só é permitido a partir de `subscriptionDate + 3 meses` (`SeriesMetadata.minimumHoldingMonths`, atualmente `3` nas séries suportadas).
+- **Fronteira de maturidade**: para séries com `maturityYears` definido, `redemptionDate` em ou após a data de maturidade não é "resgate antecipado" e é rejeitado; nesse caso use `simulate()` para o valor em maturidade. A **Série B** é perpétua (`maturityYears: null`): não há este limite por maturidade em `simulateRedemption()`.
 - **Valor pago no resgate**: `redemptionValue = round(unitsToRedeem × currentUnitQuote, 2)`, em que `currentUnitQuote` é a cotação líquida depois da última capitalização concluída na data de resgate.
 - **Accrued entre capitalizações**: o `accruedSinceLastCapitalization` correspondente à fração resgatada é reportado como `forfeitedAccruedGross` e **não é pago** no resgate (juros só são pagos em datas de capitalização).
 - **Resgate parcial**: `unitsToRedeem` tem de estar em `[1, units]` e o remanescente tem de ser `0` (resgate total) ou pelo menos `minUnits` da série.
@@ -160,13 +178,13 @@ Como os totais são soma direta de valores já quantizados em cada coorte, `Port
 `simulate()` valida os *inputs* com Zod, lendo limites a partir do `SeriesMetadata` da série escolhida, antes de qualquer cálculo. Lança erro quando:
 
 - a `subscriptionDate` cai fora da janela de subscrição da série:
+  - **Série B** — entre `1986-07-01` e `2008-01-25` (encerrada a novas subscrições);
   - **Série F** — estritamente a partir de `2023-06-01`;
   - **Série D** — entre `2015-02-01` e `2017-10-31` (encerrada a novas subscrições);
   - **Série E** — entre `2017-11-01` e `2023-06-01` (encerrada a novas subscrições);
 - `units` cai fora do intervalo `[minUnits, maxUnits]` da série:
   - **Série F** — `[100, 100.000]`;
-  - **Série D** — `[100, 250.000]`;
-  - **Série E** — `[100, 250.000]`;
+  - **Séries B, D e E** — `[100, 250.000]`;
 - `asOfDate < subscriptionDate`.
 
-Após `subscriptionDate + maturityYears` (15 anos para Série F, 10 anos para Séries D e E), o ciclo termina em maturidade e o resultado vem com `matured: true` e `maturityDate` preenchido.
+Para séries com maturidade finita, após `subscriptionDate + maturityYears` (15 anos para Série F, 10 anos para Séries C, D e E), o ciclo termina em maturidade e o resultado vem com `matured: true` e `maturityDate` preenchido. A **Série B** permanece ativa: `matured` permanece `false` e `maturityDate` é `null` (com um teto de segurança no número de trimestres simulados para evitar trabalho ilimitado).

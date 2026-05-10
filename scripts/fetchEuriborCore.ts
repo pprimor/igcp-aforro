@@ -29,6 +29,10 @@ import type { RateEntry } from '../src/types/domain.js';
 export const BUNDESBANK_BBIG1_URL =
   'https://api.statistiken.bundesbank.de/rest/download/BBIG1/D.D0.EUR.MMKT.EURIBOR.M03.BID._Z?format=csv&lang=en';
 
+/** BBIG1 daily EMMI EURIBOR® 12-month fixings (CSV). */
+export const BUNDESBANK_BBIG1_M12_URL =
+  'https://api.statistiken.bundesbank.de/rest/download/BBIG1/D.D0.EUR.MMKT.EURIBOR.M12.BID._Z?format=csv&lang=en';
+
 /**
  * Lines whose first 4 characters are not `YYYY-` belong to the CSV
  * preamble (header, comments, decimals, last-update timestamp, etc.) and

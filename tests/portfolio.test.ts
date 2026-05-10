@@ -51,7 +51,7 @@ describe('simulatePortfolio — reconciliation and composition', () => {
     );
   });
 
-  it('keeps bySeries in canonical C, D, E, F order', () => {
+  it('keeps bySeries in canonical B, C, D, E, F order (omitting empty series)', () => {
     const result = simulatePortfolio({
       asOfDate: '2026-04-19',
       subscriptions: [

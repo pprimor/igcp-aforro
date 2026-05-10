@@ -28,7 +28,7 @@ export const isoDateSchema = z
 
 export const isoMonthSchema = z.string().regex(ISO_MONTH_REGEX, 'Expected month in YYYY-MM format');
 
-export const seriesCodeSchema = z.enum(['C', 'D', 'E', 'F']);
+export const seriesCodeSchema = z.enum(['B', 'C', 'D', 'E', 'F']);
 
 /**
  * Adds per-series subscription-window issues to `ctx`. Reads bounds from the
@@ -156,13 +156,15 @@ export const redemptionInputSchema = z
         path: ['redemptionDate'],
       });
     }
-    const maturityDate = shiftMonths(data.subscriptionDate, metadata.maturityYears * 12);
-    if (data.redemptionDate >= maturityDate) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'redemptionDate is on or after maturity; use simulate() for matured payouts',
-        path: ['redemptionDate'],
-      });
+    if (metadata.maturityYears !== null) {
+      const maturityDate = shiftMonths(data.subscriptionDate, metadata.maturityYears * 12);
+      if (data.redemptionDate >= maturityDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'redemptionDate is on or after maturity; use simulate() for matured payouts',
+          path: ['redemptionDate'],
+        });
+      }
     }
     const remainingUnits = data.units - unitsToRedeem;
     if (remainingUnits !== 0 && remainingUnits < metadata.minUnits) {
@@ -199,7 +201,7 @@ export const simulatePortfolioInputSchema = z
     includeSchedule: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
-    const runningUnitsBySeries: Record<SeriesCode, number> = { C: 0, D: 0, E: 0, F: 0 };
+    const runningUnitsBySeries: Record<SeriesCode, number> = { B: 0, C: 0, D: 0, E: 0, F: 0 };
 
     for (const [index, subscription] of data.subscriptions.entries()) {
       const itemPath: readonly (string | number)[] = ['subscriptions', index];

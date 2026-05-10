@@ -73,7 +73,7 @@ function summaryRows(result: SimulateResult): PrettyKeyValue[] {
     { key: 'totalIrsWithheld', value: result.totalIrsWithheld },
     { key: 'accruedSinceLastCapitalization', value: result.accruedSinceLastCapitalization },
     { key: 'matured', value: result.matured ? 'true' : 'false' },
-    { key: 'maturityDate', value: result.maturityDate },
+    { key: 'maturityDate', value: result.maturityDate ?? '—' },
   ];
 }
 

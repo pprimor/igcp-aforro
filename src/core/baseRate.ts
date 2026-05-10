@@ -1,9 +1,11 @@
+import euribor12mObservations from '../data/euribor12m.json' with { type: 'json' };
 import euribor3mObservations from '../data/euribor3m.json' with { type: 'json' };
 import type { IsoDate, IsoMonth, RateEntry, SeriesMetadata } from '../types/domain.js';
 import { antepenultimateBusinessDay, previousBusinessDay } from './calendar.js';
 import { formatIsoMonth } from './dateMath.js';
 import { Big, ROUND_HALF_EVEN, formatPercent, toBig } from './money.js';
 import { getSeries } from './series.js';
+import { computeTba } from './tba.js';
 
 /**
  * Monthly base-rate computation for IGCP Certificados de Aforro.
@@ -60,12 +62,24 @@ const BUNDLED_OBSERVATIONS: readonly RateEntry[] = (
   ratePct: String(row.ratePct),
 }));
 
+const BUNDLED_OBSERVATIONS_12M: readonly RateEntry[] = (
+  euribor12mObservations as readonly { date: string; ratePct: number }[]
+).map((row) => ({
+  date: row.date,
+  ratePct: String(row.ratePct),
+}));
+
 export interface BaseRateOptions {
   /**
    * Override the bundled Euribor 3M dataset. Must be sorted ascending by date
    * and contain only business days with published fixings.
    */
   readonly observations?: readonly RateEntry[];
+  /**
+   * Override the bundled Euribor 12M dataset (Série B TBA only). Same shape as
+   * 3M observations.
+   */
+  readonly observations12m?: readonly RateEntry[];
   /**
    * Override the series whose averaging window and clamp are applied.
    * Defaults to Série F.
@@ -109,6 +123,13 @@ export interface BaseRateResult {
   readonly basePct: string;
   /** Whether the clamp altered {@link roundedPlusSpreadPct}. */
   readonly clamped: boolean;
+  /** Populated for Série B (`0,60 × TBA`). */
+  readonly serieB?: {
+    readonly maEndDate: IsoDate;
+    readonly l3MovingAveragePct: string;
+    readonly l12MovingAveragePct: string;
+    readonly tbaPct: string;
+  };
 }
 
 /**
@@ -162,6 +183,71 @@ function findLastIndexAtOrBefore(observations: readonly RateEntry[], cutoff: Iso
   return result;
 }
 
+function computeSerieBBaseRate(
+  year: number,
+  month: number,
+  series: SeriesMetadata,
+  options: BaseRateOptions,
+): BaseRateResult {
+  const obs3m = options.observations ?? BUNDLED_OBSERVATIONS;
+  const obs12m = options.observations12m ?? BUNDLED_OBSERVATIONS_12M;
+  const { year: fixingYear, month: fixingMonth } = previousMonth(year, month);
+  const fixingDate = antepenultimateBusinessDay(fixingYear, fixingMonth);
+
+  if (fixingDate < series.subscriptionStartDate) {
+    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+    throw new Error(
+      `No base rate available for ${targetMonth}: fixing date ${fixingDate} precedes ` +
+        `${series.name} subscription start ${series.subscriptionStartDate}`,
+    );
+  }
+
+  const tba = computeTba(year, month, {
+    observations3m: obs3m,
+    observations12m: obs12m,
+    strictWindowEnd: options.strictWindowEnd,
+  });
+
+  const tbaBig = toBig(tba.tbaPct);
+  const preClamp = tbaBig.times(toBig('0.6')).round(series.baseRateDecimals, ROUND_HALF_EVEN);
+
+  const min = toBig(series.baseRateClampMinPct);
+  const max = toBig(series.baseRateClampMaxPct);
+  let clamped = false;
+  let final = preClamp;
+  if (final.lt(min)) {
+    final = min;
+    clamped = true;
+  } else if (final.gt(max)) {
+    final = max;
+    clamped = true;
+  }
+
+  let l3Sum = new Big(0);
+  for (const e of tba.l3Window) {
+    l3Sum = l3Sum.plus(toBig(e.ratePct));
+  }
+  const l3RawAvg = l3Sum.div(tba.l3Window.length);
+
+  return {
+    year,
+    month,
+    fixingDate,
+    observations: tba.l3Window,
+    rawAveragePct: l3RawAvg.toString(),
+    roundedAveragePct: tba.tbaPct,
+    roundedPlusSpreadPct: formatPercent(preClamp, series.baseRateDecimals),
+    basePct: formatPercent(final, series.baseRateDecimals),
+    clamped,
+    serieB: {
+      maEndDate: tba.maEndDate,
+      l3MovingAveragePct: tba.l3MovingAveragePct,
+      l12MovingAveragePct: tba.l12MovingAveragePct,
+      tbaPct: tba.tbaPct,
+    },
+  };
+}
+
 /**
  * Computes the monthly base rate for the given series (defaults to Série F)
  * and returns the full audit trail (fixing date, contributing observations,
@@ -186,6 +272,10 @@ export function computeBaseRate(
   }
 
   const series = options.series ?? getSeries(DEFAULT_SERIES);
+  if (series.code === 'B') {
+    return computeSerieBBaseRate(year, month, series, options);
+  }
+
   const observations = options.observations ?? BUNDLED_OBSERVATIONS;
   const windowSize = series.euribor3mAveragingDays;
 

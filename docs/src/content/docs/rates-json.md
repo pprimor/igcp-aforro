@@ -28,7 +28,14 @@ O ficheiro é regenerado:
     "sourceUrl": "https://api.statistiken.bundesbank.de/rest/download/BBIG1/...",
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z"
   },
+  "euribor12mSourceMeta": {
+    "lastRefreshedAt": "2026-04-19T07:42:11Z",
+    "source": "Deutsche Bundesbank time-series API",
+    "sourceUrl": "https://api.statistiken.bundesbank.de/rest/download/BBIG1/...",
+    "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M12.BID._Z"
+  },
   "series": {
+    "B": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "C": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "D": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "E": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
@@ -37,13 +44,15 @@ O ficheiro é regenerado:
 }
 ```
 
-`series.C`, `series.D`, `series.E` e `series.F` têm a mesma forma e são preenchidas independentemente. A Série C começa no primeiro mês resolúvel após a data de subscrição mínima (tipicamente 2008-02); a Série D no primeiro mês resolúvel com o histórico Euribor atualmente incluído; a Série E em novembro de 2017; a Série F em junho de 2023.
+`euriborSourceMeta` descreve a série **Euribor 3M** embutida; `euribor12mSourceMeta` descreve a **Euribor 12M** usada na TBA da Série B. O gerador só avança meses enquanto ambas as séries têm observações até à `fixingDate` necessária (o horizonte efetivo é o mínimo dos dois últimos dias de observação).
+
+`series.B`, `series.C`, `series.D`, `series.E` e `series.F` têm a mesma forma e são preenchidas independentemente. A **Série B** começa no primeiro mês resolúvel após o início da subscrição com TBA completa; a Série C no primeiro mês resolúvel após a data de subscrição mínima (tipicamente 2008-02); a Série D no primeiro mês resolúvel com o histórico Euribor atualmente incluído; a Série E em novembro de 2017; a Série F em junho de 2023.
 
 `schemaVersion` é incrementado sempre que é publicada uma alteração incompatível. Adicionar uma nova série em `series.<code>` **não** é considerado uma alteração incompatível.
 
 ## `series.<code>.metadata`
 
-Os `SeriesMetadata` estáticos da série: `maturityYears`, `subscriptionStartDate`, `subscriptionEndDate` (séries encerradas: C, D e E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, campos de taxa-base (`baseRateSpreadPct` para D/E/F; `baseRateEuriborMultiplierPct` e `baseRatePostMeanOffsets` para C), `defaultIrsRate`, `premiumTiers` (e `premiumTiersLegacy` na C), etc. É a mesma informação devolvida pela biblioteca npm em `getSeries('C')` / `getSeries('D')` / `getSeries('E')` / `getSeries('F')`.
+Os `SeriesMetadata` estáticos da série: `maturityYears` (número de anos ou `null` na **Série B** perpétua), `subscriptionStartDate`, `subscriptionEndDate` (séries encerradas: B, C, D e E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, campos de taxa-base (`baseRateSpreadPct` para D/E/F; `baseRateEuriborMultiplierPct` e `baseRatePostMeanOffsets` para C; a B usa TBA e `euribor3mAveragingDays: 20`), `ratesJsonMaxContractYears` (limite de anos contratuais nas linhas de `cohortRates` da B), `defaultIrsRate`, `premiumTiers` (e `premiumTiersLegacy` na C), etc. É a mesma informação devolvida pela biblioteca npm em `getSeries('B')` / `getSeries('C')` / … / `getSeries('F')`.
 
 ## `series.<code>.monthlyBaseRates`
 
@@ -61,11 +70,11 @@ Uma entrada por mês de calendário para o qual seja possível resolver uma fixa
 | --- | --- | --- |
 | `month` | `YYYY-MM` | Mês de calendário a que a taxa se aplica. |
 | `fixingDate` | `YYYY-MM-DD` | Antepenúltimo dia útil TARGET2 do mês anterior. |
-| `basePct` | string decimal | Taxa-base final, já limitada e arredondada a 3 casas decimais. Para a Série F: média arredondada limitada a `[0, 2,5]`. Para as Séries D e E: média arredondada + 1 ponto percentual (o *spread* de `+1pp`), limitada a `[0, 3,5]`. |
+| `basePct` | string decimal | Taxa-base final, já limitada e arredondada a 3 casas decimais. Para a Série F: média arredondada limitada a `[0, 2,5]`. Para as Séries D e E: média arredondada + 1 ponto percentual (o *spread* de `+1pp`), limitada a `[0, 3,5]`. Para a **Série B**: `0,60 × TBA` após a sequência definida em `tba.ts`. |
 
 ## `series.<code>.cohortRates`
 
-Uma entrada por trimestre ancorado, desde cada mês de subscrição até `min(maturidade, último mês publicado)`.
+Uma entrada por trimestre ancorado, desde cada mês de subscrição até `min(maturidade, último mês publicado)`. Para a **Série B** (sem maturidade), o gerador aplica um teto explícito de anos contratuais em `metadata.ratesJsonMaxContractYears` para manter o artefacto limitado.
 
 ```json
 {
@@ -98,7 +107,7 @@ Uma entrada por trimestre ancorado, desde cada mês de subscrição até `min(ma
 
 - Todos os campos percentuais são **strings decimais** (por exemplo, `"2.500"`, não `2.5`). Isto corresponde à API pública do pacote npm e evita desvios de vírgula flutuante entre linguagens.
 - `subscribed` é um mês de calendário, normalizado para `YYYY-MM-01`. A regra de trimestres ancorados do IGCP depende do dia de subscrição, por isso uma tabela pré-calculada não consegue representar todos os grupos de subscrição por dia do mês sem crescer demasiado. Consumidores que precisem de precisão ao dia devem usar a biblioteca npm ou replicar o cálculo a partir de `monthlyBaseRates` e dos `premiumTiers` em `metadata`.
-- `cohortRates` enumera todos os trimestres ancorados desde a subscrição até `min(maturidade, último mês publicado)`. `quarterEndDate` é o `quarterStartDate` do trimestre seguinte; ambos seguem a semântica de *roll-forward* de `shiftMonths`.
+- `cohortRates` enumera todos os trimestres ancorados desde a subscrição até `min(maturidade, último mês publicado)` (ou, na B, até o teto configurado em `ratesJsonMaxContractYears`). `quarterEndDate` é o `quarterStartDate` do trimestre seguinte; ambos seguem a semântica de *roll-forward* de `shiftMonths`.
 
 ## Exemplo mínimo em Python
 

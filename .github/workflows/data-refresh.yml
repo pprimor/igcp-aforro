@@ -93,7 +93,7 @@ jobs:
             echo "src/data/_meta.json missing after fetch" >&2
             exit 1
           fi
-          latest=$(node -p "JSON.parse(require('fs').readFileSync('src/data/_meta.json','utf8')).euribor.latestObservation")
+          latest=$(node -p "(() => { const m = JSON.parse(require('fs').readFileSync('src/data/_meta.json','utf8')); const a = m.euribor.latestObservation; const b = (m.euribor12m && m.euribor12m.latestObservation) || a; if (a && b) return a < b ? a : b; return a || b || ''; })()")
           upstream=$(node -p "JSON.parse(require('fs').readFileSync('src/data/_meta.json','utf8')).euribor.upstreamLastUpdate ?? 'unknown'")
           today=$(date -u +%F)
           {
@@ -130,6 +130,7 @@ jobs:
           # `git status --porcelain` returns empty when there is nothing.
           changed=$(git status --porcelain -- \
             src/data/euribor3m.json \
+            src/data/euribor12m.json \
             src/data/_meta.json \
             raw/euribor \
             tests/fixtures/igcpPublishedBaseRates.json \
@@ -214,6 +215,7 @@ jobs:
 
             Files this PR may touch:
             - `src/data/euribor3m.json`
+            - `src/data/euribor12m.json`
             - `src/data/_meta.json`
             - `raw/euribor/<YYYY-MM>.csv`
             - `tests/fixtures/igcpPublishedBaseRates.json`
@@ -259,6 +261,7 @@ jobs:
             const files = pr.files.map((file) => file.path);
             const allowedFiles = files.filter((path) =>
               path === 'src/data/euribor3m.json' ||
+              path === 'src/data/euribor12m.json' ||
               path === 'src/data/_meta.json' ||
               path === 'tests/fixtures/igcpPublishedBaseRates.json' ||
               path === expectedIgcpRaw ||

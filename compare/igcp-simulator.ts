@@ -388,9 +388,9 @@ export async function runCompareSuite(options: CompareOptions): Promise<number> 
     .slice(0, options.limit ?? allScenarios.length);
 
   if (filtered.length === 0) {
-    if (options.series === 'C') {
+    if (options.series === 'C' || options.series === 'B') {
       options.writeErr(
-        'Série C is skipped: the IGCP simulator API and aforro.net do not expose Série C ' +
+        'Série B and Série C are skipped: the IGCP simulator API does not expose them ' +
           'in the same query surface as D/E/F. Use the IGCP-published golden tests in ' +
           '`tests/fixtures/igcpPublishedBaseRates.json` and `tests/baseRate.test.ts` instead.\n',
       );
@@ -582,9 +582,9 @@ function parseDelayFlag(raw: unknown): number {
 function parseSeriesFlag(raw: unknown): CompareSeries {
   if (raw === undefined) return 'all';
   const value = String(raw).toUpperCase();
-  if (value === 'C' || value === 'D' || value === 'E' || value === 'F') return value;
+  if (value === 'B' || value === 'C' || value === 'D' || value === 'E' || value === 'F') return value;
   if (value === 'ALL' || value === 'BOTH') return 'all';
-  throw new Error(`--series must be one of C, D, E, F, all (got ${String(raw)})`);
+  throw new Error(`--series must be one of B, C, D, E, F, all (got ${String(raw)})`);
 }
 
 function parseFilterFlag(raw: unknown): RegExp | undefined {
@@ -614,7 +614,7 @@ async function main(): Promise<void> {
     .command('[...args]', 'Compare local simulate() output against the IGCP web simulator')
     .option(
       '--series <code>',
-      'Series to compare: D, E, F, or all (C is accepted but skipped — no IGCP API coverage)',
+      'Series to compare: D, E, F, or all (B and C are accepted but skipped — no IGCP API coverage)',
       { default: 'all' },
     )
     .option('--tolerance <eur-per-unit>', 'Max absolute per-unit EUR diff to count as PASS', {

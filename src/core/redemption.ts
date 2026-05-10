@@ -7,7 +7,7 @@ import { getSeries } from './series.js';
 
 /**
  * Computes the payable value of an early redemption (full or partial) for a
- * Série D/E/F cohort at a specific redemption date.
+ * Aforro certificate cohort at a specific redemption date.
  *
  * The booked quote and accrued math are delegated to `simulate()` with
  * `asOfDate = redemptionDate`, so quote cadence and schedule reconciliation

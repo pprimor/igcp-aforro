@@ -28,7 +28,14 @@ The file is regenerated:
     "sourceUrl": "https://api.statistiken.bundesbank.de/rest/download/BBIG1/...",
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z"
   },
+  "euribor12mSourceMeta": {
+    "lastRefreshedAt": "2026-04-19T07:42:11Z",
+    "source": "Deutsche Bundesbank time-series API",
+    "sourceUrl": "https://api.statistiken.bundesbank.de/rest/download/BBIG1/...",
+    "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M12.BID._Z"
+  },
   "series": {
+    "B": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "C": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "D": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
     "E": { "metadata": { "...": "..." }, "monthlyBaseRates": [], "cohortRates": [] },
@@ -37,13 +44,15 @@ The file is regenerated:
 }
 ```
 
-`series.C`, `series.D`, `series.E`, and `series.F` carry the same shape and are populated independently — Série C rows start at the first resolvable month after the series subscription floor (typically 2008-02), Série D at the first resolvable month in the bundled Euribor history, Série E in November 2017, and Série F in June 2023.
+`euriborSourceMeta` covers the bundled **3M** Euribor series; `euribor12mSourceMeta` covers **12M** Euribor used in Série B TBA. The builder only emits months while both series have observations through the required `fixingDate` (effective horizon is limited by whichever dataset ends earliest).
+
+`series.B`, `series.C`, `series.D`, `series.E`, and `series.F` carry the same shape and are populated independently — **Série B** starts at the first month where full TBA inputs resolve; Série C at the first resolvable month after the subscription floor (typically 2008-02); Série D at the first resolvable month in the bundled Euribor history; Série E in November 2017; and Série F in June 2023.
 
 `schemaVersion` is bumped whenever a backwards-incompatible change ships, so consumers can pin or assert. Adding a new series under `series.<code>` is **not** considered a breaking change.
 
 ## `series.<code>.metadata`
 
-The static `SeriesMetadata` for the series — `maturityYears`, `subscriptionStartDate`, `subscriptionEndDate` (closed series: C, D, and E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, base-rate fields (`baseRateSpreadPct` on D/E/F; `baseRateEuriborMultiplierPct` and `baseRatePostMeanOffsets` on C), `defaultIrsRate`, `premiumTiers` (plus `premiumTiersLegacy` on C), etc. Identical to what the npm library returns from `getSeries('C')` / `getSeries('D')` / `getSeries('E')` / `getSeries('F')`.
+The static `SeriesMetadata` for the series — `maturityYears` (finite years or `null` for perpetual **Série B**), `subscriptionStartDate`, `subscriptionEndDate` (closed series: B, C, D, and E), `minUnits`, `maxUnits`, `baseRateClampMinPct`, `baseRateClampMaxPct`, base-rate fields (`baseRateSpreadPct` on D/E/F; `baseRateEuriborMultiplierPct` and `baseRatePostMeanOffsets` on C; B uses TBA with `euribor3mAveragingDays: 20`), `ratesJsonMaxContractYears` (caps `cohortRates` contract-year depth for B), `defaultIrsRate`, `premiumTiers` (plus `premiumTiersLegacy` on C), etc. Identical to what the npm library returns from `getSeries('B')` through `getSeries('F')`.
 
 ## `series.<code>.monthlyBaseRates`
 
@@ -61,11 +70,11 @@ One entry per calendar month for which a fixing can be resolved.
 | --- | --- | --- |
 | `month` | `YYYY-MM` | Calendar month the rate applies to. |
 | `fixingDate` | `YYYY-MM-DD` | Antepenultimate TARGET2 business day of the previous month. |
-| `basePct` | decimal string | Final, post-clamp base rate rounded to 3 decimals. For Série F: rounded mean clamped to `[0, 2.5]`. For Séries D and E: rounded mean + `1.000` (the `+1pp` spread), clamped to `[0, 3.5]`. |
+| `basePct` | decimal string | Final, post-clamp base rate rounded to 3 decimals. For Série F: rounded mean clamped to `[0, 2.5]`. For Séries D and E: rounded mean + `1.000` (the `+1pp` spread), clamped to `[0, 3.5]`. For **Série B**: `0.60 × TBA` after the rounding sequence in `tba.ts`. |
 
 ## `series.<code>.cohortRates`
 
-One entry per anchored quarter, from each subscription month through `min(maturity, last published month)`.
+One entry per anchored quarter, from each subscription month through `min(maturity, last published month)`. For perpetual **Série B**, the generator applies an explicit `metadata.ratesJsonMaxContractYears` cap so the artifact stays bounded.
 
 ```json
 {
@@ -98,7 +107,7 @@ One entry per anchored quarter, from each subscription month through `min(maturi
 
 - All percentage fields are **decimal strings** (e.g. `"2.500"`, not `2.5`). This matches the npm library's public API and avoids float drift across language boundaries.
 - `subscribed` is a calendar month (always normalised to `YYYY-MM-01`). IGCP's anchored-quarter rule keys off the subscription day, so a precomputed table cannot represent every day-of-month cohort without exploding in size. Consumers needing day-precision should use the npm library or replicate the math from `monthlyBaseRates` plus the premium tiers in `metadata`.
-- `cohortRates` rows enumerate every anchored quarter from subscription through `min(maturity, last published month)`. `quarterEndDate` is the next quarter's `quarterStartDate`; both follow `shiftMonths`' end-of-month roll-forward semantics.
+- `cohortRates` rows enumerate every anchored quarter from subscription through `min(maturity, last published month)` (or, for B, through the configured `ratesJsonMaxContractYears` cap). `quarterEndDate` is the next quarter's `quarterStartDate`; both follow `shiftMonths`' end-of-month roll-forward semantics.
 
 ## Minimal Python example
 

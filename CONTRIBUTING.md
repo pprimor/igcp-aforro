@@ -2,10 +2,10 @@
 
 Thanks for helping improve `igcp-aforro`. This project is an independent,
 decimal-safe TypeScript library and CLI for simulating Portuguese IGCP Aforro
-Série D, Série E, and Série F Treasury Certificates.
+Série B, Série C, Série D, Série E, and Série F Treasury Certificates.
 
 This is not an official IGCP project and does not provide financial advice. The
-bundled Euribor 3M observations are redistributed from Deutsche Bundesbank under
+bundled Euribor 3M and 12M observations are redistributed from Deutsche Bundesbank under
 non-commercial terms; commercial users should review EMMI's licensing terms
 before relying on the bundled data or derived artifacts.
 
@@ -115,7 +115,9 @@ pnpm compare:igcp -- --json --out /tmp/igcp-compare.json
 
 Useful flags:
 
-- `--series D|E|F|all` narrows the scenario matrix; the default is `all`.
+- `--series B|C|D|E|F|all` narrows the scenario matrix; the default is `all`.
+  **Série B** and **Série C** are accepted for CLI consistency but are skipped in
+  the live sweep (no IGCP public simulator parity for those codes in this harness).
 - `--filter <regex>` keeps scenario IDs matching the regex, such as
   `^F:2024-`.
 - `--limit <n>` caps the run after filtering.
@@ -194,8 +196,9 @@ pnpm fetch:igcp-base-rates --month current --dry-run
 A data refresh may intentionally touch:
 
 - `src/data/euribor3m.json`
+- `src/data/euribor12m.json`
 - `src/data/_meta.json`
-- `raw/euribor/<YYYY-MM>.csv`
+- `raw/euribor/<YYYY-MM>-3m.csv` and `raw/euribor/<YYYY-MM>-12m.csv`
 - `tests/fixtures/igcpPublishedBaseRates.json`
 - `raw/igcp/<YYYY-MM>.html`
 

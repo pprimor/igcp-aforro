@@ -32,10 +32,22 @@ const serieF = getSeries('F');
 
 describe('getSeries', () => {
   it('exposes the per-unit quote precision for supported series', () => {
+    expect(getSeries('B').unitQuoteDecimals).toBe(5);
     expect(getSeries('C').unitQuoteDecimals).toBe(5);
     expect(getSeries('D').unitQuoteDecimals).toBe(5);
     expect(getSeries('E').unitQuoteDecimals).toBe(5);
     expect(getSeries('F').unitQuoteDecimals).toBe(5);
+  });
+
+  it('exposes Série B as perpetual (no maturity) with TBA averaging window', () => {
+    expect(getSeries('B')).toMatchObject({
+      code: 'B',
+      name: 'Série B',
+      maturityYears: null,
+      subscriptionStartDate: '1986-07-01',
+      subscriptionEndDate: '2008-01-25',
+      euribor3mAveragingDays: 20,
+    });
   });
 
   it('exposes Série D metadata from the IGCP technical sheet', () => {
@@ -333,13 +345,40 @@ describe('rates.json artifact', () => {
   it('includes series blocks with base rates and cohort rows', async () => {
     const artifact = await buildArtifact(() => {});
 
-    expect(Object.keys(artifact.series).sort()).toEqual(['C', 'D', 'E', 'F']);
+    expect(Object.keys(artifact.series).sort()).toEqual(['B', 'C', 'D', 'E', 'F']);
+    expect(artifact.series.B.metadata.code).toBe('B');
+    expect(artifact.series.B.monthlyBaseRates.length).toBeGreaterThan(0);
+    expect(artifact.series.B.cohortRates.length).toBeGreaterThan(0);
     expect(artifact.series.C.metadata.code).toBe('C');
     expect(artifact.series.C.monthlyBaseRates.length).toBeGreaterThan(0);
     expect(artifact.series.C.cohortRates.length).toBeGreaterThan(0);
     expect(artifact.series.D.metadata.code).toBe('D');
     expect(artifact.series.D.monthlyBaseRates.length).toBeGreaterThan(0);
     expect(artifact.series.D.cohortRates.length).toBeGreaterThan(0);
+  });
+});
+
+describe('getRateForCohort — Série B', () => {
+  it('resolves a mid-life quarter on bundled Euribor without a maturity ceiling', () => {
+    const result = getRateForCohort({
+      series: 'B',
+      subscriptionDate: '2005-06-01',
+      asOfDate: '2020-09-15',
+    });
+
+    expect(result.series).toBe('B');
+    expect(result.baseRatePct).toMatch(/^\d+\.\d{3}$/);
+    expect(result.annualRatePct).toMatch(/^\d+\.\d{3}$/);
+  });
+
+  it('does not reject evaluation dates long after a finite series would have matured (within bundled Euribor)', () => {
+    expect(() =>
+      getRateForCohort({
+        series: 'B',
+        subscriptionDate: '2005-06-01',
+        asOfDate: '2026-04-19',
+      }),
+    ).not.toThrow();
   });
 });
 

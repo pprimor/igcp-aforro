@@ -131,7 +131,7 @@ export function annualRatesByPremiumTier(
  * is the sum of the base rate for the quarter-start month and the permanence
  * premium for the contract year that the quarter falls into.
  *
- * @throws when `asOfDate` lies on or after `subscriptionDate + maturityYears`
+ * @throws when `asOfDate` lies on or after maturity for finite series
  *   (the certificate has matured), or when the input fails Zod validation.
  */
 export function getRateForCohort(
@@ -147,7 +147,10 @@ export function getRateForCohort(
   const quarterEndDate = shiftMonths(parsed.subscriptionDate, (quarterIndex + 1) * 3);
 
   const yearsSinceSubscription = floorYearsBetween(parsed.subscriptionDate, quarterStartDate);
-  if (yearsSinceSubscription >= series.maturityYears) {
+  if (
+    series.maturityYears !== null &&
+    yearsSinceSubscription >= series.maturityYears
+  ) {
     throw new Error(
       `Cohort subscribed on ${parsed.subscriptionDate} has matured by ${quarterStartDate} ` +
         `(${series.name} maturity is ${series.maturityYears} years)`,
