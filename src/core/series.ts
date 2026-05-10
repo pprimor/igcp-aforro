@@ -36,6 +36,49 @@ const SERIE_C_PREMIUM_TIERS: readonly PremiumTier[] = [
   { fromYear: 10, toYear: 10, ratePct: '2.50' },
 ];
 
+/**
+ * Série B — IGCP-published parameters (legacy perpetual certificates).
+ *
+ * Subscriptions closed by Portaria n.º 73-A/2008 (effective 26 January 2008).
+ * Base rate: `0,60 × TBA` (Portaria n.º 73-B/2008). TBA follows Decreto-Lei
+ * n.º 11/99 (`0,52 × L3 + 0,47 × L12 − 0,12` on 20-day EURIBOR moving averages).
+ * Permanence premiums: Portaria n.º 1219/1991 (n.º 3); IGCP currently reports
+ * all extant certificates at the maximum 2% tier — the ladder below reaches
+ * 2% from the 9th contract year onward.
+ */
+const SERIE_B_PREMIUM_TIERS: readonly PremiumTier[] = [
+  { fromYear: 1, toYear: 1, ratePct: '0.00' },
+  { fromYear: 2, toYear: 2, ratePct: '0.25' },
+  { fromYear: 3, toYear: 3, ratePct: '0.50' },
+  { fromYear: 4, toYear: 4, ratePct: '0.75' },
+  { fromYear: 5, toYear: 5, ratePct: '1.00' },
+  { fromYear: 6, toYear: 6, ratePct: '1.25' },
+  { fromYear: 7, toYear: 7, ratePct: '1.50' },
+  { fromYear: 8, toYear: 8, ratePct: '1.75' },
+  { fromYear: 9, toYear: 9999, ratePct: '2.00' },
+];
+
+const SERIE_B_METADATA: SeriesMetadata = {
+  code: 'B',
+  name: 'Série B',
+  minimumHoldingMonths: 3,
+  maturityYears: null,
+  ratesJsonMaxContractYears: 50,
+  subscriptionStartDate: '1986-07-01',
+  subscriptionEndDate: '2008-01-25',
+  minUnits: 100,
+  maxUnits: 250_000,
+  baseRateClampMinPct: '0',
+  baseRateClampMaxPct: '100',
+  baseRateSpreadPct: '0',
+  baseRateDecimals: 3,
+  unitQuoteDecimals: 5,
+  euribor3mAveragingDays: 20,
+  capitalizationFrequency: 'quarterly',
+  defaultIrsRate: '0.28',
+  premiumTiers: SERIE_B_PREMIUM_TIERS,
+};
+
 const SERIE_C_METADATA: SeriesMetadata = {
   code: 'C',
   name: 'Série C',
@@ -181,6 +224,7 @@ const SERIE_E_METADATA: SeriesMetadata = {
  * it remains JSON-serializable and tree-shakable.
  */
 export const Series = {
+  B: 'B',
   C: 'C',
   D: 'D',
   E: 'E',
@@ -188,15 +232,25 @@ export const Series = {
 } as const satisfies Record<string, SeriesCode>;
 
 const SERIES_REGISTRY: Readonly<Partial<Record<SeriesCode, SeriesMetadata>>> = {
+  B: SERIE_B_METADATA,
   C: SERIE_C_METADATA,
   D: SERIE_D_METADATA,
   E: SERIE_E_METADATA,
   F: SERIE_F_METADATA,
 };
 
+const SERIES_LIST_ORDER: readonly SeriesCode[] = ['B', 'C', 'D', 'E', 'F'];
+
 /** Returns metadata for every series supported by this build. */
 export function listSeries(): readonly SeriesMetadata[] {
-  return Object.values(SERIES_REGISTRY);
+  const out: SeriesMetadata[] = [];
+  for (const code of SERIES_LIST_ORDER) {
+    const meta = SERIES_REGISTRY[code];
+    if (meta) {
+      out.push(meta);
+    }
+  }
+  return out;
 }
 
 /**
@@ -254,6 +308,6 @@ export function premiumTierForYear(
   }
   throw new Error(
     `No premium tier defined for year ${contractYear} of ${series.name} ` +
-      `(supported range 1..${series.maturityYears})`,
+      `(supported range 1..${series.maturityYears ?? '∞'})`,
   );
 }

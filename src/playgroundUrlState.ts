@@ -1,7 +1,9 @@
-const VALID_SERIES = new Set(['C', 'D', 'E', 'F']);
+import type { SeriesCode } from './types/domain.js';
+
+const VALID_SERIES = new Set<SeriesCode>(['B', 'C', 'D', 'E', 'F']);
 
 export interface PlaygroundFormState {
-  series: 'C' | 'D' | 'E' | 'F';
+  series: SeriesCode;
   subscriptionDate: string;
   units: string;
   asOfDate: string;

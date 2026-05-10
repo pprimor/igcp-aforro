@@ -27,6 +27,9 @@ import {
 } from './money.js';
 import { getSeries, premiumTierForYear } from './series.js';
 
+/** Safety cap so a perpetual series cannot spin for unbounded quarters on bad inputs. */
+const MAX_PERPETUAL_QUARTERS = 2000;
+
 /**
  * Quarterly-compounding simulator for IGCP Aforro certificates.
  *
@@ -58,7 +61,8 @@ import { getSeries, premiumTierForYear } from './series.js';
  * headline total fields are sums of cent-quantized quarterly EUR amounts,
  * they reconcile exactly with the schedule rows.
  *
- * The loop terminates at `min(asOfDate, maturityDate)`. If `asOfDate` falls
+ * The loop terminates at `min(asOfDate, maturityDate)` for finite maturities,
+ * or at `asOfDate` for perpetual series (Série B). If `asOfDate` falls
  * mid-quarter, the partial quarter is reported separately as
  * {@link SimulateResult.accruedSinceLastCapitalization} (gross, pro-rated by
  * elapsed calendar days inside the current quarter) — it is **not** rolled
@@ -124,8 +128,14 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
   const irsRateBig = toBig(irsRate);
 
   const principal = toBig(parsed.units);
-  const maturityDate = shiftMonths(subscriptionDate, series.maturityYears * 12);
-  const maxQuarters = series.maturityYears * 4;
+  const maturityDate =
+    series.maturityYears === null
+      ? null
+      : shiftMonths(subscriptionDate, series.maturityYears * 12);
+  const maxQuarters =
+    series.maturityYears === null
+      ? MAX_PERPETUAL_QUARTERS
+      : series.maturityYears * 4;
 
   let unitQuote = new Big(1);
   let totalInterestGross = new Big(0);
@@ -139,7 +149,10 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
     const quarterStart = shiftMonths(subscriptionDate, quarterIndex * 3);
     const quarterEnd = shiftMonths(subscriptionDate, (quarterIndex + 1) * 3);
 
-    if (quarterEnd > asOfDate || quarterEnd > maturityDate) {
+    if (quarterEnd > asOfDate) {
+      break;
+    }
+    if (maturityDate !== null && quarterEnd > maturityDate) {
       break;
     }
 
@@ -182,7 +195,7 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
     quarterIndex += 1;
   }
 
-  const matured = asOfDate >= maturityDate;
+  const matured = maturityDate !== null && asOfDate >= maturityDate;
 
   let accruedGross = new Big(0);
   if (!matured && quarterIndex < maxQuarters) {

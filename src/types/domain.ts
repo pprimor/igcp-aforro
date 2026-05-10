@@ -21,10 +21,11 @@ export type IsoDate = string;
 export type IsoMonth = string;
 
 /**
- * Identifier for a Treasury Certificate series. In scope: `'C'` (closed),
- * `'D'`, `'E'` (both closed to new subscriptions) and `'F'` (currently open).
+ * Identifier for a Treasury Certificate series. In scope: `'B'` (legacy,
+ * subscriptions closed), `'C'` (closed), `'D'`, `'E'` (both closed to new
+ * subscriptions) and `'F'` (currently open).
  */
-export type SeriesCode = 'C' | 'D' | 'E' | 'F';
+export type SeriesCode = 'B' | 'C' | 'D' | 'E' | 'F';
 
 /**
  * One permanence-premium tier. Tiers are 1-indexed and inclusive on both ends:
@@ -52,7 +53,16 @@ export interface SeriesMetadata {
   readonly name: string;
   /** Minimum whole-calendar-month holding period before redemption is allowed. */
   readonly minimumHoldingMonths: number;
-  readonly maturityYears: number;
+  /**
+   * Years from subscription to contractual maturity, or `null` for perpetual
+   * certificates (Série B: no redemption date until the holder redeems).
+   */
+  readonly maturityYears: number | null;
+  /**
+   * When {@link maturityYears} is `null`, caps cohort rows in `rates.json`
+   * so the artifact stays bounded (quarters beyond this are omitted).
+   */
+  readonly ratesJsonMaxContractYears?: number;
   readonly subscriptionStartDate: IsoDate;
   /**
    * Last date on which subscriptions were accepted, inclusive. `undefined`
@@ -277,7 +287,8 @@ export interface SimulateResult {
    */
   readonly totalIrsWithheld: string;
   readonly matured: boolean;
-  readonly maturityDate: IsoDate;
+  /** `null` when the series is perpetual (Série B). */
+  readonly maturityDate: IsoDate | null;
   /**
    * Gross interest accumulated since the last capitalization, when
    * `asOfDate` falls strictly inside an open quarter; `"0.00"` otherwise.

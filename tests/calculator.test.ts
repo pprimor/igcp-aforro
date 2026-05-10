@@ -340,6 +340,28 @@ describe('simulate — Série D smoke test', () => {
   });
 });
 
+describe('simulate — Série B perpetual smoke test', () => {
+  const flat3m12m = syntheticEuriborFlat('2000-01-01', '2040-12-31', '2.500');
+
+  it('has no maturity date and never reports matured', () => {
+    const result = simulate(
+      {
+        series: 'B',
+        subscriptionDate: '2005-01-15',
+        units: 1000,
+        asOfDate: '2035-06-01',
+        includeSchedule: true,
+      },
+      { observations: flat3m12m, observations12m: flat3m12m },
+    );
+
+    expect(result.series).toBe('B');
+    expect(result.maturityDate).toBeNull();
+    expect(result.matured).toBe(false);
+    expect(result.schedule?.length).toBeGreaterThan(100);
+  });
+});
+
 describe('simulate — Série C smoke test', () => {
   it('reports matured=true after the 10-year maturity for an early cohort', () => {
     const result = simulate({

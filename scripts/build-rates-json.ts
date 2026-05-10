@@ -27,7 +27,8 @@
  *     "schemaVersion": 1,
  *     "generatedAt": "YYYY-MM-DDTHH:MM:SSZ",
  *     "libraryVersion": "YYYY.MMDD.PATCH",
- *     "euriborSourceMeta": { ...src/data/_meta.json["euribor"] },
+ *     "euriborSourceMeta": { ... },
+ *     "euribor12mSourceMeta": { ... },
  *     "series": {
  *       "C": { "metadata": { ...SeriesMetadata }, "monthlyBaseRates": [...], "cohortRates": [...] },
  *       "D": { "metadata": { ...SeriesMetadata }, "monthlyBaseRates": [...], "cohortRates": [...] },
@@ -142,6 +143,7 @@ interface RatesArtifact {
   readonly generatedAt: string;
   readonly libraryVersion: string;
   readonly euriborSourceMeta: EuriborMeta;
+  readonly euribor12mSourceMeta: EuriborMeta;
   readonly series: Readonly<Record<SeriesCode, SeriesPayload>>;
 }
 
@@ -189,13 +191,26 @@ function parseArgs(rawArgs: readonly string[]): CliArgs {
   return { out, quiet };
 }
 
-async function readEuriborMeta(): Promise<EuriborMeta> {
+async function readEuriborMetaBlocks(): Promise<{
+  readonly euriborSourceMeta: EuriborMeta;
+  readonly euribor12mSourceMeta: EuriborMeta;
+  readonly latestObservation: IsoDate | null;
+}> {
   const raw = await readFile(META_FILE, 'utf8');
-  const parsed = JSON.parse(raw) as { euribor: EuriborMeta };
+  const parsed = JSON.parse(raw) as { euribor: EuriborMeta; euribor12m?: EuriborMeta };
   if (!parsed.euribor) {
     throw new Error(`${META_FILE} is missing the "euribor" block`);
   }
-  return parsed.euribor;
+  const euribor12mSourceMeta = parsed.euribor12m ?? parsed.euribor;
+  const a = parsed.euribor.latestObservation;
+  const b = euribor12mSourceMeta.latestObservation;
+  let latestObservation: IsoDate | null = null;
+  if (a !== null && a !== undefined && b !== null && b !== undefined) {
+    latestObservation = a < b ? a : b;
+  } else {
+    latestObservation = a ?? b ?? null;
+  }
+  return { euriborSourceMeta: parsed.euribor, euribor12mSourceMeta, latestObservation };
 }
 
 /**
@@ -272,7 +287,7 @@ function buildMonthlyBaseRates(
 /**
  * Enumerate every anchored quarter for `cohort` from subscription
  * through the latest quarter whose start month appears in
- * `monthlyBaseRateByMonth`, capped at `series.maturityYears`.
+ * `monthlyBaseRateByMonth`, capped at maturity or {@link SeriesMetadata.ratesJsonMaxContractYears}.
  */
 function buildCohortRows(
   series: SeriesMetadata,
@@ -281,7 +296,8 @@ function buildCohortRows(
 ): CohortRateRow[] {
   const subscriptionDate: IsoDate = `${cohortMonth}-01`;
   const rows: CohortRateRow[] = [];
-  const maxQuarters = series.maturityYears * 4;
+  const capYears = series.maturityYears ?? series.ratesJsonMaxContractYears ?? 50;
+  const maxQuarters = capYears * 4;
 
   for (let quarterIndex = 0; quarterIndex < maxQuarters; quarterIndex += 1) {
     const quarterStartDate = shiftMonths(subscriptionDate, quarterIndex * 3);
@@ -295,7 +311,7 @@ function buildCohortRows(
 
     const quarterEndDate = shiftMonths(subscriptionDate, (quarterIndex + 1) * 3);
     const yearsSinceSubscription = Math.floor(quarterIndex / 4);
-    if (yearsSinceSubscription >= series.maturityYears) {
+    if (yearsSinceSubscription >= capYears) {
       break;
     }
 
@@ -341,9 +357,10 @@ function buildSeriesPayload(
   for (const cohortMonth of cohortMonths) {
     cohortRates.push(...buildCohortRows(series, cohortMonth, baseRateByMonth));
   }
+  const capYears = series.maturityYears ?? series.ratesJsonMaxContractYears ?? 50;
   log(
     `[build-rates-json] series=${series.code} cohortRates=${cohortRates.length} ` +
-      `(${cohortMonths.length} cohorts × up to ${series.maturityYears * 4} quarters)`,
+      `(${cohortMonths.length} cohorts × up to ${capYears * 4} quarters)`,
   );
 
   return {
@@ -356,13 +373,13 @@ function buildSeriesPayload(
 type Logger = (message: string) => void;
 
 export async function buildArtifact(log: Logger): Promise<RatesArtifact> {
-  const euriborSourceMeta = await readEuriborMeta();
+  const { euriborSourceMeta, euribor12mSourceMeta, latestObservation } =
+    await readEuriborMetaBlocks();
   // Build via tuples + Object.fromEntries so the `code` property
   // (typed as `SeriesCode`) carries through to the resulting record
   // type without an `as` cast at the end.
   const seriesEntries = listSeries().map(
-    (meta) =>
-      [meta.code, buildSeriesPayload(meta, euriborSourceMeta.latestObservation, log)] as const,
+    (meta) => [meta.code, buildSeriesPayload(meta, latestObservation, log)] as const,
   );
   const series = Object.fromEntries(seriesEntries) as Record<SeriesCode, SeriesPayload>;
   return {
@@ -370,6 +387,7 @@ export async function buildArtifact(log: Logger): Promise<RatesArtifact> {
     generatedAt: nowIsoSeconds(),
     libraryVersion: VERSION,
     euriborSourceMeta,
+    euribor12mSourceMeta,
     series,
   };
 }

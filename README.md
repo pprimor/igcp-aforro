@@ -7,15 +7,15 @@
 [![Types: TypeScript](https://img.shields.io/badge/types-TypeScript-3178c6.svg?logo=typescript&logoColor=white)](./src/index.ts)
 [![Docs](https://img.shields.io/badge/docs-online-8a2be2.svg)](https://igcp-aforro.primor.me/)
 
-Deterministic, decimal-safe TypeScript library and CLI for simulating Portuguese **IGCP Aforro Séries C, D, E, and F** Treasury Certificates. Drop-in for JS/TS apps; ships with a CLI and a static `rates.json` artifact for non-JS consumers.
+Deterministic, decimal-safe TypeScript library and CLI for simulating Portuguese **IGCP Aforro Séries B, C, D, E, and F** Treasury Certificates. Drop-in for JS/TS apps; ships with a CLI and a static `rates.json` artifact for non-JS consumers.
 
 ---
 
 ## About
 
-[Certificados de Aforro](https://www.igcp.pt/) are Portuguese state-issued retail savings instruments. This library covers **Série C** (subscriptions from 26 Jan 2008 to 31 Jan 2015, 10-year maturity; base rate `0.85×E3 ± 0.25%` on the rounded Euribor mean, with a March 2009 formula flip — see [docs](docs/src/content/docs/serie-c-research.md)), **Série D** (subscriptions open from 1 Feb 2015 to 31 Oct 2017, 10-year maturity), **Série E** (subscriptions open from 1 Nov 2017 to 1 Jun 2023, 10-year maturity), and **Série F** (subscriptions open from 1 Jun 2023 onwards, 15-year maturity). Their remuneration is the sum of:
+[Certificados de Aforro](https://www.igcp.pt/) are Portuguese state-issued retail savings instruments. This library covers **Série B** (subscriptions from 1 Jul 1986 to 25 Jan 2008, no contractual maturity; base rate `0.60×TBA` from 20-day Euribor 3M and 12M moving averages — see [methodology](https://igcp-aforro.primor.me/methodology/)), **Série C** (subscriptions from 26 Jan 2008 to 31 Jan 2015, 10-year maturity; base rate `0.85×E3 ± 0.25%` on the rounded Euribor mean, with a March 2009 formula flip — see [docs](docs/src/content/docs/serie-c-research.md)), **Série D** (subscriptions open from 1 Feb 2015 to 31 Oct 2017, 10-year maturity), **Série E** (subscriptions open from 1 Nov 2017 to 1 Jun 2023, 10-year maturity), and **Série F** (subscriptions open from 1 Jun 2023 onwards, 15-year maturity). Their remuneration is the sum of:
 
-- a **monthly base rate** derived from the 10-business-day average of the Euribor 3M, struck on the antepenultimate TARGET2 business day of the previous month, then rounded to 3 decimals (banker's). Série F clamps the result to `[0%, 2.5%]`; Séries D and E add a `+1pp` spread to the rounded mean and clamp to `[0%, 3.5%]`; **Série C** scales the rounded mean by `0.85` and adds `−0.25` or `+0.25` percentage points depending on the calendar month (Portarias 73-A/2008 and 230-A/2009), then clamps at `0%` minimum;
+- a **monthly base rate**: for **Séries C, D, E, and F**, from the 10-business-day average of Euribor 3M struck on the antepenultimate TARGET2 business day of the previous month, then rounded to 3 decimals (banker's). Série F clamps the result to `[0%, 2.5%]`; Séries D and E add a `+1pp` spread to the rounded mean and clamp to `[0%, 3.5%]`; **Série C** scales the rounded mean by `0.85` and adds `−0.25` or `+0.25` percentage points depending on the calendar month (Portarias 73-A/2008 and 230-A/2009), then clamps at `0%` minimum. **Série B** uses TBA (DL 11/1999) from 20 TARGET2-day simple moving averages of 3M and 12M Euribor ending on that same fixing date, then `0.60×TBA` (Portaria 73-B/2008);
 - a **permanence-premium tier** that depends on how many contract years have elapsed since subscription (different tier tables per series);
 - with **quarterly capitalization** and **28% IRS withholding** applied at each capitalization.
 
@@ -25,14 +25,14 @@ This package reproduces that math end-to-end, with all monetary fields returned 
 
 ## Features
 
-- **Pure calculator** — no network, no state, no globals. The Euribor 3M dataset is bundled in the package.
+- **Pure calculator** — no network, no state, no globals. Euribor **3M** and **12M** datasets are bundled (12M is required for Série B TBA).
 - **Decimal-safe** — every money/rate field is a `big.js`-quantized decimal string, banker's-rounded at each cent.
 - **aforro.net parity** — booked values are derived from the same per-unit quote cadence aforro.net displays: quote rounded to 5 decimals each quarter, then `round(units × quote, 2)`.
 - **Validated inputs** — Zod-checked at the public boundary; the library throws on out-of-window subscriptions, invalid units, or impossible as-of dates.
 - **Cohort-aware rate lookup** — resolve the annual rate that applies to a given subscription on a given quarter, with the base + premium components surfaced for auditability.
 - **CLI included** — `aforro simulate | redeem | current | rates | cohort` with stable `--json` output for scripting.
-- **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate for Séries C, D, E, and F, precomputed and published with the docs site for Python / Java / Excel users.
-- **Golden-tested** — Série F monthly rates from IGCP press releases; Série C monthly rates locked to `computeBaseRate()` on the bundled Bundesbank Euribor series (aligned to the Diário da República formulas); Séries D and E validated against the technical sheet `E3+1%` behaviour.
+- **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate for Séries B, C, D, E, and F, precomputed and published with the docs site for Python / Java / Excel users.
+- **Golden-tested** — Série F monthly rates from IGCP press releases; Série B base rates cross-checked against IGCP-published tables; Série C monthly rates locked to `computeBaseRate()` on the bundled Bundesbank Euribor series (aligned to the Diário da República formulas); Séries D and E validated against the technical sheet `E3+1%` behaviour.
 - **TypeScript-first** — full `.d.ts` typings, ESM + CJS dual bundles, Node ≥ 20.
 
 ## Installation

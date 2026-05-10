@@ -56,6 +56,25 @@ describe('computeBaseRate vs IGCP-published monthly base rates', () => {
     }
   });
 
+  it('fixture covers every Série B month from 2024-01 onwards without gaps', () => {
+    const serieB = publishedRates
+      .filter((entry) => entry.series === 'B')
+      .map((entry) => entry.month)
+      .sort();
+    expect(serieB.length).toBeGreaterThan(0);
+    expect(serieB[0]).toBe('2024-01');
+
+    for (let i = 1; i < serieB.length; i++) {
+      const prev = parseYearMonth(serieB[i - 1] as string);
+      const curr = parseYearMonth(serieB[i] as string);
+      const expectedNext =
+        prev.month === 12
+          ? `${prev.year + 1}-01`
+          : `${prev.year}-${String(prev.month + 1).padStart(2, '0')}`;
+      expect(`${curr.year}-${String(curr.month).padStart(2, '0')}`).toBe(expectedNext);
+    }
+  });
+
   it('fixture covers every Série F month from 2023-06 onwards without gaps', () => {
     const serieF = publishedRates
       .filter((entry) => entry.series === 'F')

@@ -24,7 +24,7 @@ import { VERSION } from './index.js';
 const cli = cac('aforro');
 
 cli
-  .command('simulate', 'Simulate an IGCP Aforro cohort (Série C, D, E, or F) up to an as-of date')
+  .command('simulate', 'Simulate an IGCP Aforro cohort (Série B, C, D, E, or F) up to an as-of date')
   .option('--subscribed <date>', 'Subscription date (YYYY-MM-DD)')
   .option('--units <n>', 'Principal in EUR (integer inside the selected series range)')
   .option('--as-of <date>', 'As-of date (YYYY-MM-DD); defaults to today (UTC)')
@@ -36,7 +36,7 @@ cli
   .action(runSimulate);
 
 cli
-  .command('redeem', 'Compute the redemption value of a Série C/D/E/F holding on a given date')
+  .command('redeem', 'Compute the redemption value of a Série B/C/D/E/F holding on a given date')
   .option('--subscribed <date>', 'Subscription date (YYYY-MM-DD)')
   .option('--units <n>', 'Original principal in EUR')
   .option('--redeem-on <date>', 'Redemption date (YYYY-MM-DD)')
@@ -85,7 +85,7 @@ cli
 cli
   .command(
     'fetch-euribor',
-    'Refresh src/data/euribor3m.json from Bundesbank (developer checkout only)',
+    'Refresh src/data/euribor3m.json and euribor12m.json from Bundesbank (developer checkout only)',
   )
   .option(
     '--mode <mode>',
