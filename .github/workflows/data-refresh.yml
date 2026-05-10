@@ -190,7 +190,7 @@ jobs:
       - name: Create or update PR
         id: cpr
         if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: data-refresh/${{ steps.meta.outputs.month }}
@@ -287,25 +287,21 @@ jobs:
             }
 
             writeOutput('eligible', 'true');
-            writeOutput('mergeable', pr.mergeable ?? 'UNKNOWN');
-            writeOutput('merge_state_status', pr.mergeStateStatus ?? 'UNKNOWN');
             writeOutput('reason', 'eligible');
             console.log(`Auto-merge eligible: ${files.join(', ')}`);
           EOF
 
+      # Use --auto always: mergeStateStatus CLEAN only means no merge conflicts,
+      # not that required PR checks (e.g. ci.yml) have finished. Immediate merge
+      # fails with exit 1 while CI is still queued/running.
       - name: Merge eligible data-refresh PR
         if: ${{ steps.automerge.outputs.eligible == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
-          MERGE_STATE_STATUS: ${{ steps.automerge.outputs.merge_state_status }}
         run: |
           set -euo pipefail
-          if [ "${MERGE_STATE_STATUS}" = "CLEAN" ]; then
-            gh pr merge "${PR_NUMBER}" --squash --delete-branch
-          else
-            gh pr merge "${PR_NUMBER}" --squash --auto --delete-branch
-          fi
+          gh pr merge "${PR_NUMBER}" --squash --auto --delete-branch
 
       - name: Fail job if tests failed
         if: ${{ steps.diff.outputs.pr_eligible == 'true' && steps.tests.outcome == 'failure' }}
