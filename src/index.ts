@@ -37,7 +37,7 @@
  * Bumped by the release workflow; useful when you want to log which
  * library version produced a given simulation result.
  */
-export const VERSION = '2026.509.0';
+export const VERSION = '2026.510.0';
 
 export { simulate } from './core/calculator.js';
 export { simulatePortfolio } from './core/portfolio.js';
