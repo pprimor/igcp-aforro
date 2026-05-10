@@ -147,10 +147,7 @@ export function getRateForCohort(
   const quarterEndDate = shiftMonths(parsed.subscriptionDate, (quarterIndex + 1) * 3);
 
   const yearsSinceSubscription = floorYearsBetween(parsed.subscriptionDate, quarterStartDate);
-  if (
-    series.maturityYears !== null &&
-    yearsSinceSubscription >= series.maturityYears
-  ) {
+  if (series.maturityYears !== null && yearsSinceSubscription >= series.maturityYears) {
     throw new Error(
       `Cohort subscribed on ${parsed.subscriptionDate} has matured by ${quarterStartDate} ` +
         `(${series.name} maturity is ${series.maturityYears} years)`,

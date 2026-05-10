@@ -317,7 +317,14 @@ export interface FetchEuriborRunResult {
   readonly csvText12m: string;
 }
 
-async function fetchMergeOneSeries(args: CliArgs, log: Logger, fetchImpl: typeof fetch, label: string, url: string, dataFile: string): Promise<{ result: SingleSeriesRun; csvText: string }> {
+async function fetchMergeOneSeries(
+  args: CliArgs,
+  log: Logger,
+  fetchImpl: typeof fetch,
+  label: string,
+  url: string,
+  dataFile: string,
+): Promise<{ result: SingleSeriesRun; csvText: string }> {
   log(`[fetch-euribor] ${label} url=${url}`);
   const response = await fetchImpl(url);
   if (!response.ok) {
@@ -426,10 +433,7 @@ export async function writeFetchOutputs(
       META_SERIES_ID_12M,
     ),
   };
-  await writeFile(
-    META_FILE,
-    `${JSON.stringify({ ...metaRoot, ...payload }, null, 2)}\n`,
-  );
+  await writeFile(META_FILE, `${JSON.stringify({ ...metaRoot, ...payload }, null, 2)}\n`);
   log(`[fetch-euribor] wrote ${META_FILE}`);
 
   const month = currentUtcMonth();

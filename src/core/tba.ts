@@ -102,7 +102,13 @@ export function computeTba(year: number, month: number, options: TbaOptions): Tb
   const strict = options.strictWindowEnd ?? true;
 
   const l3 = movingAveragePct(options.observations3m, maEndDate, strict, 'EURIBOR 3M', targetMonth);
-  const l12 = movingAveragePct(options.observations12m, maEndDate, strict, 'EURIBOR 12M', targetMonth);
+  const l12 = movingAveragePct(
+    options.observations12m,
+    maEndDate,
+    strict,
+    'EURIBOR 12M',
+    targetMonth,
+  );
 
   const tbaRaw = toBig('0.52')
     .times(l3.avg)

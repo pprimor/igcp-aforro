@@ -582,7 +582,8 @@ function parseDelayFlag(raw: unknown): number {
 function parseSeriesFlag(raw: unknown): CompareSeries {
   if (raw === undefined) return 'all';
   const value = String(raw).toUpperCase();
-  if (value === 'B' || value === 'C' || value === 'D' || value === 'E' || value === 'F') return value;
+  if (value === 'B' || value === 'C' || value === 'D' || value === 'E' || value === 'F')
+    return value;
   if (value === 'ALL' || value === 'BOTH') return 'all';
   throw new Error(`--series must be one of B, C, D, E, F, all (got ${String(raw)})`);
 }
