@@ -129,13 +129,9 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
 
   const principal = toBig(parsed.units);
   const maturityDate =
-    series.maturityYears === null
-      ? null
-      : shiftMonths(subscriptionDate, series.maturityYears * 12);
+    series.maturityYears === null ? null : shiftMonths(subscriptionDate, series.maturityYears * 12);
   const maxQuarters =
-    series.maturityYears === null
-      ? MAX_PERPETUAL_QUARTERS
-      : series.maturityYears * 4;
+    series.maturityYears === null ? MAX_PERPETUAL_QUARTERS : series.maturityYears * 4;
 
   let unitQuote = new Big(1);
   let totalInterestGross = new Big(0);
