@@ -1,6 +1,7 @@
 import type { SeriesCode } from './types/domain.js';
 
-const VALID_SERIES = new Set<SeriesCode>(['B', 'C', 'D', 'E', 'F']);
+/** URL params are strings; use Set<string> so `has()` accepts parsed query values. */
+const VALID_SERIES = new Set<string>(['B', 'C', 'D', 'E', 'F']);
 
 export interface PlaygroundFormState {
   series: SeriesCode;
@@ -32,12 +33,12 @@ export function parsePlaygroundUrlState(
   params: URLSearchParams,
   defaults: PlaygroundFormState,
 ): PlaygroundFormState {
-  const series = params.get('series');
+  const rawSeries = params.get('series');
 
   return {
     series:
-      series && VALID_SERIES.has(series)
-        ? (series as PlaygroundFormState['series'])
+      rawSeries !== null && VALID_SERIES.has(rawSeries)
+        ? (rawSeries as SeriesCode)
         : defaults.series,
     subscriptionDate: params.get('subscribed') ?? defaults.subscriptionDate,
     units: params.get('units') ?? defaults.units,
