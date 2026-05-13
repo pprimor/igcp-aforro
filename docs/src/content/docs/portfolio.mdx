@@ -5,6 +5,6 @@ description: Simule um portefolio com varios grupos de subscricao, incluindo ref
 
 import PortfolioPlayground from '../../components/playground/PortfolioPlayground.tsx';
 
-Cada reforco deve ser modelado como um grupo independente com `series`, `subscriptionDate` e `units` proprios. O simulador abaixo chama `simulatePortfolio()` com um `asOfDate` comum e agrega os resultados por serie e no total da carteira.
+Cada reforco deve ser modelado como um grupo independente com `series`, `subscriptionDate` e `units` proprios. O simulador abaixo chama `simulatePortfolio()` com um `asOfDate` comum e agrega os resultados por serie e no total da carteira. Pode partilhar um cenario pela URL da pagina (parametros `row=…`, mais `asOf` opcional e `schedule=1`).
 
 <PortfolioPlayground locale="pt-PT" client:load />
