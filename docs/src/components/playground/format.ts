@@ -97,7 +97,7 @@ export function daysBetween(fromIso: string, toIso: string): number | null {
  * "matures in …" badge, never claims more precision than the user expects.
  */
 export function formatDuration(days: number, locale: PlaygroundLocale): string {
-  if (!Number.isFinite(days) || days <= 0) return '0d';
+  if (!Number.isFinite(days) || days <= 0) return locale === 'pt-PT' ? '0 d' : '0d';
   const years = Math.floor(days / 365.25);
   const remAfterYears = days - years * 365.25;
   const months = Math.floor(remAfterYears / 30.4375);
