@@ -30,7 +30,7 @@ This package reproduces that math end-to-end, with all monetary fields returned 
 - **aforro.net parity** — booked values are derived from the same per-unit quote cadence aforro.net displays: quote rounded to 5 decimals each quarter, then `round(units × quote, 2)`.
 - **Validated inputs** — Zod-checked at the public boundary; the library throws on out-of-window subscriptions, invalid units, or impossible as-of dates.
 - **Cohort-aware rate lookup** — resolve the annual rate that applies to a given subscription on a given quarter, with the base + premium components surfaced for auditability.
-- **CLI included** — `aforro simulate | redeem | current | rates | cohort` with stable `--json` output for scripting.
+- **CLI included** — `aforro simulate | redeem | portfolio | current | rates | cohort` with stable `--json` output for scripting.
 - **Static `rates.json`** — every monthly base rate and every cohort × quarter annual rate for Séries B, C, D, E, and F, precomputed and published with the docs site for Python / Java / Excel users.
 - **Golden-tested** — Série F monthly rates from IGCP press releases; Série B base rates cross-checked against IGCP-published tables; Série C monthly rates locked to `computeBaseRate()` on the bundled Bundesbank Euribor series (aligned to the Diário da República formulas); Séries D and E validated against the technical sheet `E3+1%` behaviour.
 - **TypeScript-first** — full `.d.ts` typings, ESM + CJS dual bundles, Node ≥ 20.
@@ -104,15 +104,20 @@ All money and rate fields come back as **decimal strings** (e.g. `"1078.42"`, `"
 ```bash
 aforro simulate --subscribed 2024-03-15 --units 1000 --schedule
 aforro redeem --subscribed 2024-03-15 --units 1000 --redeem-on 2026-04-19
+aforro portfolio --input ./portfolio.json --json
+aforro portfolio --cohort F,2024-03-15,1000 --cohort E,2018-01-15,2500 --as-of 2026-04-19 --json
 aforro current
 aforro rates --from 2023-06 --to 2026-04
 aforro cohort --subscribed 2024-03 --as-of 2026-04
 ```
 
+For `portfolio`, read JSON from a file with `--input ./file.json`, or from stdin with **`--input=-`** (the `=` is required; bare `--input -` is not parsed as a path).
+
 Every command accepts `--json` for machine-readable output:
 
 ```bash
 aforro simulate --subscribed 2024-03-15 --units 1000 --json | jq .currentValueNet
+aforro portfolio --input=- --json < portfolio.json | jq .totalValueNet
 ```
 
 ## Usage examples

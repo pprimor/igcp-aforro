@@ -42,7 +42,7 @@ pnpm install
 
 - [`src/core`](./src/core) contains the calculator, date math, rate lookup,
   series metadata, and decimal helpers.
-- [`src/cli`](./src/cli) contains the `aforro` CLI commands and output helpers.
+- [`src/cli`](./src/cli) contains the `aforro` CLI commands (`simulate`, `redeem`, `portfolio`, `current`, `rates`, `cohort`, …) and output helpers.
 - [`src/data`](./src/data) contains the bundled Euribor observations and refresh
   metadata.
 - [`scripts`](./scripts) contains data-fetching and artifact-generation commands.

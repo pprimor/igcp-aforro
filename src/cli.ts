@@ -2,6 +2,7 @@ import { cac } from 'cac';
 import { runCohort } from './cli/commands/cohort.js';
 import { runCurrent } from './cli/commands/current.js';
 import { runFetchEuribor } from './cli/commands/fetchEuribor.js';
+import { runPortfolio } from './cli/commands/portfolio.js';
 import { runRates } from './cli/commands/rates.js';
 import { runRedeem } from './cli/commands/redeem.js';
 import { runSimulate } from './cli/commands/simulate.js';
@@ -11,8 +12,10 @@ import { VERSION } from './index.js';
  * `aforro` CLI entry point.
  *
  * Each command lives in `./cli/commands/*` and receives a typed options
- * bag from `cac` (kebab-case flags become camelCase keys). The
- * cross-cutting flag `--json` is accepted on every command and toggles
+ * bag from `cac` (kebab-case flags become camelCase keys). Commands include
+ * `simulate`, `redeem`, `current`, `rates`, `cohort`, `portfolio`, and
+ * `fetch-euribor`. The cross-cutting flag `--json` is accepted on every command
+ * and toggles
  * between machine-readable JSON output and a human-friendly pretty
  * layout (key-value pairs for single records, aligned tables for lists).
  *
@@ -37,6 +40,32 @@ cli
   .option('--json', 'Emit JSON instead of a pretty table')
   .example('aforro simulate --subscribed 2024-03-15 --units 1000 --schedule')
   .action(runSimulate);
+
+cli
+  .command(
+    'portfolio',
+    'Simulate multiple cohorts on a shared as-of date (optional per-cohort IRS); aggregate by series',
+  )
+  .option(
+    '--input <path>',
+    'Read portfolio JSON from a file; use --input=- for stdin (bare - is not accepted by the parser)',
+  )
+  .option(
+    '--cohort <spec>',
+    'Shorthand cohort: series,YYYY-MM-DD,units[,irs] (repeat for each row; irs is a fraction, e.g. 0.28)',
+  )
+  .option(
+    '--as-of <date>',
+    'As-of date (YYYY-MM-DD); overrides JSON or sets the portfolio date for --cohort',
+  )
+  .option('--schedule', 'Include the per-quarter capitalization schedule for every cohort')
+  .option('--json', 'Emit JSON instead of a pretty layout')
+  .example('aforro portfolio --input ./portfolio.json --json')
+  .example('aforro portfolio --input=- --json < portfolio.json')
+  .example(
+    'aforro portfolio --cohort F,2024-03-15,1000 --cohort E,2018-01-15,2500 --as-of 2026-04-19 --json',
+  )
+  .action(runPortfolio);
 
 cli
   .command('redeem', 'Compute the redemption value of a Série B/C/D/E/F holding on a given date')
