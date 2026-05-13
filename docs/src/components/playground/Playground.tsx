@@ -21,7 +21,7 @@ import {
   formatRatePct,
   projectNet,
   todayIsoUtc,
-} from './format';
+} from '../../../../src/playground/format';
 
 const DEBOUNCE_MS = 50;
 const COPY_STATUS_MS = 1500;
@@ -487,6 +487,7 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
   const maturityRemaining = useMemo(() => {
     if (!result) return null;
     if (result.matured) return { matured: true as const };
+    if (result.maturityDate === null) return null;
     const days = daysBetween(result.asOfDate, result.maturityDate);
     if (days === null || days <= 0) return null;
     return { matured: false as const, label: formatDuration(days, locale) };

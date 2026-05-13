@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration } from '../docs/src/components/playground/format';
+import { formatDuration } from '../src/playground/format.js';
 
 describe('formatDuration (playground)', () => {
   it('uses locale-specific zero', () => {
