@@ -708,8 +708,8 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
               </p>
               <p>
                 {copy.projectedNet} ({copy.afterIrs} {formatRateFraction(result.irsRate, locale)}
-                {copy.projectedNetAfterRate}{' '}
-                <strong>{formatEur(accruedNet, locale)}</strong> <code>{accruedNet}</code>
+                {copy.projectedNetAfterRate} <strong>{formatEur(accruedNet, locale)}</strong>{' '}
+                <code>{accruedNet}</code>
               </p>
               <p class="aforro-pg-note">
                 {copy.accruedNote} <code>accruedSinceLastCapitalization</code>{' '}
