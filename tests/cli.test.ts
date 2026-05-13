@@ -98,8 +98,8 @@ describe('aforro CLI — global contracts', () => {
       ['--subscribed', '--units', '--as-of', '--schedule', '--irs', '--series', '--json'],
     ],
     ['current', ['--series', '--as-of', '--subscribed', '--json']],
-    ['rates', ['--series', '--from', '--to', '--json']],
-    ['cohort', ['--subscribed', '--as-of', '--series', '--json']],
+    ['rates', ['--series', '--from', '--to', '--json', '--csv']],
+    ['cohort', ['--subscribed', '--as-of', '--series', '--json', '--csv']],
     [
       'redeem',
       [
@@ -128,6 +128,49 @@ describe('aforro CLI — global contracts', () => {
 
     const parsed = parseJson<JsonObject>(result);
     expect(parsed).toHaveProperty('series', 'F');
+  });
+
+  it('rates --csv prints RFC-style header and data rows for a fixed range', async () => {
+    const result = await runCli(['rates', '--from', '2025-04', '--to', '2025-07', '--csv']);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines[0]?.split(',')).toEqual(['series', 'month', 'fixingDate', 'basePct']);
+    expect(lines.slice(1)).toHaveLength(4);
+    expect(lines[1]).toMatch(/^F,2025-04,2025-03-27,/);
+  });
+
+  it('cohort --csv prints flattened premium tier columns on one data line', async () => {
+    const result = await runCli([
+      'cohort',
+      '--subscribed',
+      '2024-03-15',
+      '--as-of',
+      '2026-03-19',
+      '--csv',
+    ]);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines).toHaveLength(2);
+    const headers = lines[0]?.split(',') ?? [];
+    expect(headers).toContain('premiumTierFromYear');
+    expect(headers).toContain('premiumTierToYear');
+    expect(headers).toContain('premiumTierRatePct');
+    const cells = lines[1]?.split(',') ?? [];
+    expect(cells[headers.indexOf('premiumTierFromYear')]).toBe('2');
+    expect(cells[headers.indexOf('premiumTierToYear')]).toBe('5');
+    expect(cells[headers.indexOf('premiumTierRatePct')]).toBe('0.25');
+  });
+
+  it.each([
+    ['rates', ['rates', '--from', '2025-04', '--to', '2025-07', '--json', '--csv']],
+    ['cohort', ['cohort', '--subscribed', '2024-03', '--as-of', '2026-04', '--json', '--csv']],
+  ] as const)('%s rejects --json together with --csv', async (_label, args) => {
+    const result = await runCli([...args]);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('Cannot combine --json and --csv');
   });
 
   it('command-handler failures set a non-zero exit code and keep stdout empty', async () => {

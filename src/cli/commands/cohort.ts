@@ -1,6 +1,6 @@
 import { getRateForCohort } from '../../core/rates.js';
 import type { CohortRateInput, SeriesCode } from '../../types/domain.js';
-import { printJson, printPrettyKeyValue, runCommand } from '../output.js';
+import { printCsv, printJson, printPrettyKeyValue, runCommand } from '../output.js';
 
 /** Options accepted by the `cohort` CLI command. */
 export interface CohortCliOptions {
@@ -8,6 +8,7 @@ export interface CohortCliOptions {
   readonly asOf?: string;
   readonly series?: SeriesCode;
   readonly json?: boolean;
+  readonly csv?: boolean;
 }
 
 /**
@@ -40,6 +41,9 @@ export function runCohort(options: CohortCliOptions): Promise<void> {
     if (!options.subscribed) {
       throw new Error('--subscribed is required (YYYY-MM or YYYY-MM-DD)');
     }
+    if (options.json && options.csv) {
+      throw new Error('Cannot combine --json and --csv');
+    }
     const input: CohortRateInput = {
       series: options.series ?? 'F',
       subscriptionDate: toIsoDate(options.subscribed, '--subscribed'),
@@ -53,6 +57,40 @@ export function runCohort(options: CohortCliOptions): Promise<void> {
     }
 
     const tier = result.premiumTier;
+    if (options.csv) {
+      const headers = [
+        'series',
+        'subscriptionDate',
+        'asOfDate',
+        'quarterStartDate',
+        'quarterEndDate',
+        'quarterIndex',
+        'yearsSinceSubscription',
+        'baseRatePct',
+        'annualRatePct',
+        'premiumTierFromYear',
+        'premiumTierToYear',
+        'premiumTierRatePct',
+      ];
+      printCsv(headers, [
+        [
+          result.series,
+          result.subscriptionDate,
+          result.asOfDate,
+          result.quarterStartDate,
+          result.quarterEndDate,
+          String(result.quarterIndex),
+          String(result.yearsSinceSubscription),
+          result.baseRatePct,
+          result.annualRatePct,
+          String(tier.fromYear),
+          String(tier.toYear),
+          tier.ratePct,
+        ],
+      ]);
+      return;
+    }
+
     printPrettyKeyValue([
       { key: 'series', value: result.series },
       { key: 'subscriptionDate', value: result.subscriptionDate },
