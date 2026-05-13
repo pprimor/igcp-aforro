@@ -11,7 +11,7 @@ import {
   type PlaygroundFormState,
   parsePlaygroundUrlState,
   serializePlaygroundUrlState,
-} from '../../../../src/playgroundUrlState';
+} from '@igcp/playground-url-state';
 import {
   type PlaygroundLocale,
   daysBetween,
@@ -21,7 +21,7 @@ import {
   formatRatePct,
   projectNet,
   todayIsoUtc,
-} from '../../../../src/playground/format';
+} from '@igcp/playground-format';
 
 const DEBOUNCE_MS = 50;
 const COPY_STATUS_MS = 1500;

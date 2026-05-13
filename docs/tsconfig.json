@@ -4,7 +4,9 @@
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
     "paths": {
-      "igcp-aforro": ["../src/index.ts"]
+      "igcp-aforro": ["../src/index.ts"],
+      "@igcp/playground-format": ["../src/playground/format.ts"],
+      "@igcp/playground-url-state": ["../src/playgroundUrlState.ts"]
     }
   },
   "include": [".astro/types.d.ts", "**/*"],

@@ -8,6 +8,12 @@ const [starlightTypeDoc, typeDocSidebarGroup] = createStarlightTypeDocPlugin();
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const aforroEntry = fileURLToPath(new URL('../src/index.ts', import.meta.url));
+const playgroundFormatEntry = fileURLToPath(
+  new URL('../src/playground/format.ts', import.meta.url),
+);
+const playgroundUrlStateEntry = fileURLToPath(
+  new URL('../src/playgroundUrlState.ts', import.meta.url),
+);
 const apiSidebarGroup = {
   ...typeDocSidebarGroup,
   label: 'Referência da API',
@@ -31,6 +37,8 @@ export default defineConfig({
     resolve: {
       alias: {
         'igcp-aforro': aforroEntry,
+        '@igcp/playground-format': playgroundFormatEntry,
+        '@igcp/playground-url-state': playgroundUrlStateEntry,
       },
     },
   },
