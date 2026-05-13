@@ -2,12 +2,7 @@ import type { ZodError } from 'zod';
 import { type SimulateOptions, simulate } from './core/calculator.js';
 import { simulatePortfolio } from './core/portfolio.js';
 import { simulateRedemption } from './core/redemption.js';
-import {
-  type RatesOptions,
-  getCurrentRate,
-  getRateForCohort,
-  getRateTable,
-} from './core/rates.js';
+import { type RatesOptions, getCurrentRate, getRateForCohort, getRateTable } from './core/rates.js';
 import type {
   CohortRateResult,
   MonthlyBaseRate,

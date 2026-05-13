@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 import { simulate } from '../src/core/calculator.js';
-import {
-  safeGetRateTable,
-  safeSimulate,
-} from '../src/safe.js';
+import { safeGetRateTable, safeSimulate } from '../src/safe.js';
 
 describe('safeSimulate', () => {
   it('returns validation failure for invalid units (below series minimum)', () => {

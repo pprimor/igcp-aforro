@@ -47,10 +47,7 @@ export function escapeCsvField(value: string): string {
  * each cell passed through {@link escapeCsvField}. Empty `rows` emits the
  * header and a trailing newline only.
  */
-export function printCsv(
-  headers: readonly string[],
-  rows: readonly (readonly string[])[],
-): void {
+export function printCsv(headers: readonly string[], rows: readonly (readonly string[])[]): void {
   const line = (cells: readonly string[]): string => cells.map(escapeCsvField).join(',');
   process.stdout.write(`${line(headers)}\n`);
   for (const row of rows) {
