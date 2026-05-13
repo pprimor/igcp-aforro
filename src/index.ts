@@ -11,6 +11,12 @@
  * - {@link getCurrentRate} / {@link getRateForCohort} / {@link getRateTable}
  *   — rate lookups that mirror the IGCP-published methodology.
  *
+ * For a single discriminated result instead of `try`/`catch`, use the
+ * non-throwing {@link safeSimulate}, {@link safeSimulatePortfolio},
+ * {@link safeSimulateRedemption}, {@link safeGetCurrentRate},
+ * {@link safeGetRateForCohort}, and {@link safeGetRateTable} entry points
+ * ({@link SafeResult}).
+ *
  * Money and rate values returned by this library are decimal strings (not
  * JS `number`s) so callers can JSON-serialize them without precision loss;
  * see the per-type docs for the exact format.
@@ -42,6 +48,15 @@ export const VERSION = '2026.510.0';
 export { simulate } from './core/calculator.js';
 export { simulatePortfolio } from './core/portfolio.js';
 export { simulateRedemption } from './core/redemption.js';
+export {
+  safeGetCurrentRate,
+  safeGetRateForCohort,
+  safeGetRateTable,
+  safeSimulate,
+  safeSimulatePortfolio,
+  safeSimulateRedemption,
+} from './safe.js';
+export type { SafeFailure, SafeResult, SafeSuccess } from './safe.js';
 export {
   annualRatesByPremiumTier,
   getCurrentRate,

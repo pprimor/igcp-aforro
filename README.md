@@ -99,6 +99,8 @@ console.log(portfolio.bySeries);
 
 All money and rate fields come back as **decimal strings** (e.g. `"1078.42"`, `"0.02750"`). Feed them into `Big` (or your own decimal library) on the consumer side; never coerce them with `Number()` if you care about precision.
 
+The throwing APIs (`simulate`, `simulatePortfolio`, `simulateRedemption`, `getCurrentRate`, `getRateForCohort`, `getRateTable`) use Zod `.parse()` and propagate domain errors as exceptions. If you prefer a **single discriminated result** (for example to map validation to HTTP 400 without a `ZodError` catch block), use the `safe*` variants — `safeSimulate`, `safeSimulatePortfolio`, `safeSimulateRedemption`, `safeGetCurrentRate`, `safeGetRateForCohort`, `safeGetRateTable` — which return `{ ok: true, value }` or `{ ok: false, kind: 'validation' | 'runtime', ... }` (`SafeResult`).
+
 ### CLI
 
 ```bash
