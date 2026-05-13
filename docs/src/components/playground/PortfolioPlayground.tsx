@@ -6,7 +6,7 @@ import {
   parsePortfolioPlaygroundUrlState,
   serializePortfolioPlaygroundUrlState,
 } from '../../../../src/portfolioPlaygroundUrlState';
-import { type PlaygroundLocale, formatEur, todayIsoUtc } from '../../../../src/playground/format';
+import { type PlaygroundLocale, formatEur, todayIsoUtc } from '@igcp/playground-format';
 
 const COPY_STATUS_MS = 1500;
 
