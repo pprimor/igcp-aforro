@@ -1,6 +1,16 @@
-import { type SeriesCode, listSeries, simulatePortfolio } from 'igcp-aforro';
-import { useId, useMemo, useState } from 'preact/hooks';
+import { type PortfolioResult, type SeriesCode, listSeries, simulatePortfolio } from 'igcp-aforro';
+import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
+import {
+  type PortfolioPlaygroundUrlState,
+  hasPortfolioPlaygroundQuery,
+  parsePortfolioPlaygroundUrlState,
+  serializePortfolioPlaygroundUrlState,
+} from '../../../../src/portfolioPlaygroundUrlState';
 import { type PlaygroundLocale, formatEur, todayIsoUtc } from './format';
+
+const COPY_STATUS_MS = 1500;
+
+type PortfolioSimResult = { data: PortfolioResult } | { error: string };
 
 interface PortfolioRow {
   id: number;
@@ -28,6 +38,10 @@ interface PortfolioCopy {
   accruedGross: string;
   cohortCount: string;
   totalUnits: string;
+  reset: string;
+  copyShareLink: string;
+  shareLinkCopied: string;
+  shareLinkCopyFailed: string;
 }
 
 const COPY: Record<PlaygroundLocale, PortfolioCopy> = {
@@ -50,6 +64,10 @@ const COPY: Record<PlaygroundLocale, PortfolioCopy> = {
     accruedGross: 'Accrued gross',
     cohortCount: 'Cohorts',
     totalUnits: 'Total units',
+    reset: 'Reset to defaults',
+    copyShareLink: 'Copy share link',
+    shareLinkCopied: 'Share link copied!',
+    shareLinkCopyFailed: 'Could not copy share link.',
   },
   'pt-PT': {
     heading: 'Simulador de portefólio',
@@ -70,10 +88,64 @@ const COPY: Record<PlaygroundLocale, PortfolioCopy> = {
     accruedGross: 'Acumulado bruto',
     cohortCount: 'Grupos',
     totalUnits: 'Unidades totais',
+    reset: 'Repor valores',
+    copyShareLink: 'Copiar ligação',
+    shareLinkCopied: 'Ligação copiada!',
+    shareLinkCopyFailed: 'Não foi possível copiar a ligação.',
   },
 };
 
 const SERIES = listSeries().map((row) => row.code);
+
+function getDefaultPortfolioUrlState(): PortfolioPlaygroundUrlState {
+  return {
+    rows: [
+      { series: 'F', subscriptionDate: '2024-03-15', units: '1000', irsRate: '' },
+      { series: 'E', subscriptionDate: '2018-01-15', units: '1000', irsRate: '' },
+      { series: 'D', subscriptionDate: '2017-10-01', units: '1000', irsRate: '' },
+    ],
+    asOfDate: todayIsoUtc(),
+    includeSchedule: false,
+  };
+}
+
+function mapUrlStateToRows(state: PortfolioPlaygroundUrlState): PortfolioRow[] {
+  return state.rows.map((row, index) => ({
+    id: index + 1,
+    series: row.series,
+    subscriptionDate: row.subscriptionDate,
+    units: row.units,
+  }));
+}
+
+function rowsToUrlState(
+  rows: PortfolioRow[],
+  asOfDate: string,
+  includeSchedule: boolean,
+): PortfolioPlaygroundUrlState {
+  return {
+    rows: rows.map((row) => ({
+      series: row.series,
+      subscriptionDate: row.subscriptionDate,
+      units: row.units,
+      irsRate: '',
+    })),
+    asOfDate,
+    includeSchedule,
+  };
+}
+
+function replaceCurrentUrl(search: URLSearchParams | null): void {
+  const url = new URL(window.location.href);
+  url.search = search ? search.toString() : '';
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+function buildPortfolioShareUrl(state: PortfolioPlaygroundUrlState): string {
+  const url = new URL(window.location.href);
+  url.search = serializePortfolioPlaygroundUrlState(state).toString();
+  return url.toString();
+}
 
 function nextRow(id: number): PortfolioRow {
   return {
@@ -88,16 +160,69 @@ export default function PortfolioPlayground({ locale = 'en' }: { locale?: Playgr
   const copy = COPY[locale];
   const [asOfDate, setAsOfDate] = useState(todayIsoUtc());
   const [includeSchedule, setIncludeSchedule] = useState(false);
-  const [rows, setRows] = useState<PortfolioRow[]>([
-    nextRow(1),
-    { id: 2, series: 'E', subscriptionDate: '2018-01-15', units: '1000' },
-    { id: 3, series: 'D', subscriptionDate: '2017-10-01', units: '1000' },
-  ]);
-  const [nextId, setNextId] = useState(4);
+  const [rows, setRows] = useState<PortfolioRow[]>(() =>
+    mapUrlStateToRows(getDefaultPortfolioUrlState()),
+  );
+  const [nextId, setNextId] = useState(() => getDefaultPortfolioUrlState().rows.length + 1);
   const [showCohorts, setShowCohorts] = useState(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const [urlSyncEnabled, setUrlSyncEnabled] = useState(false);
+  const [shareCopyStatus, setShareCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const shareCopyTimeoutRef = useRef<number | null>(null);
   const id = useId();
 
-  const result = useMemo(() => {
+  useEffect(() => {
+    const defaults = getDefaultPortfolioUrlState();
+    const params = new URLSearchParams(window.location.search);
+    const nextState = hasPortfolioPlaygroundQuery(params)
+      ? parsePortfolioPlaygroundUrlState(params, defaults)
+      : defaults;
+
+    setRows(mapUrlStateToRows(nextState));
+    setNextId(nextState.rows.length + 1);
+    setAsOfDate(nextState.asOfDate);
+    setIncludeSchedule(nextState.includeSchedule);
+    setUrlSyncEnabled(hasPortfolioPlaygroundQuery(params));
+    setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated || !urlSyncEnabled) return;
+    replaceCurrentUrl(
+      serializePortfolioPlaygroundUrlState(rowsToUrlState(rows, asOfDate, includeSchedule)),
+    );
+  }, [rows, asOfDate, includeSchedule, hasHydrated, urlSyncEnabled]);
+
+  const reset = () => {
+    const defaults = getDefaultPortfolioUrlState();
+    setUrlSyncEnabled(false);
+    setShareCopyStatus('idle');
+    replaceCurrentUrl(null);
+    setRows(mapUrlStateToRows(defaults));
+    setNextId(defaults.rows.length + 1);
+    setAsOfDate(defaults.asOfDate);
+    setIncludeSchedule(false);
+  };
+
+  const handleShareCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        buildPortfolioShareUrl(rowsToUrlState(rows, asOfDate, includeSchedule)),
+      );
+      setShareCopyStatus('copied');
+    } catch {
+      setShareCopyStatus('failed');
+    }
+    if (shareCopyTimeoutRef.current !== null) {
+      window.clearTimeout(shareCopyTimeoutRef.current);
+    }
+    shareCopyTimeoutRef.current = window.setTimeout(
+      () => setShareCopyStatus('idle'),
+      COPY_STATUS_MS,
+    );
+  };
+
+  const result = useMemo((): PortfolioSimResult => {
     try {
       return {
         data: simulatePortfolio({
@@ -116,6 +241,7 @@ export default function PortfolioPlayground({ locale = 'en' }: { locale?: Playgr
   }, [rows, asOfDate, includeSchedule]);
 
   const updateRow = (targetId: number, patch: Partial<PortfolioRow>) => {
+    setUrlSyncEnabled(true);
     setRows((prev) => prev.map((row) => (row.id === targetId ? { ...row, ...patch } : row)));
   };
 
@@ -131,17 +257,38 @@ export default function PortfolioPlayground({ locale = 'en' }: { locale?: Playgr
             id={`${id}-asof`}
             type="date"
             value={asOfDate}
-            onInput={(e) => setAsOfDate((e.target as HTMLInputElement).value)}
+            onInput={(e) => {
+              setUrlSyncEnabled(true);
+              setAsOfDate((e.target as HTMLInputElement).value);
+            }}
           />
         </label>
         <label class="aforro-portfolio-checkbox">
           <input
             type="checkbox"
             checked={includeSchedule}
-            onChange={(e) => setIncludeSchedule((e.target as HTMLInputElement).checked)}
+            onChange={(e) => {
+              setUrlSyncEnabled(true);
+              setIncludeSchedule((e.target as HTMLInputElement).checked);
+            }}
           />
           {copy.includeSchedule}
         </label>
+        <div class="aforro-portfolio-form-actions">
+          <button type="button" class="aforro-pg-link-btn" onClick={reset}>
+            {copy.reset}
+          </button>
+          <button type="button" class="aforro-pg-link-btn" onClick={handleShareCopy}>
+            {copy.copyShareLink}
+          </button>
+        </div>
+        <output class="aforro-pg-copy-status" aria-live="polite">
+          {shareCopyStatus === 'copied'
+            ? copy.shareLinkCopied
+            : shareCopyStatus === 'failed'
+              ? copy.shareLinkCopyFailed
+              : ''}
+        </output>
       </div>
 
       <table class="aforro-portfolio-table">
@@ -195,7 +342,10 @@ export default function PortfolioPlayground({ locale = 'en' }: { locale?: Playgr
                 <button
                   type="button"
                   disabled={rows.length <= 1}
-                  onClick={() => setRows((prev) => prev.filter((item) => item.id !== row.id))}
+                  onClick={() => {
+                    setUrlSyncEnabled(true);
+                    setRows((prev) => prev.filter((item) => item.id !== row.id));
+                  }}
                 >
                   {copy.removeRow}
                 </button>
@@ -208,6 +358,7 @@ export default function PortfolioPlayground({ locale = 'en' }: { locale?: Playgr
       <button
         type="button"
         onClick={() => {
+          setUrlSyncEnabled(true);
           setRows((prev) => [...prev, nextRow(nextId)]);
           setNextId((prev) => prev + 1);
         }}
@@ -306,9 +457,40 @@ export default function PortfolioPlayground({ locale = 'en' }: { locale?: Playgr
 
 const STYLES = `
 .aforro-portfolio-pg { display: flex; flex-direction: column; gap: 1rem; }
-.aforro-portfolio-controls { display: flex; flex-wrap: wrap; gap: 1rem; }
+.aforro-portfolio-controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
 .aforro-portfolio-controls label { display: flex; flex-direction: column; gap: 0.3rem; }
 .aforro-portfolio-checkbox { justify-content: flex-end; }
+.aforro-portfolio-form-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+}
+.aforro-pg-link-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--sl-color-accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.aforro-pg-link-btn:hover { text-decoration-thickness: 2px; }
+.aforro-pg-link-btn:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.aforro-pg-copy-status {
+  flex-basis: 100%;
+  min-height: 1rem;
+  color: var(--sl-color-text);
+  font-size: 0.78rem;
+  opacity: 0.72;
+}
 .aforro-portfolio-table { width: 100%; border-collapse: collapse; }
 .aforro-portfolio-table th, .aforro-portfolio-table td {
   border: 1px solid var(--sl-color-hairline, var(--sl-color-gray-5));
