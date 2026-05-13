@@ -2,7 +2,9 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
 import { describe, expect, it } from 'vitest';
+import { simulatePortfolio } from '../src/core/portfolio.js';
 import { VERSION } from '../src/index.js';
+import type { SimulatePortfolioInput } from '../src/types/domain.js';
 
 /**
  * End-to-end CLI contract tests.
@@ -32,10 +34,14 @@ interface CliResult {
 
 type JsonObject = Record<string, unknown>;
 
-async function runCli(args: readonly string[]): Promise<CliResult> {
+async function runCli(
+  args: readonly string[],
+  execaOptions?: { input?: string },
+): Promise<CliResult> {
   const result = await execa(TSX_BIN, [CLI_ENTRY, ...args], {
     cwd: REPO_ROOT,
     reject: false,
+    ...execaOptions,
   });
   return {
     stdout: result.stdout,
@@ -81,6 +87,7 @@ describe('aforro CLI — global contracts', () => {
     expect(result.stdout).toContain('current');
     expect(result.stdout).toContain('rates');
     expect(result.stdout).toContain('cohort');
+    expect(result.stdout).toContain('portfolio');
     expect(result.stdout).toContain('redeem');
     expect(result.stdout).toContain('fetch-euribor');
   });
@@ -106,6 +113,7 @@ describe('aforro CLI — global contracts', () => {
         '--json',
       ],
     ],
+    ['portfolio', ['--input', '--cohort', '--as-of', '--schedule', '--json']],
   ] as const)('%s --help includes the command flags', async (command, flags) => {
     const result = await runCli([command, '--help']);
 
@@ -435,6 +443,67 @@ describe('aforro CLI — JSON contracts', () => {
     const irs = Number(parsed.totalIrsWithheld);
     const net = Number(parsed.totalInterestNet);
     expect(Math.abs(gross - irs - net)).toBeLessThan(0.005);
+  });
+});
+
+describe('aforro CLI — portfolio command', () => {
+  const portfolioFixture: SimulatePortfolioInput = {
+    asOfDate: '2026-04-19',
+    subscriptions: [
+      { series: 'F', subscriptionDate: '2024-03-15', units: 1000 },
+      { series: 'F', subscriptionDate: '2024-10-15', units: 500 },
+    ],
+  };
+
+  it('portfolio --json from stdin matches simulatePortfolio()', async () => {
+    const expected = simulatePortfolio(portfolioFixture);
+    const cli = await runCli(['portfolio', '--input=-', '--json'], {
+      input: JSON.stringify(portfolioFixture),
+    });
+    expect(JSON.stringify(parseJson(cli))).toBe(JSON.stringify(expected));
+  });
+
+  it('portfolio --cohort shorthand matches the same library output', async () => {
+    const expected = simulatePortfolio(portfolioFixture);
+    const cli = await runCli([
+      'portfolio',
+      '--as-of',
+      '2026-04-19',
+      '--cohort',
+      'F,2024-03-15,1000',
+      '--cohort',
+      'F,2024-10-15,500',
+      '--json',
+    ]);
+    expect(JSON.stringify(parseJson(cli))).toBe(JSON.stringify(expected));
+  });
+
+  it('rejects --input together with --cohort', async () => {
+    const result = await runCli(
+      ['portfolio', '--input=-', '--cohort', 'F,2024-03-15,1000', '--json'],
+      { input: JSON.stringify(portfolioFixture) },
+    );
+    expectFailure(result);
+    expect(result.stderr).toContain('cannot combine --input with --cohort');
+  });
+
+  it('requires --input or --cohort', async () => {
+    const result = await runCli(['portfolio', '--json']);
+    expectFailure(result);
+    expect(result.stderr).toContain('specify --input');
+  });
+
+  it('rejects invalid JSON from stdin', async () => {
+    const result = await runCli(['portfolio', '--input=-', '--json'], { input: '{' });
+    expectFailure(result);
+    expect(result.stderr).toMatch(/^error: invalid JSON/);
+  });
+
+  it('rejects a malformed --cohort spec', async () => {
+    const result = await runCli(['portfolio', '--cohort', 'F,2024-03-15', '--json']);
+    expectFailure(result);
+    expect(result.stderr).toMatch(/^error: /);
+    expect(result.stderr).toContain('--cohort entry');
   });
 });
 
