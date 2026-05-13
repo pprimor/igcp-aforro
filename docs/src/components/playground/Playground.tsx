@@ -66,6 +66,8 @@ interface PlaygroundCopy {
   grossAccrued: string;
   projectedNet: string;
   afterIrs: string;
+  /** Shown after the formatted IRS rate in the accrued projection line (e.g. " IRS):" / " de IRS):"). */
+  projectedNetAfterRate: string;
   accruedNote: string;
   accruedNoteSuffix: string;
   schedule: string;
@@ -79,10 +81,15 @@ interface PlaygroundCopy {
   balanceAfter: string;
   tier: string;
   tierYearPrefix: string;
+  tierRateOpen: string;
+  tierRateClose: string;
   highlightedRow: string;
   copySnippet: string;
   copyShareLink: string;
   snippetFormat: string;
+  snippetTabTs: string;
+  snippetTabCli: string;
+  snippetTabJson: string;
   copied: string;
   shareLinkCopied: string;
   shareLinkCopyFailed: string;
@@ -120,6 +127,7 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     grossAccrued: 'Gross accrued since the last capitalization:',
     projectedNet: 'Projected net',
     afterIrs: 'after',
+    projectedNetAfterRate: ' IRS):',
     accruedNote:
       'IRS is only withheld at capitalization, so this is a UI-side projection — see the',
     accruedNoteSuffix: 'field docs for details.',
@@ -134,10 +142,15 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     balanceAfter: 'Balance after',
     tier: 'Tier',
     tierYearPrefix: 'y',
+    tierRateOpen: '(+',
+    tierRateClose: ')',
     highlightedRow: 'Highlighted row is the most recent capitalization.',
     copySnippet: 'Copy snippet',
     copyShareLink: 'Copy share link',
     snippetFormat: 'Snippet format',
+    snippetTabTs: 'TypeScript',
+    snippetTabCli: 'CLI',
+    snippetTabJson: 'JSON',
     copied: 'Copied!',
     shareLinkCopied: 'Share link copied!',
     shareLinkCopyFailed: 'Could not copy share link.',
@@ -174,6 +187,7 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     grossAccrued: 'Juro bruto acumulado desde a última capitalização:',
     projectedNet: 'Líquido projetado',
     afterIrs: 'após',
+    projectedNetAfterRate: ' de IRS):',
     accruedNote:
       'O IRS só é retido na capitalização, por isso isto é uma projeção da interface — consulte a documentação do campo',
     accruedNoteSuffix: 'para mais detalhes.',
@@ -188,10 +202,15 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     balanceAfter: 'Saldo depois',
     tier: 'Escalão',
     tierYearPrefix: 'a',
+    tierRateOpen: '(+',
+    tierRateClose: ')',
     highlightedRow: 'A linha destacada é a capitalização mais recente.',
     copySnippet: 'Copiar exemplo',
     copyShareLink: 'Copiar ligação',
     snippetFormat: 'Formato do exemplo',
+    snippetTabTs: 'TypeScript',
+    snippetTabCli: 'CLI',
+    snippetTabJson: 'JSON',
     copied: 'Copiado!',
     shareLinkCopied: 'Ligação copiada!',
     shareLinkCopyFailed: 'Não foi possível copiar a ligação.',
@@ -688,8 +707,9 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
                 <code>{result.accruedSinceLastCapitalization}</code>
               </p>
               <p>
-                {copy.projectedNet} ({copy.afterIrs} {formatRateFraction(result.irsRate, locale)}{' '}
-                IRS): <strong>{formatEur(accruedNet, locale)}</strong> <code>{accruedNet}</code>
+                {copy.projectedNet} ({copy.afterIrs} {formatRateFraction(result.irsRate, locale)}
+                {copy.projectedNetAfterRate}{' '}
+                <strong>{formatEur(accruedNet, locale)}</strong> <code>{accruedNet}</code>
               </p>
               <p class="aforro-pg-note">
                 {copy.accruedNote} <code>accruedSinceLastCapitalization</code>{' '}
@@ -732,8 +752,9 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
                         <td>{formatEur(row.balanceAfter, locale)}</td>
                         <td>
                           {copy.tierYearPrefix}
-                          {row.premiumTier.fromYear}–{row.premiumTier.toYear} (+
-                          {formatRatePct(row.premiumTier.ratePct, locale)})
+                          {row.premiumTier.fromYear}–{row.premiumTier.toYear} {copy.tierRateOpen}
+                          {formatRatePct(row.premiumTier.ratePct, locale)}
+                          {copy.tierRateClose}
                         </td>
                       </tr>
                     ))}
@@ -758,7 +779,11 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
                       class={`aforro-pg-tab ${snippetMode === mode ? 'is-active' : ''}`}
                       onClick={() => setSnippetMode(mode)}
                     >
-                      {mode === 'ts' ? 'TypeScript' : mode === 'cli' ? 'CLI' : 'JSON'}
+                      {mode === 'ts'
+                        ? copy.snippetTabTs
+                        : mode === 'cli'
+                          ? copy.snippetTabCli
+                          : copy.snippetTabJson}
                     </button>
                   ))}
                 </div>
