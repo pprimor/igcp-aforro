@@ -15,9 +15,10 @@ import { VERSION } from './index.js';
  * bag from `cac` (kebab-case flags become camelCase keys). Commands include
  * `simulate`, `redeem`, `current`, `rates`, `cohort`, `portfolio`, and
  * `fetch-euribor`. The cross-cutting flag `--json` is accepted on every command
- * and toggles
- * between machine-readable JSON output and a human-friendly pretty
- * layout (key-value pairs for single records, aligned tables for lists).
+ * and toggles between machine-readable JSON output and a human-friendly pretty
+ * layout (key-value pairs for single records, aligned tables for lists). The
+ * `rates` and `cohort` commands also accept `--csv` (RFC 4180-style, not
+ * combinable with `--json`).
  *
  * The CLI never throws to the top level: each command body is wrapped by
  * `runCommand()` which renders errors via `printError()` and sets a
@@ -102,6 +103,7 @@ cli
   .option('--from <month>', 'Start month (YYYY-MM)')
   .option('--to <month>', 'End month (YYYY-MM)')
   .option('--json', 'Emit JSON instead of a pretty table')
+  .option('--csv', 'Emit CSV instead of a pretty table (not with --json)')
   .example('aforro rates --from 2023-06 --to 2026-04')
   .action(runRates);
 
@@ -111,6 +113,7 @@ cli
   .option('--as-of <date>', 'As-of date (YYYY-MM or YYYY-MM-DD); defaults to today (UTC)')
   .option('--series <code>', 'Series code', { default: 'F' })
   .option('--json', 'Emit JSON instead of a pretty table')
+  .option('--csv', 'Emit CSV instead of a pretty table (not with --json)')
   .example('aforro cohort --subscribed 2024-03 --as-of 2026-04')
   .action(runCohort);
 

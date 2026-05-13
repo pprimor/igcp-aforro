@@ -1,10 +1,12 @@
 /**
  * Shared formatting helpers used by every CLI command.
  *
- * Two output modes are supported on every command:
+ * Machine-readable and human layouts:
  *
- * - `--json` → `printJson()` writes a stable, single-line-friendly JSON
- *   representation suitable for piping into other tools.
+ * - `--json` → `printJson()` writes stable JSON (pretty-printed with 2-space
+ *   indentation).
+ * - `--csv` (on supported commands) → `printCsv()` writes RFC 4180-style CSV
+ *   with a header row; mutually exclusive with `--json`.
  * - default → `printPrettyTable()` / `printPrettyKeyValue()` produce a
  *   space-aligned text layout sized to the widest cell, similar to what
  *   `column -t` would emit but without depending on it.
@@ -27,6 +29,33 @@ export interface PrettyKeyValue {
  */
 export function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+/**
+ * Escapes a single CSV field per RFC 4180: fields containing `,`, `"`, or
+ * line breaks are wrapped in double quotes; internal `"` becomes `""`.
+ */
+export function escapeCsvField(value: string): string {
+  if (/[,"\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/**
+ * Writes a CSV document: header row then one row per record, comma-separated,
+ * each cell passed through {@link escapeCsvField}. Empty `rows` emits the
+ * header and a trailing newline only.
+ */
+export function printCsv(
+  headers: readonly string[],
+  rows: readonly (readonly string[])[],
+): void {
+  const line = (cells: readonly string[]): string => cells.map(escapeCsvField).join(',');
+  process.stdout.write(`${line(headers)}\n`);
+  for (const row of rows) {
+    process.stdout.write(`${line(row)}\n`);
+  }
 }
 
 /**

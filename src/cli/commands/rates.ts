@@ -1,6 +1,6 @@
 import { getRateTable } from '../../core/rates.js';
 import type { RateTableInput, SeriesCode } from '../../types/domain.js';
-import { printJson, printPrettyTable, runCommand } from '../output.js';
+import { printCsv, printJson, printPrettyTable, runCommand } from '../output.js';
 
 /** Options accepted by the `rates` CLI command. */
 export interface RatesCliOptions {
@@ -8,6 +8,7 @@ export interface RatesCliOptions {
   readonly from?: string;
   readonly to?: string;
   readonly json?: boolean;
+  readonly csv?: boolean;
 }
 
 /**
@@ -27,6 +28,9 @@ export function runRates(options: RatesCliOptions): Promise<void> {
     if (!options.to) {
       throw new Error('--to is required (YYYY-MM)');
     }
+    if (options.json && options.csv) {
+      throw new Error('Cannot combine --json and --csv');
+    }
     const input: RateTableInput = {
       ...(options.series ? { series: options.series } : {}),
       fromMonth: options.from,
@@ -40,6 +44,12 @@ export function runRates(options: RatesCliOptions): Promise<void> {
     }
 
     const headers = ['series', 'month', 'fixingDate', 'basePct'];
+    if (options.csv) {
+      const rows = table.map((row) => [row.series, row.month, row.fixingDate, row.basePct]);
+      printCsv(headers, rows);
+      return;
+    }
+
     const rows = table.map((row) => [row.series, row.month, row.fixingDate, row.basePct]);
     printPrettyTable(headers, rows);
   });

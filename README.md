@@ -110,12 +110,14 @@ aforro portfolio --input ./portfolio.json --json
 aforro portfolio --cohort F,2024-03-15,1000 --cohort E,2018-01-15,2500 --as-of 2026-04-19 --json
 aforro current
 aforro rates --from 2023-06 --to 2026-04
+aforro rates --from 2023-06 --to 2026-04 --csv > rates.csv
 aforro cohort --subscribed 2024-03 --as-of 2026-04
+aforro cohort --subscribed 2024-03 --as-of 2026-04 --csv > cohort.csv
 ```
 
 For `portfolio`, read JSON from a file with `--input ./file.json`, or from stdin with **`--input=-`** (the `=` is required; bare `--input -` is not parsed as a path).
 
-Every command accepts `--json` for machine-readable output:
+Every command accepts `--json` for machine-readable output. The `rates` and `cohort` commands also accept `--csv` (comma-separated, header row, RFC 4180 field quoting); do not combine `--csv` with `--json`.
 
 ```bash
 aforro simulate --subscribed 2024-03-15 --units 1000 --json | jq .currentValueNet
