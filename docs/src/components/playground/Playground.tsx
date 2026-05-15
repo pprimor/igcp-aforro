@@ -22,6 +22,7 @@ import {
   projectNet,
   todayIsoUtc,
 } from '@igcp/playground-format';
+import { Charts } from './charts/Charts';
 
 const DEBOUNCE_MS = 50;
 const COPY_STATUS_MS = 1500;
@@ -84,6 +85,17 @@ interface PlaygroundCopy {
   tierRateOpen: string;
   tierRateClose: string;
   highlightedRow: string;
+  chartsHeading: string;
+  chartRateTitle: string;
+  chartBalanceTitle: string;
+  chartCashFlowTitle: string;
+  chartPrincipalLabel: string;
+  chartGrossLabel: string;
+  chartNetLabel: string;
+  chartIrsLabel: string;
+  chartAccruedLabel: string;
+  chartAccruedTitle: string;
+  chartEmptyState: string;
   copySnippet: string;
   copyShareLink: string;
   snippetFormat: string;
@@ -145,6 +157,17 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     tierRateOpen: '(+',
     tierRateClose: ')',
     highlightedRow: 'Highlighted row is the most recent capitalization.',
+    chartsHeading: 'Charts',
+    chartRateTitle: 'Annual rate over time',
+    chartBalanceTitle: 'Balance over time',
+    chartCashFlowTitle: 'Per-quarter cash flow',
+    chartPrincipalLabel: 'Principal',
+    chartGrossLabel: 'Gross',
+    chartNetLabel: 'Net',
+    chartIrsLabel: 'IRS',
+    chartAccruedLabel: 'gross only, not yet booked',
+    chartAccruedTitle: 'Accrued (as-of)',
+    chartEmptyState: 'No schedule data to chart.',
     copySnippet: 'Copy snippet',
     copyShareLink: 'Copy share link',
     snippetFormat: 'Snippet format',
@@ -205,6 +228,17 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     tierRateOpen: '(+',
     tierRateClose: ')',
     highlightedRow: 'A linha destacada é a capitalização mais recente.',
+    chartsHeading: 'Gráficos',
+    chartRateTitle: 'Taxa anual ao longo do tempo',
+    chartBalanceTitle: 'Saldo ao longo do tempo',
+    chartCashFlowTitle: 'Fluxo de caixa por trimestre',
+    chartPrincipalLabel: 'Principal',
+    chartGrossLabel: 'Bruto',
+    chartNetLabel: 'Líquido',
+    chartIrsLabel: 'IRS',
+    chartAccruedLabel: 'só bruto, ainda não registado',
+    chartAccruedTitle: 'Acumulado (data ref.)',
+    chartEmptyState: 'Sem dados de calendário para gráficos.',
     copySnippet: 'Copiar exemplo',
     copyShareLink: 'Copiar ligação',
     snippetFormat: 'Formato do exemplo',
@@ -724,6 +758,7 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
               <h3 id={ids.scheduleHeading}>
                 {copy.schedule} ({result.schedule.length} {copy.quarters})
               </h3>
+              <Charts result={result} locale={locale} copy={copy} />
               <div class="aforro-pg-table-wrap">
                 <table class="aforro-pg-table">
                   <thead>

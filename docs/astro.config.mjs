@@ -14,6 +14,9 @@ const playgroundFormatEntry = fileURLToPath(
 const playgroundUrlStateEntry = fileURLToPath(
   new URL('../src/playgroundUrlState.ts', import.meta.url),
 );
+const playgroundChartsEntry = fileURLToPath(
+  new URL('../src/playground/charts.ts', import.meta.url),
+);
 const apiSidebarGroup = {
   ...typeDocSidebarGroup,
   label: 'Referência da API',
@@ -39,6 +42,7 @@ export default defineConfig({
         'igcp-aforro': aforroEntry,
         '@igcp/playground-format': playgroundFormatEntry,
         '@igcp/playground-url-state': playgroundUrlStateEntry,
+        '@igcp/playground-charts': playgroundChartsEntry,
       },
     },
   },
