@@ -9,16 +9,59 @@ The canonical changelog is the [GitHub Releases page](https://github.com/pprimor
 
 ## Unreleased
 
-- **Public HTTP API + MCP server**. Cloudflare Worker at `https://api.igcp-aforro.primor.me` with `/v1/*` routes (`safe*` semantics, open CORS, legal disclaimer header). `igcp-aforro-mcp` stdio package with mirrored tools for Cursor/Claude. Documented in [HTTP API](/en/api-http/).
-- **Calendar-year roll-up (IRS helper)**. New `rollupTaxYears()`, `getTaxYearRollup()`, `rollupTaxYearsFromPortfolio()`, and `getPortfolioTaxYearRollup()` bucket gross interest, IRS withheld, and net interest by calendar year of `quarterEndDate` (capitalized quarters only; excludes accrued). CLI `aforro tax-year` for single cohort or portfolio (`--year`, `--json`, `--csv` on single cohort). Docs playground card with year selector and non-advice disclaimer.
-- **Single-cohort playground schedule CSV export**. The docs playground adds **Download schedule (CSV)** when the quarterly schedule is enabled: UTF-8 with BOM for Microsoft Excel, columns using the same decimal strings as `aforro simulate --json`, and an optional accrued-interest trailer block.
-- **Single-cohort playground charts**. The docs playground renders three inline SVG charts (annual rate, balance with principal baseline, per-quarter cash flow) when the quarterly schedule is enabled, with bilingual EN/PT-PT labels and Starlight light/dark theming.
-- **Portfolio playground shareable URLs**. The docs portfolio simulator syncs cohort rows, as-of date, and the per-cohort schedule toggle into the query string (repeatable `row=series,date,units` entries) so you can copy a share link like the single-cohort playground.
-- **New `simulatePortfolio()` + portfolio types**. The library now exposes `simulatePortfolio()` to aggregate multiple subscription cohorts (including same-day top-ups), plus the new types `PortfolioSubscription`, `SimulatePortfolioInput`, `PortfolioSeriesBreakdown`, and `PortfolioResult`. The units cap is validated per series across the full portfolio input, and aggregate totals reconcile exactly with the embedded `cohorts[]` fields. This is additive and does not change the `rates.json` `schemaVersion`.
-- **New `simulateRedemption()` + `aforro redeem`**. The library now exposes `simulateRedemption()` to compute full or partial early redemptions (with a 3-month minimum holding period, rejection at/after maturity, and forfeiture of non-capitalized accrued interest at redemption date). The CLI now includes `aforro redeem` with `--redeem-on`, `--redeem-units`, and `--schedule` for embedded simulation inspection. `SeriesMetadata` now includes `minimumHoldingMonths` (set to `3` for D/E/F). This is an additive API change and does not alter `rates.json` `schemaVersion`.
-- **Série D support**. The library now accepts `series: 'D'` (or `Series.D`) in `simulate()`, `getCurrentRate()`, `getRateForCohort()`, and `getRateTable()`, plus `--series D` in the CLI. Série D uses the `E3 + 1%` base-rate formula clamped to `[0%, 3.5%]`, a 10-year maturity, premium tiers of `+0.50%` (years 2-5) and `+1.00%` (years 6-10), a `[2015-02-01, 2017-10-31]` subscription window, and a `[100, 250000]` unit range. `rates.json` now includes `series.D`; `schemaVersion` stays at `1`.
-- **Behavioural change — per-unit quote capitalization**. `simulate()` now mirrors the quote cadence displayed by **aforro.net**: each completed quarter updates a per-unit net quote rounded to 5 decimals, and the booked value is `currentValueNet = round(units x currentUnitQuote, 2)`. Gross interest and IRS withholding are still booked in real EUR at the holding level each quarter, rounded to cents, so `schedule` rows reconcile exactly with `totalInterestGross`, `totalIrsWithheld`, and `totalInterestNet`. This closes the aforro.net parity gap for booked certificates; for example, the Série E / 2023-03-29 / 5000-unit cohort now reports `5417.00`. Existing consumers may see multi-quarter headline values move by a few cents in either direction versus the previous full-precision EUR-balance model. `SimulateResult.currentUnitQuote` and `ScheduleRow.unitQuoteAfter` were added.
-- **Série E support**. The library now covers Certificados de Aforro Série E (Portaria n.º 329-A/2017, closed by Portaria n.º 149-A/2023) end-to-end, alongside Série F. Pass `series: 'E'` (or `Series.E`) to `simulate()`, `getCurrentRate()`, `getRateForCohort()`, and `getRateTable()`, or `--series E` to any `aforro` CLI command. Série E uses the `E3 + 1%` base-rate formula clamped to `[0%, 3.5%]`, a 10-year maturity, premium tiers of `+0.50%` (years 2-5) and `+1.00%` (years 6-10), and a `[100, 250000]` unit range. The `rates.json` artifact now ships both `series.E` and `series.F` blocks; `schemaVersion` stays at `1` (adding a new series is non-breaking).
+- Documentation home splash copy now mentions **Série B** alongside other series (`package.json` description aligned).
+- CI: Cloudflare Pages deploy path updates (Wrangler-integrated workflow, docs install flags).
+
+## `2026.515.0`
+
+- **Public HTTP API + MCP**. Cloudflare Worker with `/v1/*` routes (`safe*` semantics, open CORS, legal disclaimer header), `igcp-aforro-mcp` stdio package for Cursor/Claude — see [HTTP API](/en/api-http/).
+- **Calendar-year roll-up (IRS helper)**. `rollupTaxYears()`, `getTaxYearRollup()`, `rollupTaxYearsFromPortfolio()`, `getPortfolioTaxYearRollup()`; CLI `aforro tax-year`; docs playground card with year selector.
+- **Playground**. Quarterly schedule **CSV export** and three **inline SVG charts** (rate, balance, cash flow); property-based core tests plus CI coverage gate; Node **22** requirement for Wrangler engine checks.
+
+## `2026.513.0`
+
+- **`aforro portfolio`** multi-cohort simulation; **shareable portfolio playground URLs** (`row=series,date,units`).
+- **`safe*`** non-throwing library wrappers returning `SafeResult`.
+- **`--csv`** on `rates` and `cohort` CLI commands.
+- Docs playground i18n parity, accrued-net JSX/layout fixes, and shared module path cleanup.
+
+## `2026.510.0`
+
+- **Série B**: TBA-aligned base rates, Euribor 12M data, perpetual simulation behaviour.
+- **Série C** highlighted on Portuguese documentation home; matured-badge styling fix.
+- Playground portfolio URL validation hardening (`Set`-based allowed series).
+
+## `2026.509.0`
+
+- **Série C** support (EUR historical backfill, goldens; research and parameters are documented under the Portuguese [Série C — research](/serie-c-research/) page).
+- **`aforro current`**: tier gross rates and optional cohort scoping.
+
+## `2026.507.1`
+
+- **`simulatePortfolio()`** plus portfolio types, validation, and aggregate reconciliation tests/docs.
+- **Stricter Euribor window** for base-rate lookups and simulation edge cases.
+
+## `2026.507.0`
+
+- **`simulateRedemption()`** and **`aforro redeem`** (minimum holding period, maturity rules, accrued forfeiture); `SeriesMetadata.minimumHoldingMonths`.
+- **Shareable URLs** for the single-cohort docs playground scenarios.
+- Data-refresh CI gated on IGCP publication timing.
+
+## `2026.503.0`
+
+- **Série D** support end-to-end (`rates.json` includes `series.D`).
+- Documentation: bilingual Starlight shell, IGCP compare and contributing guides, tighter test/coverage thresholds, CLI contract tests.
+
+## `2026.429.0`
+
+- Playground **series selector** (E/F) and refreshed copy.
+- Documentation hosting links and reusable docs deploy workflow (Cloudflare Pages).
+
+## `2026.428.0`
+
+- **Série E** support (spread-before-clamp base rate, metadata, Euribor backfill, compare harness `--series`).
+- **Behaviour change — IGCP-aligned capitalization**: intermediate compounding at full precision with **per-unit net quote** (5 decimals) driving booked position value (`currentUnitQuote`, `ScheduleRow.unitQuoteAfter`); schedule cents still reconcile with aggregate totals.
+- Calculator/compare documentation and tolerance updates for quote parity vs **aforro.net**.
 
 ## `2026.420.0`
 

@@ -9,17 +9,59 @@ O histórico canónico está na [página de Releases do GitHub](https://github.c
 
 ## Por publicar
 
-- **API HTTP pública + servidor MCP**. Worker Cloudflare em `https://api.igcp-aforro.primor.me` com rotas `/v1/*` (semântica `safe*`, CORS aberto, cabeçalho de aviso legal). Pacote `igcp-aforro-mcp` (stdio) com ferramentas espelhadas para Cursor/Claude. Documentação em [API HTTP](/api-http/).
-- **Agregação por ano civil (auxiliar IRS)**. Novas funções `rollupTaxYears()`, `getTaxYearRollup()`, `rollupTaxYearsFromPortfolio()` e `getPortfolioTaxYearRollup()` agrupam juro bruto, IRS retido e juro líquido por ano civil da `quarterEndDate` (só capitalizações; exclui accrued). CLI `aforro tax-year` para grupo único ou portefólio (`--year`, `--json`, `--csv` no grupo único). Cartão no simulador da documentação com seletor de ano e aviso de não aconselhamento fiscal.
-- **Exportação CSV do calendário no simulador de grupo único**. O simulador na documentação inclui **Transferir calendário (CSV)** quando o calendário trimestral está ativo: ficheiro UTF-8 com BOM para o Microsoft Excel, colunas com os mesmos valores decimais que `aforro simulate --json`, e bloco opcional de juro acumulado.
-- **Gráficos no simulador de grupo único**. O simulador na documentação mostra três gráficos SVG inline (taxa anual, saldo com linha de principal, fluxo de caixa trimestral) quando o calendário trimestral está ativo, com etiquetas em inglês e português e tema Starlight claro/escuro.
-- **URLs partilháveis no simulador de portefólio**. O simulador de portefólio na documentação sincroniza as linhas de grupo, a data de referência e a opção de calendário por grupo com a *query string* (entradas repetíveis `row=série,data,unidades`), para copiar uma ligação como no simulador de grupo único.
-- **Série C (Certificados de Aforro)**. Suporte de ponta a ponta à série histórica criada pela Portaria n.º 73-A/2008 e alterada pela Portaria n.º 230-A/2009: taxa-base `0,85 × E3 ± 0,25` sobre a média Euribor já arredondada, prémios de permanência em duas tabelas (antes/depois de março de 2009), janela de subscrição `[2008-01-26, 2015-01-31]`, e dataset Euribor BBIG1 estendido a 1999 para cobrir todas as janelas de correção. O simulador IGCP em `compare/igcp-simulator.ts` aceita `--series C` mas não executa cenários (o *endpoint* público não cobre a Série C). Novo documento [Série C — pesquisa e parâmetros](/serie-c-research/) e PDFs em `raw/igcp/serie-c/`.
-- **Novo `simulatePortfolio()` + tipos de portefólio**. A biblioteca passa a expor `simulatePortfolio()` para agregar múltiplos grupos de subscrição (incluindo reforços no mesmo dia), além dos novos tipos `PortfolioSubscription`, `SimulatePortfolioInput`, `PortfolioSeriesBreakdown` e `PortfolioResult`. O limite de unidades é validado por série no conjunto das linhas da carteira e os totais agregados reconciliam exatamente com os campos em `cohorts[]`. Alteração aditiva; o `schemaVersion` de `rates.json` mantém-se inalterado.
-- **Novo `simulateRedemption()` + `aforro redeem`**. A biblioteca passa a expor `simulateRedemption()` para calcular resgates antecipados totais ou parciais (com regra de detenção mínima de 3 meses, rejeição em/pós-maturidade e perda do `accrued` não capitalizado na data de resgate). A CLI recebe o comando `aforro redeem` com `--redeem-on`, `--redeem-units` e `--schedule` para inspeção da simulação embebida. `SeriesMetadata` passa a incluir `minimumHoldingMonths` (definido como `3` nas séries D/E/F). A alteração é aditiva e não altera o `schemaVersion` de `rates.json`.
-- **Suporte à Série D**. A biblioteca passa a aceitar `series: 'D'` (ou `Series.D`) em `simulate()`, `getCurrentRate()`, `getRateForCohort()` e `getRateTable()`, além de `--series D` na CLI. A Série D usa a fórmula `E3 + 1%` limitada a `[0%, 3,5%]`, maturidade de 10 anos, prémios de permanência de `+0,50%` (anos 2-5) e `+1,00%` (anos 6-10), janela de subscrição `[2015-02-01, 2017-10-31]` e intervalo de unidades `[100, 250000]`. O `rates.json` passa a incluir `series.D`; `schemaVersion` mantém-se em `1`.
-- **Alteração comportamental: capitalização por cotação unitária**. `simulate()` passa a reproduzir a cadência de cotação apresentada pelo **aforro.net**: cada trimestre concluído atualiza uma cotação líquida por unidade, arredondada a 5 casas decimais, e o valor registado é `currentValueNet = round(units x currentUnitQuote, 2)`. O juro bruto e a retenção de IRS continuam a ser registados em EUR reais ao nível da posição em cada trimestre, arredondados ao cêntimo, para que as linhas do `schedule` reconciliem exatamente com `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet`. Isto fecha a diferença de paridade com o aforro.net para certificados já capitalizados; por exemplo, o grupo de subscrição Série E / 2023-03-29 / 5000 unidades reporta agora `5417.00`. Consumidores existentes podem ver valores principais de vários trimestres mexer alguns cêntimos em qualquer direção face ao modelo anterior de saldo EUR em precisão total. Foram adicionados `SimulateResult.currentUnitQuote` e `ScheduleRow.unitQuoteAfter`.
-- **Suporte à Série E**. A biblioteca passa a cobrir de ponta a ponta os Certificados de Aforro Série E (Portaria n.º 329-A/2017, encerrada pela Portaria n.º 149-A/2023), em conjunto com a Série F. Use `series: 'E'` (ou `Series.E`) em `simulate()`, `getCurrentRate()`, `getRateForCohort()` e `getRateTable()`, ou `--series E` em qualquer comando da CLI `aforro`. A Série E usa a fórmula de taxa-base `E3 + 1%`, limitada a `[0%, 3,5%]`, maturidade de 10 anos, prémios de permanência de `+0,50%` (anos 2-5) e `+1,00%` (anos 6-10), e intervalo de unidades `[100, 250000]`. O artefacto `rates.json` passa a incluir blocos `series.E` e `series.F`; `schemaVersion` mantém-se em `1` porque adicionar uma nova série não é incompatível.
+- Documentação: páginas iniciais com menção explícita à **Série B** (alinhamento da descrição em `package.json`).
+- CI: ajustes ao deploy das Pages na Cloudflare (fluxo Wrangler e instalação de dependências dos docs).
+
+## `2026.515.0`
+
+- **API HTTP pública + servidor MCP**. Worker Cloudflare com rotas `/v1/*` (semântica `safe*`, CORS aberto, cabeçalho legal), pacote `igcp-aforro-mcp` (stdio) — ver [API HTTP](/api-http/).
+- **Agregação por ano civil (auxiliar IRS)**. `rollupTaxYears()`, `getTaxYearRollup()`, `rollupTaxYearsFromPortfolio()`, `getPortfolioTaxYearRollup()`; CLI `aforro tax-year`; cartão no playground com selector de ano.
+- **Simulador na documentação**. **Export CSV** do calendário trimestral, **três gráficos SVG** (taxa, saldo, fluxo trimestral); testes por propriedade no núcleo e gate de cobertura na CI; exigência de **Node 22** para o check de motor do Wrangler.
+
+## `2026.513.0`
+
+- Comando **`aforro portfolio`** para vários grupos; **URLs partilháveis** no simulador de portefólio (`row=série,data,unidades`).
+- Envoltórios **`safe*`** sem excepções (`SafeResult`).
+- **`--csv`** nos comandos `rates` e `cohort` da CLI.
+- Paridade i18n do playground, correções ao JSX/layout do «accrued net» e reorganização de módulos partilhados.
+
+## `2026.510.0`
+
+- **Série B**: taxas-base em linha com a TBA, dados Euribor 12 meses e simulação perpétua.
+- Destaque à **Série C** na página inicial em português; correção ao estilo do crachá de maturidade.
+- Validação reforçada das séries nas URLs do playground de portefólio.
+
+## `2026.509.0`
+
+- Suporte à **Série C** (backfill histórico em EUR, goldens, documentação de pesquisa/parâmetros).
+- **`aforro current`**: taxas brutas por patamar e grupo opcionalmente filtrável.
+
+## `2026.507.1`
+
+- **`simulatePortfolio()`**, tipos e validação por série sobre toda a carteira; reconciliação dos totais com `cohorts[]`.
+- **Janela Euribor mais estrita** para taxas-base e extremos da simulação.
+
+## `2026.507.0`
+
+- **`simulateRedemption()`** e **`aforro redeem`** (regra de detenção mínima, maturidade, perda do `accrued` não capitalizado); `SeriesMetadata.minimumHoldingMonths`.
+- **URLs partilháveis** no playground de grupo único.
+- CI de *refresh* de dados condicionada à data de publicação no IGCP.
+
+## `2026.503.0`
+
+- Suporte à **Série D** (`rates.json` inclui `series.D`).
+- Documentação bilingue em Starlight, guias de *compare* e contribuição, limiares de cobertura e testes contrato da CLI.
+
+## `2026.429.0`
+
+- **Selector de série** (E/F) no playground e texto actualizado.
+- Ligações de alojamento dos docs e workflow reutilizável de deploy (Cloudflare Pages).
+
+## `2026.428.0`
+
+- Suporte à **Série E** (`spread` aditiva antes do *clamp*, metadados, backfill Euribor, *compare* com `--series`).
+- **Alteração comportamental**: capitalização em **cotação unitária líquida** (5 casas decimais) espelhando o modelo IGCP/`aforro.net` (`currentUnitQuote`, `unitQuoteAfter`); compounding intermédio em precisão total; totais ao cêntimo mantêm reconciliação com o `schedule`.
+- Documentação e tolerâncias do *compare* actualizadas.
 
 ## `2026.420.0`
 
