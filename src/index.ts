@@ -49,9 +49,20 @@ export { simulate } from './core/calculator.js';
 export { simulatePortfolio } from './core/portfolio.js';
 export { simulateRedemption } from './core/redemption.js';
 export {
+  getPortfolioTaxYearRollup,
+  getTaxYearRollup,
+  getTaxYearRollupFromSchedule,
+  rollupTaxYears,
+  rollupTaxYearsFromPortfolio,
+  rollupTaxYearsFromSchedule,
+} from './core/taxYear.js';
+export {
   safeGetCurrentRate,
   safeGetRateForCohort,
   safeGetRateTable,
+  safeGetTaxYearRollup,
+  safeRollupTaxYears,
+  safeRollupTaxYearsFromPortfolio,
   safeSimulate,
   safeSimulatePortfolio,
   safeSimulateRedemption,
@@ -67,6 +78,7 @@ export { Series, getSeries, listSeries } from './core/series.js';
 export type {
   CohortRateInput,
   CohortRateResult,
+  CohortTaxYearRollup,
   CurrentRateInput,
   IsoDate,
   IsoMonth,
@@ -76,6 +88,7 @@ export type {
   PortfolioResult,
   PortfolioSeriesBreakdown,
   PortfolioSubscription,
+  PortfolioTaxYearRollup,
   RedemptionInput,
   RedemptionResult,
   RateEntry,
@@ -86,4 +99,7 @@ export type {
   SimulateInput,
   SimulatePortfolioInput,
   SimulateResult,
+  TaxYearRollup,
+  TaxYearRollupFromScheduleInput,
+  TaxYearRollupInput,
 } from './types/domain.js';

@@ -90,6 +90,7 @@ describe('aforro CLI — global contracts', () => {
     expect(result.stdout).toContain('portfolio');
     expect(result.stdout).toContain('redeem');
     expect(result.stdout).toContain('fetch-euribor');
+    expect(result.stdout).toContain('tax-year');
   });
 
   it.each([
@@ -114,6 +115,21 @@ describe('aforro CLI — global contracts', () => {
       ],
     ],
     ['portfolio', ['--input', '--cohort', '--as-of', '--schedule', '--json']],
+    [
+      'tax-year',
+      [
+        '--year',
+        '--subscribed',
+        '--units',
+        '--as-of',
+        '--irs',
+        '--series',
+        '--input',
+        '--cohort',
+        '--json',
+        '--csv',
+      ],
+    ],
   ] as const)('%s --help includes the command flags', async (command, flags) => {
     const result = await runCli([command, '--help']);
 
@@ -932,6 +948,106 @@ describe('aforro CLI — validation contracts', () => {
     expect(result.stderr).toContain(
       'unitsToRedeem: remaining balance after partial redemption must be 0 or at least 100',
     );
+  });
+});
+
+describe('aforro CLI — tax-year', () => {
+  it('tax-year --json prints roll-up for a single cohort', async () => {
+    const parsed = parseJson<Record<string, unknown>>(
+      await runCli([
+        'tax-year',
+        '--subscribed',
+        '2024-03-15',
+        '--units',
+        '1000',
+        '--year',
+        '2025',
+        '--as-of',
+        '2026-04-19',
+        '--json',
+      ]),
+    );
+
+    expect(parsed).toMatchObject({
+      taxYear: 2025,
+      capitalizationCount: expect.any(Number),
+    });
+    expect(parsed).toHaveProperty('interestGross');
+    expect(parsed).toHaveProperty('irsWithheld');
+    expect(parsed).toHaveProperty('interestNet');
+  });
+
+  it('tax-year --csv prints a single data row', async () => {
+    const result = await runCli([
+      'tax-year',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--year',
+      '2025',
+      '--csv',
+    ]);
+
+    expectSuccess(result);
+    const lines = linesOf(result.stdout);
+    expect(lines[0]?.split(',')).toEqual([
+      'taxYear',
+      'interestGross',
+      'irsWithheld',
+      'interestNet',
+      'capitalizationCount',
+    ]);
+    expect(lines).toHaveLength(2);
+    expect(lines[1]?.split(',')[0]).toBe('2025');
+  });
+
+  it('tax-year portfolio --json includes cohort breakdown', async () => {
+    const parsed = parseJson<Record<string, unknown>>(
+      await runCli([
+        'tax-year',
+        '--cohort',
+        'F,2024-03-15,1000',
+        '--cohort',
+        'F,2024-06-15,500',
+        '--year',
+        '2025',
+        '--as-of',
+        '2026-04-19',
+        '--json',
+      ]),
+    );
+
+    expect(parsed).toMatchObject({
+      taxYear: 2025,
+      cohortCount: 2,
+    });
+    expect(Array.isArray(parsed.cohorts)).toBe(true);
+    expect((parsed.cohorts as unknown[]).length).toBe(2);
+  });
+
+  it('tax-year rejects --json together with --csv', async () => {
+    const result = await runCli([
+      'tax-year',
+      '--subscribed',
+      '2024-03-15',
+      '--units',
+      '1000',
+      '--year',
+      '2025',
+      '--json',
+      '--csv',
+    ]);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('Cannot combine --json and --csv');
+  });
+
+  it('tax-year requires --year', async () => {
+    const result = await runCli(['tax-year', '--subscribed', '2024-03-15', '--units', '1000']);
+
+    expectFailure(result);
+    expect(result.stderr).toContain('--year is required');
   });
 });
 

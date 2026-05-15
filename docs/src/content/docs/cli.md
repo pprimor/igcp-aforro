@@ -96,6 +96,27 @@ aforro cohort \
 
 `--subscribed` e `--as-of` aceitam `YYYY-MM` ou `YYYY-MM-DD`. Devolve a taxa anual composta, os seus componentes base + prémio e a janela trimestral a que se aplicam.
 
+## `aforro tax-year`
+
+Totais de **ano civil** de juro bruto e IRS retido nas capitalizações trimestrais (auxiliar para declaração IRS; não mapeia caixas do Anexo E).
+
+```bash
+aforro tax-year --subscribed 2024-03-15 --units 1000 --year 2025 [--series F] [--as-of 2026-04-19] [--json]
+aforro tax-year --input ./portfolio.json --year 2025 [--json]
+aforro tax-year --cohort F,2024-03-15,1000 --cohort E,2018-01-15,2500 --year 2025 --as-of 2026-04-19
+```
+
+| Opção | Descrição |
+| --- | --- |
+| `--year <yyyy>` | Ano civil a reportar. **Obrigatório.** |
+| `--subscribed`, `--units` | Grupo único (como em `simulate`). |
+| `--input`, `--cohort` | Modo portefólio (como em `portfolio`); não combinar com `--subscribed` / `--units`. |
+| `--as-of`, `--irs`, `--series` | Igual a `simulate` / `portfolio`. |
+| `--json` | Emite `TaxYearRollup` ou `PortfolioTaxYearRollup`. |
+| `--csv` | CSV de uma linha (só grupo único; não com `--json`). |
+
+Os totais agrupam linhas do calendário pela **data de fim de trimestre** (`quarterEndDate`). O juro acumulado a meio de trimestre fica excluído. Ver [Metodologia — agregação por ano civil](/methodology/#agregação-por-ano-civil-auxiliar-irs).
+
 ## `aforro fetch-euribor`
 
 ::::caution[Apenas para desenvolvimento]

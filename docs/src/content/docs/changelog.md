@@ -9,6 +9,7 @@ O histórico canónico está na [página de Releases do GitHub](https://github.c
 
 ## Por publicar
 
+- **Agregação por ano civil (auxiliar IRS)**. Novas funções `rollupTaxYears()`, `getTaxYearRollup()`, `rollupTaxYearsFromPortfolio()` e `getPortfolioTaxYearRollup()` agrupam juro bruto, IRS retido e juro líquido por ano civil da `quarterEndDate` (só capitalizações; exclui accrued). CLI `aforro tax-year` para grupo único ou portefólio (`--year`, `--json`, `--csv` no grupo único). Cartão no simulador da documentação com seletor de ano e aviso de não aconselhamento fiscal.
 - **Exportação CSV do calendário no simulador de grupo único**. O simulador na documentação inclui **Transferir calendário (CSV)** quando o calendário trimestral está ativo: ficheiro UTF-8 com BOM para o Microsoft Excel, colunas com os mesmos valores decimais que `aforro simulate --json`, e bloco opcional de juro acumulado.
 - **Gráficos no simulador de grupo único**. O simulador na documentação mostra três gráficos SVG inline (taxa anual, saldo com linha de principal, fluxo de caixa trimestral) quando o calendário trimestral está ativo, com etiquetas em inglês e português e tema Starlight claro/escuro.
 - **URLs partilháveis no simulador de portefólio**. O simulador de portefólio na documentação sincroniza as linhas de grupo, a data de referência e a opção de calendário por grupo com a *query string* (entradas repetíveis `row=série,data,unidades`), para copiar uma ligação como no simulador de grupo único.

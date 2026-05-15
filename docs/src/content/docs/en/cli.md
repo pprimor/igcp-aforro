@@ -69,6 +69,27 @@ aforro cohort \
 
 `--subscribed` and `--as-of` accept either `YYYY-MM` or `YYYY-MM-DD`. Returns the composite annual rate, its base + premium components, and the quarter window they apply to.
 
+## `aforro tax-year`
+
+**Calendar-year** totals of gross interest and IRS withheld at quarterly capitalizations (IRS filing helper; does not map Anexo E box numbers).
+
+```bash
+aforro tax-year --subscribed 2024-03-15 --units 1000 --year 2025 [--series F] [--as-of 2026-04-19] [--json]
+aforro tax-year --input ./portfolio.json --year 2025 [--json]
+aforro tax-year --cohort F,2024-03-15,1000 --cohort E,2018-01-15,2500 --year 2025 --as-of 2026-04-19
+```
+
+| Flag | Description |
+| --- | --- |
+| `--year <yyyy>` | Calendar year to report. **Required.** |
+| `--subscribed`, `--units` | Single cohort (same as `simulate`). |
+| `--input`, `--cohort` | Portfolio mode (same as `portfolio`); do not combine with `--subscribed` / `--units`. |
+| `--as-of`, `--irs`, `--series` | Same as `simulate` / `portfolio`. |
+| `--json` | Emit `TaxYearRollup` or `PortfolioTaxYearRollup`. |
+| `--csv` | One-row CSV (single cohort only; not with `--json`). |
+
+Totals bucket schedule rows by **quarter end date** (`quarterEndDate`). Mid-quarter accrued interest is excluded. See [Methodology — calendar-year roll-up](/en/methodology/#calendar-year-roll-up-irs-helper).
+
 ## `aforro fetch-euribor`
 
 ::::caution[Developer-only]

@@ -260,3 +260,10 @@ export type CurrentRateInputSchema = z.infer<typeof currentRateInputSchema>;
 export type RateTableInputSchema = z.infer<typeof rateTableInputSchema>;
 export type RedemptionInputSchema = z.infer<typeof redemptionInputSchema>;
 export type SimulatePortfolioInputSchema = z.infer<typeof simulatePortfolioInputSchema>;
+
+/** Calendar year for IRS roll-up helpers (1990–2100). */
+export const taxYearSchema = z
+  .number()
+  .int('taxYear must be an integer')
+  .min(1990, 'taxYear must be >= 1990')
+  .max(2100, 'taxYear must be <= 2100');

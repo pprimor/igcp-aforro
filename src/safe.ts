@@ -3,12 +3,14 @@ import { type SimulateOptions, simulate } from './core/calculator.js';
 import { simulatePortfolio } from './core/portfolio.js';
 import { simulateRedemption } from './core/redemption.js';
 import { type RatesOptions, getCurrentRate, getRateForCohort, getRateTable } from './core/rates.js';
+import { getTaxYearRollup, rollupTaxYears, rollupTaxYearsFromPortfolio } from './core/taxYear.js';
 import type {
   CohortRateResult,
   MonthlyBaseRate,
   PortfolioResult,
   RedemptionResult,
   SimulateResult,
+  TaxYearRollup,
 } from './types/domain.js';
 import {
   cohortRateInputSchema,
@@ -17,6 +19,7 @@ import {
   redemptionInputSchema,
   simulateInputSchema,
   simulatePortfolioInputSchema,
+  taxYearSchema,
 } from './types/schemas.js';
 
 /** Success branch: same payload the throwing API would return for the same inputs. */
@@ -148,6 +151,74 @@ export function safeGetRateTable(
   }
   try {
     return { ok: true, value: getRateTable(parsed.data, options) };
+  } catch (e) {
+    return toRuntimeFailure(e);
+  }
+}
+
+function isSimulateResult(value: unknown): value is SimulateResult {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'series' in value &&
+    'subscriptionDate' in value &&
+    'schedule' in value
+  );
+}
+
+function isPortfolioResult(value: unknown): value is PortfolioResult {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'cohorts' in value &&
+    Array.isArray((value as PortfolioResult).cohorts)
+  );
+}
+
+/**
+ * Non-throwing variant of {@link rollupTaxYears}. Expects a
+ * {@link SimulateResult} with a non-empty schedule.
+ */
+export function safeRollupTaxYears(result: unknown): SafeResult<readonly TaxYearRollup[]> {
+  if (!isSimulateResult(result)) {
+    return { ok: false, kind: 'runtime', message: 'Expected a SimulateResult object' };
+  }
+  try {
+    return { ok: true, value: rollupTaxYears(result) };
+  } catch (e) {
+    return toRuntimeFailure(e);
+  }
+}
+
+/**
+ * Non-throwing variant of {@link getTaxYearRollup}.
+ */
+export function safeGetTaxYearRollup(result: unknown, taxYear: unknown): SafeResult<TaxYearRollup> {
+  const yearParsed = taxYearSchema.safeParse(taxYear);
+  if (!yearParsed.success) {
+    return { ok: false, kind: 'validation', error: yearParsed.error };
+  }
+  if (!isSimulateResult(result)) {
+    return { ok: false, kind: 'runtime', message: 'Expected a SimulateResult object' };
+  }
+  try {
+    return { ok: true, value: getTaxYearRollup(result, yearParsed.data) };
+  } catch (e) {
+    return toRuntimeFailure(e);
+  }
+}
+
+/**
+ * Non-throwing variant of {@link rollupTaxYearsFromPortfolio}.
+ */
+export function safeRollupTaxYearsFromPortfolio(
+  portfolio: unknown,
+): SafeResult<readonly TaxYearRollup[]> {
+  if (!isPortfolioResult(portfolio)) {
+    return { ok: false, kind: 'runtime', message: 'Expected a PortfolioResult object' };
+  }
+  try {
+    return { ok: true, value: rollupTaxYearsFromPortfolio(portfolio) };
   } catch (e) {
     return toRuntimeFailure(e);
   }

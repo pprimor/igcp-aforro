@@ -6,6 +6,7 @@ import { runPortfolio } from './cli/commands/portfolio.js';
 import { runRates } from './cli/commands/rates.js';
 import { runRedeem } from './cli/commands/redeem.js';
 import { runSimulate } from './cli/commands/simulate.js';
+import { runTaxYear } from './cli/commands/taxYear.js';
 import { VERSION } from './index.js';
 
 /**
@@ -13,7 +14,7 @@ import { VERSION } from './index.js';
  *
  * Each command lives in `./cli/commands/*` and receives a typed options
  * bag from `cac` (kebab-case flags become camelCase keys). Commands include
- * `simulate`, `redeem`, `current`, `rates`, `cohort`, `portfolio`, and
+ * `simulate`, `redeem`, `current`, `rates`, `cohort`, `portfolio`, `tax-year`, and
  * `fetch-euribor`. The cross-cutting flag `--json` is accepted on every command
  * and toggles between machine-readable JSON output and a human-friendly pretty
  * layout (key-value pairs for single records, aligned tables for lists). The
@@ -116,6 +117,34 @@ cli
   .option('--csv', 'Emit CSV instead of a pretty table (not with --json)')
   .example('aforro cohort --subscribed 2024-03 --as-of 2026-04')
   .action(runCohort);
+
+cli
+  .command(
+    'tax-year',
+    'Calendar-year totals of gross interest and IRS withheld from capitalized quarters (IRS helper)',
+  )
+  .option('--year <yyyy>', 'Calendar year to report (required)')
+  .option('--subscribed <date>', 'Subscription date (YYYY-MM-DD); single cohort')
+  .option('--units <n>', 'Principal in EUR; single cohort')
+  .option('--as-of <date>', 'As-of date (YYYY-MM-DD); defaults to today (UTC)')
+  .option('--irs <rate>', 'IRS withholding rate (e.g. 0.28); defaults to series default')
+  .option('--series <code>', 'Series code', { default: 'F' })
+  .option(
+    '--input <path>',
+    'Read portfolio JSON from a file; use --input=- for stdin (portfolio mode)',
+  )
+  .option(
+    '--cohort <spec>',
+    'Portfolio cohort: series,YYYY-MM-DD,units[,irs] (repeat; portfolio mode)',
+  )
+  .option('--json', 'Emit JSON instead of a pretty table')
+  .option('--csv', 'Emit CSV (single cohort only; not with --json)')
+  .example('aforro tax-year --subscribed 2024-03-15 --units 1000 --year 2025 --series F')
+  .example('aforro tax-year --input ./portfolio.json --year 2025 --json')
+  .example(
+    'aforro tax-year --cohort F,2024-03-15,1000 --cohort E,2018-01-15,2500 --year 2025 --as-of 2026-04-19',
+  )
+  .action(runTaxYear);
 
 cli
   .command(

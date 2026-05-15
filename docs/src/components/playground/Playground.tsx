@@ -3,7 +3,9 @@ import {
   type SimulateInput,
   type SimulateResult,
   getSeries,
+  getTaxYearRollup,
   listSeries,
+  rollupTaxYears,
   simulate,
 } from 'igcp-aforro';
 import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
@@ -116,6 +118,10 @@ interface PlaygroundCopy {
   downloadCsvNeedsSchedule: string;
   downloadCsvDone: string;
   downloadCsvFailed: string;
+  taxYearSummary: string;
+  taxYearSelect: string;
+  taxYearCapitalizations: string;
+  taxYearDisclaimer: string;
 }
 
 const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
@@ -192,6 +198,11 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     downloadCsvNeedsSchedule: 'Enable the quarterly schedule to export.',
     downloadCsvDone: 'CSV downloaded.',
     downloadCsvFailed: 'Could not download CSV.',
+    taxYearSummary: 'Tax year summary',
+    taxYearSelect: 'Calendar year',
+    taxYearCapitalizations: 'Capitalizations',
+    taxYearDisclaimer:
+      'Totals reflect capitalized quarters only (bucketed by quarter end date). Not tax advice — verify against your IGCP statement and the official Anexo E instructions. Mid-quarter accrued interest is excluded.',
   },
   'pt-PT': {
     series: 'Série',
@@ -267,6 +278,11 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     downloadCsvNeedsSchedule: 'Ative o calendário trimestral para exportar.',
     downloadCsvDone: 'CSV transferido.',
     downloadCsvFailed: 'Não foi possível transferir o CSV.',
+    taxYearSummary: 'Resumo por ano civil',
+    taxYearSelect: 'Ano civil',
+    taxYearCapitalizations: 'Capitalizações',
+    taxYearDisclaimer:
+      'Os totais refletem apenas trimestres capitalizados (agrupados pela data de fim de trimestre). Não constitui aconselhamento fiscal — confirme com o seu extrato IGCP e as instruções oficiais do Anexo E. O juro acumulado a meio de trimestre fica excluído.',
   },
 };
 
@@ -406,6 +422,7 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
   const [copied, setCopied] = useState(false);
   const [shareCopyStatus, setShareCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [csvDownloadStatus, setCsvDownloadStatus] = useState<'idle' | 'done' | 'failed'>('idle');
+  const [selectedTaxYear, setSelectedTaxYear] = useState<number | null>(null);
   const [hasHydrated, setHasHydrated] = useState(false);
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(false);
   const debounceRef = useRef<number | null>(null);
@@ -420,6 +437,8 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
     irs: useId(),
     schedule: useId(),
     summaryHeading: useId(),
+    taxYearHeading: useId(),
+    taxYearSelect: useId(),
     accruedHeading: useId(),
     scheduleHeading: useId(),
     snippetHeading: useId(),
@@ -577,6 +596,50 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
   }, [result, locale]);
 
   const lastQuarterIndex = result?.schedule ? result.schedule.length - 1 : -1;
+
+  const taxYearRollups = useMemo(() => {
+    if (!result?.schedule?.length) {
+      return [];
+    }
+    try {
+      return rollupTaxYears(result);
+    } catch {
+      return [];
+    }
+  }, [result]);
+
+  const taxYearOptions = useMemo(
+    () => taxYearRollups.map((rollup) => rollup.taxYear),
+    [taxYearRollups],
+  );
+
+  const defaultTaxYear = useMemo(() => {
+    if (taxYearOptions.length === 0 || !result) {
+      return null;
+    }
+    const asOfYear = Number(result.asOfDate.slice(0, 4));
+    if (taxYearOptions.includes(asOfYear)) {
+      return asOfYear;
+    }
+    const latest = taxYearOptions.at(-1);
+    return latest ?? null;
+  }, [taxYearOptions, result]);
+
+  useEffect(() => {
+    if (defaultTaxYear !== null) {
+      setSelectedTaxYear(defaultTaxYear);
+    }
+  }, [defaultTaxYear]);
+
+  const taxYearRollup = useMemo(() => {
+    if (!result?.schedule?.length || selectedTaxYear === null) {
+      return null;
+    }
+    return getTaxYearRollup(result, selectedTaxYear);
+  }, [result, selectedTaxYear]);
+
+  const showTaxYearCard =
+    form.includeSchedule && taxYearRollup !== null && taxYearOptions.length > 0;
 
   return (
     <div class="aforro-pg not-content">
@@ -777,6 +840,52 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
               </div>
             </dl>
           </section>
+
+          {showTaxYearCard && taxYearRollup && (
+            <section class="aforro-pg-card" aria-labelledby={ids.taxYearHeading}>
+              <header class="aforro-pg-card-head">
+                <h3 id={ids.taxYearHeading}>{copy.taxYearSummary}</h3>
+                <label class="aforro-pg-tax-year-select" for={ids.taxYearSelect}>
+                  <span class="aforro-pg-meta-label">{copy.taxYearSelect}</span>
+                  <select
+                    id={ids.taxYearSelect}
+                    value={String(selectedTaxYear)}
+                    onInput={(e) =>
+                      setSelectedTaxYear(Number((e.target as HTMLSelectElement).value))
+                    }
+                  >
+                    {taxYearOptions.map((year) => (
+                      <option key={year} value={String(year)}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </header>
+              <dl class="aforro-pg-grid">
+                <SummaryItem
+                  label={copy.interestGross}
+                  value={taxYearRollup.interestGross}
+                  locale={locale}
+                />
+                <SummaryItem
+                  label={copy.irsWithheld}
+                  value={taxYearRollup.irsWithheld}
+                  locale={locale}
+                />
+                <SummaryItem
+                  label={copy.interestNet}
+                  value={taxYearRollup.interestNet}
+                  locale={locale}
+                />
+                <div class="aforro-pg-grid-item">
+                  <dt>{copy.taxYearCapitalizations}</dt>
+                  <dd>{taxYearRollup.capitalizationCount}</dd>
+                </div>
+              </dl>
+              <p class="aforro-pg-note">{copy.taxYearDisclaimer}</p>
+            </section>
+          )}
 
           {hasAccrued && (
             <section class="aforro-pg-card" aria-labelledby={ids.accruedHeading}>

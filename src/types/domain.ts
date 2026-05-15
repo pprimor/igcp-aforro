@@ -451,3 +451,32 @@ export interface RateTableInput {
   readonly fromMonth: IsoMonth;
   readonly toMonth: IsoMonth;
 }
+
+/** Calendar-year totals from capitalized schedule rows only. */
+export interface TaxYearRollup {
+  readonly taxYear: number;
+  readonly interestGross: string;
+  readonly irsWithheld: string;
+  readonly interestNet: string;
+  readonly capitalizationCount: number;
+}
+
+/** Per-cohort slice when rolling up a portfolio (audit trail). */
+export interface CohortTaxYearRollup extends TaxYearRollup {
+  readonly series: SeriesCode;
+  readonly subscriptionDate: IsoDate;
+}
+
+export interface PortfolioTaxYearRollup extends TaxYearRollup {
+  readonly cohortCount: number;
+  readonly cohorts: readonly CohortTaxYearRollup[];
+}
+
+export interface TaxYearRollupInput {
+  readonly taxYear: number;
+}
+
+export interface TaxYearRollupFromScheduleInput {
+  readonly schedule: readonly ScheduleRow[];
+  readonly taxYear: number;
+}

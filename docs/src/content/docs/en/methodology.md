@@ -137,6 +137,16 @@ Each `schedule` row exposes `unitQuoteAfter`, the net quote after that capitaliz
 
 Each quarter starts on the subscription day shifted by multiples of 3 months. When the target day does not exist in the destination month (for example, subscription on 31 January -> next quarter on 30 April), roll-forward to the first day of the following month is applied according to the technical sheet. `shiftMonths()` in [`src/core/dateMath.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/dateMath.ts) implements this behavior and is used by both the calculator and the `rates.json` generator.
 
+## Calendar-year roll-up (IRS helper)
+
+For annual totals of gross interest and IRS withheld (for example when filling **Modelo 3 / Anexo E**), the library exposes `rollupTaxYears()`, `getTaxYearRollup()`, and portfolio variants. Each capitalized `schedule` row is attributed to the **calendar year of `quarterEndDate`** (UTC, year taken from the ISO `YYYY-MM-DD` string).
+
+This matches when interest and withholding are **booked** at quarterly capitalization (see above). **`accruedSinceLastCapitalization`** (mid-quarter accrued interest, no withholding) is **not** included. Totals are cent-exact sums of each row's `interestGross`, `irsWithheld`, and `interestNet`; they do not map to specific Anexo E box numbers (those change yearly and require legal review).
+
+:::caution[Not tax advice]
+Always verify amounts against your IGCP statement and the official Portuguese Tax Authority instructions. The library exports EUR totals only; it does not label Anexo E boxes.
+:::
+
 ## Accrued interest between capitalizations
 
 When `asOfDate` falls strictly inside an open quarter, `simulate()` separately reports **accrued but not yet capitalized** interest in `accruedSinceLastCapitalization`. It is calculated pro rata in calendar days over the theoretical quarterly interest:

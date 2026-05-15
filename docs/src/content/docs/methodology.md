@@ -137,6 +137,16 @@ Cada linha do `schedule` expõe `unitQuoteAfter`, a cotação líquida depois de
 
 O início de cada trimestre é o dia da subscrição deslocado em múltiplos de 3 meses. Quando o dia-alvo não existe no mês destino (por exemplo, subscrição a 31 de janeiro → trimestre seguinte a 30 de abril), aplica-se *roll-forward* para o primeiro dia do mês seguinte, conforme a ficha técnica. A função `shiftMonths()` em [`src/core/dateMath.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/dateMath.ts) implementa esta semântica e é usada tanto pelo calculador como pelo gerador de `rates.json`.
 
+## Agregação por ano civil (auxiliar IRS)
+
+Para preencher totais anuais de juro bruto e IRS retido (por exemplo, no **Modelo 3 / Anexo E**), a biblioteca expõe `rollupTaxYears()`, `getTaxYearRollup()` e variantes de portefólio. Cada linha capitalizada do `schedule` é atribuída ao **ano civil da `quarterEndDate`** (UTC, ano extraído da data ISO `YYYY-MM-DD`).
+
+Isto alinha-se com o momento em que o juro e a retenção são **registados** na capitalização trimestral (ver secção anterior). **Não** entra o `accruedSinceLastCapitalization` (juro acumulado a meio de trimestre, sem retenção). Os totais são somas cent-exatas dos campos `interestGross`, `irsWithheld` e `interestNet` de cada linha; não mapeiam números de caixa do Anexo E (estes mudam anualmente e exigem revisão legal).
+
+:::caution[Não é aconselhamento fiscal]
+Confirme sempre os valores com o extrato IGCP e as instruções oficiais da Autoridade Tributária. A biblioteca exporta apenas totais em EUR; não indica caixas específicas do Anexo E.
+:::
+
 ## *Accrued* entre capitalizações
 
 Quando `asOfDate` cai estritamente dentro de um trimestre aberto, `simulate()` reporta separadamente o juro **acumulado mas ainda não capitalizado**, no campo `accruedSinceLastCapitalization`. É calculado *pro rata* em dias de calendário sobre o juro trimestral teórico:
