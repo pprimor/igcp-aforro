@@ -21,3 +21,5 @@ docs/src/content/docs/api/
 *.tsbuildinfo
 
 *.tgz
+
+worker/.wrangler/
