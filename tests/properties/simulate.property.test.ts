@@ -18,7 +18,18 @@ function requireAsOfDate(input: SimulateInput): IsoDate {
   }
   return asOfDate;
 }
-const SERIE_F_OPEN = '2023-06-01';
+/**
+ * Earliest subscription date the current simulator can run end-to-end. The
+ * calculator applies the monthly base rate for the calendar month of each
+ * quarter start (`rateForQuarter` → `computeBaseRate(year, month)`). A cohort
+ * whose first quarter begins in June 2023 therefore hits `F:2023-06`, whose
+ * May fixing predates the series — the same gap as `KNOWN_FAILURES` in
+ * `baseRate.test.ts`, not “every June subscription needs the June published
+ * rate”. IGCP opened Série F on 5 June 2023; inaugural cohort rules may differ
+ * and are tracked in the baseRate followup plan. From July 2023 onward the
+ * quarter-start month and derivable fixings align.
+ */
+const SERIE_F_PROPERTY_OPEN = '2023-07-01';
 const EURIBOR_END = '2040-12-31';
 
 function isValidIsoDate(year: number, month: number, day: number): boolean {
@@ -43,9 +54,20 @@ function maxAsOfForSubscription(subscriptionDate: IsoDate): IsoDate {
   return eightYearsOut <= EURIBOR_END ? eightYearsOut : EURIBOR_END;
 }
 
-/** Earliest as-of that completes the first quarter (avoids pre-subscription fixing lookups). */
+/** Earliest as-of that completes the first full quarterly capitalization. */
 function minAsOfOffsetDays(subscriptionDate: IsoDate): number {
   return daysBetween(subscriptionDate, shiftMonths(subscriptionDate, 3));
+}
+
+function maxAsOfAmong(inputs: readonly SimulateInput[]): IsoDate {
+  const first = inputs[0];
+  if (first === undefined) {
+    throw new Error('portfolio property input must be non-empty');
+  }
+  return inputs.reduce((max, row) => {
+    const date = requireAsOfDate(row);
+    return date > max ? date : max;
+  }, requireAsOfDate(first));
 }
 
 const subscriptionDateArb: fc.Arbitrary<IsoDate> = fc
@@ -57,7 +79,7 @@ const subscriptionDateArb: fc.Arbitrary<IsoDate> = fc
   .filter(([y, m, d]) => isValidIsoDate(y, m, d))
   .map(([y, m, d]) => formatIsoDate(y, m, d))
   .filter((d) => {
-    if (d < SERIE_F_OPEN || d > '2035-01-01') return false;
+    if (d < SERIE_F_PROPERTY_OPEN || d > '2035-01-01') return false;
     return daysBetween(d, maxAsOfForSubscription(d)) >= minAsOfOffsetDays(d);
   });
 
@@ -91,6 +113,14 @@ const simulateInputArb: fc.Arbitrary<SimulateInput> = fc
     };
   });
 
+/** Cohorts whose per-row as-of dates are jointly valid under a shared portfolio as-of. */
+const portfolioInputsArb: fc.Arbitrary<SimulateInput[]> = fc
+  .array(simulateInputArb, { minLength: 1, maxLength: 4 })
+  .filter((inputs) => {
+    const portfolioAsOf = maxAsOfAmong(inputs);
+    return inputs.every((row) => portfolioAsOf <= maxAsOfForSubscription(row.subscriptionDate));
+  });
+
 describe('simulate — property tests (Série F + synthetic Euribor)', () => {
   it('satisfies structural invariants for randomized inputs', () => {
     fc.assert(
@@ -106,13 +136,8 @@ describe('simulate — property tests (Série F + synthetic Euribor)', () => {
 describe('simulatePortfolio — property tests', () => {
   it('aggregate totals equal the sum of cohort headline fields', () => {
     fc.assert(
-      fc.property(fc.array(simulateInputArb, { minLength: 1, maxLength: 4 }), (inputs) => {
-        const first = inputs[0];
-        if (first === undefined) return true;
-        const asOfDate = inputs.reduce((max, row) => {
-          const date = requireAsOfDate(row);
-          return date > max ? date : max;
-        }, requireAsOfDate(first));
+      fc.property(portfolioInputsArb, (inputs) => {
+        const asOfDate = maxAsOfAmong(inputs);
         const portfolio = simulatePortfolio(
           {
             subscriptions: inputs.map(({ series, subscriptionDate, units, irsRate }) => ({
