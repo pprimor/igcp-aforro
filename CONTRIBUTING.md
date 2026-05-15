@@ -53,6 +53,10 @@ pnpm install
   intentionally update them.
 - [`.github/workflows`](./.github/workflows) contains CI, data refresh, release,
   and docs deployment workflows.
+- [`src/api`](./src/api) contains the shared HTTP router and handlers used by
+  the Cloudflare Worker and MCP server.
+- [`worker`](./worker) contains the Cloudflare Worker (`igcp-aforro-api`).
+- [`mcp-server`](./mcp-server) contains the stdio MCP package (`igcp-aforro-mcp`).
 
 ## Local Development
 
@@ -149,6 +153,77 @@ Failure triage:
 - Remember that `pnpm test` is deterministic and should remain the normal PR
   signal. `pnpm compare:igcp` is live, externally dependent, and its failures are
   investigation input rather than automatic proof of a local regression.
+
+## HTTP API and MCP (local dev)
+
+The REST API and MCP server share [`src/api/router.ts`](./src/api/router.ts) and
+[`src/api/handlers.ts`](./src/api/handlers.ts). Install workspace dependencies
+from the repository root (`pnpm install`).
+
+### Cloudflare Worker (HTTP)
+
+```bash
+pnpm build          # library (Worker bundles src via workspace)
+pnpm dev:api        # wrangler dev → http://localhost:8787
+```
+
+Example request:
+
+```bash
+curl -sS http://localhost:8787/health | jq .
+curl -sS -X POST http://localhost:8787/v1/simulate \
+  -H 'content-type: application/json' \
+  -d '{"series":"F","subscriptionDate":"2024-03-15","units":1000}'
+```
+
+Production deploy: [`.github/workflows/deploy-api.yml`](./.github/workflows/deploy-api.yml)
+(`workflow_dispatch` or `workflow_call` from release).
+
+**Cloudflare setup (maintainers):**
+
+1. **DNS** — `CNAME api.igcp-aforro.primor.me` to the Worker (or attach the
+   custom domain on the `igcp-aforro-api` Worker in the dashboard).
+2. **Route** — `api.igcp-aforro.primor.me/*` on the Worker (see
+   [`worker/wrangler.toml`](./worker/wrangler.toml); uncomment `routes` when the
+   zone is wired).
+3. **Rate limiting** — WAF rule on `/v1/*`, e.g. **60 requests/minute per IP**
+   (public v1 has no API keys; edge limits reduce abuse).
+
+### MCP (stdio)
+
+```bash
+pnpm dev:mcp
+```
+
+**Cursor** — add to `.cursor/mcp.json` (or global MCP settings):
+
+```json
+{
+  "mcpServers": {
+    "igcp-aforro": {
+      "command": "pnpm",
+      "args": ["--dir", "/absolute/path/to/igcp-aforro/mcp-server", "dev"]
+    }
+  }
+}
+```
+
+After npm publish, consumers can use:
+
+```json
+{
+  "mcpServers": {
+    "igcp-aforro": {
+      "command": "npx",
+      "args": ["-y", "igcp-aforro-mcp@latest"]
+    }
+  }
+}
+```
+
+Tools mirror the HTTP API (`simulate`, `simulate_portfolio`, `get_current_rate`,
+`list_series`, …). Each tool description states that results are not official
+IGCP data and are not financial or tax advice.
 
 ## Docs Workflow
 

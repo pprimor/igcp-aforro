@@ -285,6 +285,26 @@ import type {
 
 Full type signatures and TSDoc are generated into the docs site at <https://igcp-aforro.primor.me/api/>.
 
+## HTTP API
+
+A hosted **read-only** JSON API runs the same `safe*` entry points over HTTPS (no npm install). Use it when you need **parameterized** simulations from Python, Excel, or `curl`; use [`rates.json`](#static-ratesjson-for-non-js-users) when you only need precomputed rate tables.
+
+- **Base URL**: <https://api.igcp-aforro.primor.me>
+- **Docs**: <https://igcp-aforro.primor.me/api-http/>
+
+```bash
+curl -sS -X POST 'https://api.igcp-aforro.primor.me/v1/simulate' \
+  -H 'content-type: application/json' \
+  -d '{
+    "series": "F",
+    "subscriptionDate": "2024-03-15",
+    "units": 1000,
+    "includeSchedule": true
+  }'
+```
+
+Responses use `{ "ok": true, "value": … }` or `{ "ok": false, "kind": "validation" | "runtime", … }` (HTTP `400` / `422`). Every response includes `X-IGCP-Aforro-Disclaimer`. For AI assistants, the monorepo ships an stdio MCP server (`igcp-aforro-mcp`); see [CONTRIBUTING](./CONTRIBUTING.md#http-api-and-mcp-local-dev).
+
 ## Static `rates.json` for non-JS users
 
 Python, Java, Excel, and spreadsheet users can skip the npm package entirely and consume a precomputed JSON snapshot of every monthly base rate and every cohort-anchored annual rate.

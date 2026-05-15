@@ -22,6 +22,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./api/handlers": {
+      "types": "./src/api/handlers.ts",
+      "import": "./src/api/handlers.ts",
+      "default": "./src/api/handlers.ts"
+    },
     "./package.json": "./package.json"
   },
   "bin": {
@@ -45,6 +50,10 @@
     "fetch:euribor": "tsx scripts/fetch-euribor.ts",
     "fetch:igcp-base-rates": "tsx scripts/fetch-igcp-base-rates.ts",
     "build:rates-json": "tsx scripts/build-rates-json.ts",
+    "build:worker": "pnpm --filter igcp-aforro-api build",
+    "deploy:api": "pnpm --filter igcp-aforro-api deploy",
+    "dev:api": "pnpm --filter igcp-aforro-api dev",
+    "dev:mcp": "pnpm --filter igcp-aforro-mcp dev",
     "compare:igcp": "tsx compare/igcp-simulator.ts",
     "prepublishOnly": "pnpm run lint && pnpm run typecheck && pnpm run test:coverage && pnpm run build"
   },

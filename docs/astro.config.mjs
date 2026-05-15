@@ -117,6 +117,11 @@ export default defineConfig({
           slug: 'rates-json',
           translations: { en: 'rates.json schema' },
         },
+        {
+          label: 'API HTTP',
+          slug: 'api-http',
+          translations: { en: 'HTTP API' },
+        },
         { label: 'Metodologia', slug: 'methodology', translations: { en: 'Methodology' } },
         apiSidebarGroup,
         { label: 'Histórico de alterações', slug: 'changelog', translations: { en: 'Changelog' } },

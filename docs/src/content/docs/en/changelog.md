@@ -9,6 +9,7 @@ The canonical changelog is the [GitHub Releases page](https://github.com/pprimor
 
 ## Unreleased
 
+- **Public HTTP API + MCP server**. Cloudflare Worker at `https://api.igcp-aforro.primor.me` with `/v1/*` routes (`safe*` semantics, open CORS, legal disclaimer header). `igcp-aforro-mcp` stdio package with mirrored tools for Cursor/Claude. Documented in [HTTP API](/en/api-http/).
 - **Calendar-year roll-up (IRS helper)**. New `rollupTaxYears()`, `getTaxYearRollup()`, `rollupTaxYearsFromPortfolio()`, and `getPortfolioTaxYearRollup()` bucket gross interest, IRS withheld, and net interest by calendar year of `quarterEndDate` (capitalized quarters only; excludes accrued). CLI `aforro tax-year` for single cohort or portfolio (`--year`, `--json`, `--csv` on single cohort). Docs playground card with year selector and non-advice disclaimer.
 - **Single-cohort playground schedule CSV export**. The docs playground adds **Download schedule (CSV)** when the quarterly schedule is enabled: UTF-8 with BOM for Microsoft Excel, columns using the same decimal strings as `aforro simulate --json`, and an optional accrued-interest trailer block.
 - **Single-cohort playground charts**. The docs playground renders three inline SVG charts (annual rate, balance with principal baseline, per-quarter cash flow) when the quarterly schedule is enabled, with bilingual EN/PT-PT labels and Starlight light/dark theming.

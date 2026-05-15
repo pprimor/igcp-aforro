@@ -1,0 +1,84 @@
+name: Deploy API
+
+# Deploys the Cloudflare Worker REST API at https://api.igcp-aforro.primor.me
+#
+# Triggered manually or from the release workflow after a version is published.
+#
+# Prerequisites (Cloudflare dashboard):
+#   - DNS: CNAME api.igcp-aforro.primor.me → igcp-aforro-api.<account>.workers.dev
+#     (or attach the custom domain on the Worker route)
+#   - Worker route: api.igcp-aforro.primor.me/* (see worker/wrangler.toml)
+#   - WAF rate limiting: e.g. 60 requests/minute per IP on /v1/* (recommended for the public API)
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to deploy (e.g. main or v2026.513.0)
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy
+        required: true
+        default: main
+        type: string
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy REST API to Cloudflare Workers
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: cloudflare-pages
+      url: https://api.igcp-aforro.primor.me
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout deploy ref
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build library
+        run: pnpm build
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          command: deploy
+
+      - name: Smoke test /health
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS "https://api.igcp-aforro.primor.me/health" | jq -e '.status == "ok"'; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Health check failed after deploy"
+          exit 1

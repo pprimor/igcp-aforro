@@ -1,0 +1,9 @@
+name = "igcp-aforro-api"
+main = "src/index.ts"
+compatibility_date = "2025-05-15"
+
+# Production route (configure DNS CNAME api.igcp-aforro.primor.me → Worker):
+# routes = [{ pattern = "api.igcp-aforro.primor.me/*", zone_name = "primor.me" }]
+
+[observability]
+enabled = true
