@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { simulate } from '../src/core/calculator.js';
 import type { SimulateInput, SimulateResult } from '../src/types/domain.js';
 import fixture from './fixtures/golden-simulations.json' with { type: 'json' };
+import { assertSimulateInvariants, cents } from './helpers/simulateInvariants.js';
 import { syntheticEuriborFlat } from './helpers/syntheticEuribor.js';
 
 /** Long-run scenarios that exceed bundled Euribor — deterministic flat curve. */
@@ -37,11 +38,6 @@ function stripMetadata(result: SimulateResult): Omit<SimulateResult, 'seriesMeta
   return rest;
 }
 
-function cents(amount: string): number {
-  const [euros, centsPart = ''] = amount.split('.');
-  return Number(euros) * 100 + Number(centsPart.padEnd(2, '0').slice(0, 2));
-}
-
 describe('simulate — golden quarterly-compounding scenarios', () => {
   it('fixture is non-empty and has unique ids', () => {
     expect(scenarios.length).toBeGreaterThan(0);
@@ -62,43 +58,10 @@ describe('simulate — golden quarterly-compounding scenarios', () => {
 describe('simulate — invariants beyond the locked fixtures', () => {
   // These assertions hold for every scenario in the fixture and act as a
   // light double-check on the locked numbers themselves.
-  it('currentValueNet equals the current per-unit quote rounded to cents for every scenario', () => {
+  it('satisfies structural invariants for every scenario', () => {
     for (const scenario of scenarios) {
       const result = simulate(scenario.input);
-      const unroundedValue = scenario.input.units * Number(result.currentUnitQuote);
-      expect(Math.abs(unroundedValue - Number(result.currentValueNet))).toBeLessThanOrEqual(0.005);
-    }
-  });
-
-  it('currentValueGross === units + totalInterestGross for every scenario', () => {
-    for (const scenario of scenarios) {
-      const result = simulate(scenario.input);
-      const expectedCents = scenario.input.units * 100 + cents(result.totalInterestGross);
-      expect(cents(result.currentValueGross)).toBe(expectedCents);
-    }
-  });
-
-  it('totalInterestNet === totalInterestGross - totalIrsWithheld for every scenario', () => {
-    for (const scenario of scenarios) {
-      const result = simulate(scenario.input);
-      expect(cents(result.totalInterestNet)).toBe(
-        cents(result.totalInterestGross) - cents(result.totalIrsWithheld),
-      );
-    }
-  });
-
-  it('schedule rows reconcile exactly to totalInterestGross / Net / Withheld', () => {
-    for (const scenario of scenarios.filter((s) => s.input.includeSchedule)) {
-      const result = simulate(scenario.input);
-      const sched = result.schedule;
-      expect(sched).toBeDefined();
-      if (!sched) continue;
-      const sumGross = sched.reduce((sum, row) => sum + cents(row.interestGross), 0);
-      const sumNet = sched.reduce((sum, row) => sum + cents(row.interestNet), 0);
-      const sumIrs = sched.reduce((sum, row) => sum + cents(row.irsWithheld), 0);
-      expect(sumGross).toBe(cents(result.totalInterestGross));
-      expect(sumNet).toBe(cents(result.totalInterestNet));
-      expect(sumIrs).toBe(cents(result.totalIrsWithheld));
+      assertSimulateInvariants(result, scenario.input.units);
     }
   });
 });

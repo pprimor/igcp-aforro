@@ -46,7 +46,7 @@
     "fetch:igcp-base-rates": "tsx scripts/fetch-igcp-base-rates.ts",
     "build:rates-json": "tsx scripts/build-rates-json.ts",
     "compare:igcp": "tsx compare/igcp-simulator.ts",
-    "prepublishOnly": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
+    "prepublishOnly": "pnpm run lint && pnpm run typecheck && pnpm run test:coverage && pnpm run build"
   },
   "keywords": [
     "igcp",
@@ -75,6 +75,7 @@
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "2.1.9",
     "execa": "^9.5.2",
+    "fast-check": "^3.23.2",
     "msw": "^2.6.6",
     "node-html-parser": "^7.1.0",
     "tsup": "^8.3.5",

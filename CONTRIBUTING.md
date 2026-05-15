@@ -80,6 +80,11 @@ Style expectations:
 
 ## Testing Expectations
 
+- Property tests live in [`tests/properties/`](./tests/properties/) and run with
+  `pnpm test`. To reproduce a shrunk failure locally, rerun with a fixed seed:
+  `FC_SEED=12345 pnpm test tests/properties/…`.
+- CI enforces `pnpm test:coverage` on `src/core` (see thresholds in
+  [`vitest.config.ts`](./vitest.config.ts)).
 - Core calculator, date, series, and rate changes should include focused tests
   near the affected behavior.
 - CLI changes should update [`tests/cli.test.ts`](./tests/cli.test.ts).
