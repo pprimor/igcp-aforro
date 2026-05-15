@@ -9,6 +9,7 @@ The canonical changelog is the [GitHub Releases page](https://github.com/pprimor
 
 ## Unreleased
 
+- **Single-cohort playground schedule CSV export**. The docs playground adds **Download schedule (CSV)** when the quarterly schedule is enabled: UTF-8 with BOM for Microsoft Excel, columns using the same decimal strings as `aforro simulate --json`, and an optional accrued-interest trailer block.
 - **Single-cohort playground charts**. The docs playground renders three inline SVG charts (annual rate, balance with principal baseline, per-quarter cash flow) when the quarterly schedule is enabled, with bilingual EN/PT-PT labels and Starlight light/dark theming.
 - **Portfolio playground shareable URLs**. The docs portfolio simulator syncs cohort rows, as-of date, and the per-cohort schedule toggle into the query string (repeatable `row=series,date,units` entries) so you can copy a share link like the single-cohort playground.
 - **New `simulatePortfolio()` + portfolio types**. The library now exposes `simulatePortfolio()` to aggregate multiple subscription cohorts (including same-day top-ups), plus the new types `PortfolioSubscription`, `SimulatePortfolioInput`, `PortfolioSeriesBreakdown`, and `PortfolioResult`. The units cap is validated per series across the full portfolio input, and aggregate totals reconcile exactly with the embedded `cohorts[]` fields. This is additive and does not change the `rates.json` `schemaVersion`.

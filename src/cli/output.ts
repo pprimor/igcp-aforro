@@ -17,6 +17,7 @@
  */
 
 import { ZodError } from 'zod';
+import { escapeCsvField, formatCsvDocument } from '../playground/csv.js';
 
 export interface PrettyKeyValue {
   readonly key: string;
@@ -31,16 +32,7 @@ export function printJson(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-/**
- * Escapes a single CSV field per RFC 4180: fields containing `,`, `"`, or
- * line breaks are wrapped in double quotes; internal `"` becomes `""`.
- */
-export function escapeCsvField(value: string): string {
-  if (/[,"\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
+export { escapeCsvField };
 
 /**
  * Writes a CSV document: header row then one row per record, comma-separated,
@@ -48,11 +40,7 @@ export function escapeCsvField(value: string): string {
  * header and a trailing newline only.
  */
 export function printCsv(headers: readonly string[], rows: readonly (readonly string[])[]): void {
-  const line = (cells: readonly string[]): string => cells.map(escapeCsvField).join(',');
-  process.stdout.write(`${line(headers)}\n`);
-  for (const row of rows) {
-    process.stdout.write(`${line(row)}\n`);
-  }
+  process.stdout.write(formatCsvDocument(headers, rows));
 }
 
 /**

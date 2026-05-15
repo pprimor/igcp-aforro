@@ -22,7 +22,13 @@ import {
   projectNet,
   todayIsoUtc,
 } from '@igcp/playground-format';
+import {
+  CSV_UTF8_BOM,
+  buildPlaygroundScheduleCsv,
+  playgroundScheduleFilename,
+} from '@igcp/playground-export';
 import { Charts } from './charts/Charts';
+import { downloadTextFile } from './download';
 
 const DEBOUNCE_MS = 50;
 const COPY_STATUS_MS = 1500;
@@ -106,6 +112,10 @@ interface PlaygroundCopy {
   shareLinkCopied: string;
   shareLinkCopyFailed: string;
   copy: string;
+  downloadCsv: string;
+  downloadCsvNeedsSchedule: string;
+  downloadCsvDone: string;
+  downloadCsvFailed: string;
 }
 
 const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
@@ -178,6 +188,10 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     shareLinkCopied: 'Share link copied!',
     shareLinkCopyFailed: 'Could not copy share link.',
     copy: 'Copy',
+    downloadCsv: 'Download schedule (CSV)',
+    downloadCsvNeedsSchedule: 'Enable the quarterly schedule to export.',
+    downloadCsvDone: 'CSV downloaded.',
+    downloadCsvFailed: 'Could not download CSV.',
   },
   'pt-PT': {
     series: 'Série',
@@ -249,6 +263,10 @@ const COPY: Record<PlaygroundLocale, PlaygroundCopy> = {
     shareLinkCopied: 'Ligação copiada!',
     shareLinkCopyFailed: 'Não foi possível copiar a ligação.',
     copy: 'Copiar',
+    downloadCsv: 'Transferir calendário (CSV)',
+    downloadCsvNeedsSchedule: 'Ative o calendário trimestral para exportar.',
+    downloadCsvDone: 'CSV transferido.',
+    downloadCsvFailed: 'Não foi possível transferir o CSV.',
   },
 };
 
@@ -387,10 +405,12 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
   const [snippetMode, setSnippetMode] = useState<SnippetMode>('ts');
   const [copied, setCopied] = useState(false);
   const [shareCopyStatus, setShareCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [csvDownloadStatus, setCsvDownloadStatus] = useState<'idle' | 'done' | 'failed'>('idle');
   const [hasHydrated, setHasHydrated] = useState(false);
   const [urlSyncEnabled, setUrlSyncEnabled] = useState(false);
   const debounceRef = useRef<number | null>(null);
   const shareCopyTimeoutRef = useRef<number | null>(null);
+  const csvDownloadTimeoutRef = useRef<number | null>(null);
 
   const ids = {
     series: useId(),
@@ -491,6 +511,28 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
   };
 
   const { result, fieldErrors, generalError } = sim;
+
+  const handleDownloadCsv = () => {
+    if (!result) return;
+    try {
+      const csv = buildPlaygroundScheduleCsv(result);
+      if (!csv) {
+        setCsvDownloadStatus('failed');
+        return;
+      }
+      downloadTextFile(playgroundScheduleFilename(result), `${CSV_UTF8_BOM}${csv}`);
+      setCsvDownloadStatus('done');
+    } catch {
+      setCsvDownloadStatus('failed');
+    }
+    if (csvDownloadTimeoutRef.current !== null) {
+      window.clearTimeout(csvDownloadTimeoutRef.current);
+    }
+    csvDownloadTimeoutRef.current = window.setTimeout(
+      () => setCsvDownloadStatus('idle'),
+      COPY_STATUS_MS,
+    );
+  };
   const resultSeriesName = result ? getSeries(result.series).name : selectedSeries.name;
   const irsRateNum = result ? Number(result.irsRate) : 0;
   const accruedGross = result ? Number(result.accruedSinceLastCapitalization) : 0;
@@ -652,6 +694,9 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
             />
             {copy.includeSchedule}
           </label>
+          {!form.includeSchedule ? (
+            <p class="aforro-pg-note">{copy.downloadCsvNeedsSchedule}</p>
+          ) : null}
           <div class="aforro-pg-form-actions">
             <button type="button" class="aforro-pg-link-btn" onClick={reset}>
               {copy.reset}
@@ -755,9 +800,26 @@ export default function Playground({ locale = 'en' }: { locale?: PlaygroundLocal
 
           {result.schedule && result.schedule.length > 0 && (
             <section class="aforro-pg-card" aria-labelledby={ids.scheduleHeading}>
-              <h3 id={ids.scheduleHeading}>
-                {copy.schedule} ({result.schedule.length} {copy.quarters})
-              </h3>
+              <header class="aforro-pg-card-head">
+                <h3 id={ids.scheduleHeading}>
+                  {copy.schedule} ({result.schedule.length} {copy.quarters})
+                </h3>
+                <button
+                  type="button"
+                  class="aforro-pg-link-btn"
+                  disabled={!form.includeSchedule}
+                  onClick={handleDownloadCsv}
+                >
+                  {copy.downloadCsv}
+                </button>
+              </header>
+              <output class="aforro-pg-copy-status" aria-live="polite">
+                {csvDownloadStatus === 'done'
+                  ? copy.downloadCsvDone
+                  : csvDownloadStatus === 'failed'
+                    ? copy.downloadCsvFailed
+                    : ''}
+              </output>
               <Charts result={result} locale={locale} copy={copy} />
               <div class="aforro-pg-table-wrap">
                 <table class="aforro-pg-table">

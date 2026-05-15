@@ -17,6 +17,9 @@ const playgroundUrlStateEntry = fileURLToPath(
 const playgroundChartsEntry = fileURLToPath(
   new URL('../src/playground/charts.ts', import.meta.url),
 );
+const playgroundExportEntry = fileURLToPath(
+  new URL('../src/playground/export.ts', import.meta.url),
+);
 const apiSidebarGroup = {
   ...typeDocSidebarGroup,
   label: 'Referência da API',
@@ -43,6 +46,7 @@ export default defineConfig({
         '@igcp/playground-format': playgroundFormatEntry,
         '@igcp/playground-url-state': playgroundUrlStateEntry,
         '@igcp/playground-charts': playgroundChartsEntry,
+        '@igcp/playground-export': playgroundExportEntry,
       },
     },
   },
