@@ -74,8 +74,10 @@ jobs:
         run: pnpm build:rates-json
 
       - name: Install docs dependencies
+        # docs/ has its own lockfile and is not in pnpm-workspace.yaml; without
+        # --ignore-workspace pnpm walks up and only refreshes the root workspace.
         working-directory: docs
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-workspace
 
       - name: Build docs site
         working-directory: docs

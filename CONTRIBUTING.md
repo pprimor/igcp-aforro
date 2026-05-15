@@ -35,7 +35,7 @@ For docs-only work, also install the docs workspace dependencies:
 
 ```bash
 cd docs
-pnpm install
+pnpm install --ignore-workspace
 ```
 
 ## Repository Layout
@@ -233,7 +233,7 @@ configuration.
 
 ```bash
 cd docs
-pnpm install
+pnpm install --ignore-workspace
 pnpm dev
 pnpm build
 ```

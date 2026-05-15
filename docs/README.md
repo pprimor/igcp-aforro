@@ -6,7 +6,7 @@
 
 ```bash
 cd docs
-pnpm install
+pnpm install --ignore-workspace
 pnpm dev
 ```
 
