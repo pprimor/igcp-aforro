@@ -20,10 +20,10 @@ you to work on one of those areas.
 
 ## Prerequisites
 
-- Node.js `>=20` for the library and CLI.
+- Node.js `>=22` for the library, CLI, and workspace (Wrangler in the API package
+  declares `engines.node` accordingly).
 - `pnpm@10.28.1`, as declared by `packageManager` in [`package.json`](./package.json).
-- For docs work, a Node runtime compatible with Astro. The docs deploy workflow
-  currently uses Node 22 because Astro requires it.
+- For docs work, use the same Node major as above (the docs deploy workflow uses Node 22).
 
 Install root dependencies with:
 
