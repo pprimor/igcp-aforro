@@ -31,10 +31,13 @@ const cli = cac('aforro');
 cli
   .command(
     'simulate',
-    'Simulate an IGCP Aforro cohort (Série B, C, D, E, or F) up to an as-of date',
+    'Simulate an IGCP Aforro cohort (Série A, B, C, D, E, or F) up to an as-of date',
   )
   .option('--subscribed <date>', 'Subscription date (YYYY-MM-DD)')
-  .option('--units <n>', 'Principal in EUR (integer inside the selected series range)')
+  .option(
+    '--units <n>',
+    'Certificate units (integer inside the selected series range; nominal EUR = units × face value)',
+  )
   .option('--as-of <date>', 'As-of date (YYYY-MM-DD); defaults to today (UTC)')
   .option('--schedule', 'Include the per-quarter capitalization schedule')
   .option('--irs <rate>', 'IRS withholding rate (e.g. 0.28); defaults to series default')
@@ -70,7 +73,7 @@ cli
   .action(runPortfolio);
 
 cli
-  .command('redeem', 'Compute the redemption value of a Série B/C/D/E/F holding on a given date')
+  .command('redeem', 'Compute the redemption value of a Série A/B/C/D/E/F holding on a given date')
   .option('--subscribed <date>', 'Subscription date (YYYY-MM-DD)')
   .option('--units <n>', 'Original principal in EUR')
   .option('--redeem-on <date>', 'Redemption date (YYYY-MM-DD)')

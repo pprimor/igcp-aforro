@@ -131,6 +131,7 @@ describe('simulateRedemption — math contracts', () => {
 
 describe('simulateRedemption — per-series coverage and determinism', () => {
   it.each([
+    ['A', '1975-01-15', '1980-06-10'],
     ['C', '2010-01-15', '2013-06-10'],
     ['D', '2017-10-01', '2023-11-01'],
     ['E', '2018-01-15', '2024-07-20'],
@@ -144,10 +145,21 @@ describe('simulateRedemption — per-series coverage and determinism', () => {
         redemptionDate,
         unitsToRedeem: 400,
       },
-      series === 'C' ? {} : { observations: LONG_HORIZON_EURIBOR },
+      series === 'C' || series === 'A' ? {} : { observations: LONG_HORIZON_EURIBOR },
     );
     expect(result.series).toBe(series);
     expect(result.unitsToRedeem).toBe(400);
+  });
+
+  it('scales redemption EUR by Série A unit face value', () => {
+    const result = simulateRedemption({
+      series: 'A',
+      subscriptionDate: '1975-01-15',
+      units: 100,
+      redemptionDate: '1980-06-10',
+    });
+    const q = Number(result.unitQuoteAtRedemption);
+    expect(Number(result.redemptionValue)).toBeCloseTo(100 * 0.34916 * q, 1);
   });
 
   it('is deterministic for identical inputs', () => {

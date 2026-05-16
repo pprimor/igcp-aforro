@@ -51,7 +51,7 @@ describe('simulatePortfolio — reconciliation and composition', () => {
     );
   });
 
-  it('keeps bySeries in canonical B, C, D, E, F order (omitting empty series)', () => {
+  it('keeps bySeries in canonical A, B, C, D, E, F order (omitting empty series)', () => {
     const result = simulatePortfolio({
       asOfDate: '2026-04-19',
       subscriptions: [
@@ -192,6 +192,18 @@ describe('simulatePortfolio — maturity rollups and schedule propagation', () =
     );
     expect(mixed.allMatured).toBe(false);
     expect(mixed.anyMatured).toBe(true);
+  });
+
+  it('aggregates mixed Série A and Série B cohorts with distinct bySeries rows', () => {
+    const result = simulatePortfolio({
+      asOfDate: '1990-06-15',
+      subscriptions: [
+        { series: 'A', subscriptionDate: '1970-01-15', units: 200 },
+        { series: 'B', subscriptionDate: '1987-01-15', units: 100 },
+      ],
+    });
+    expect(result.bySeries.map((r) => r.series)).toEqual(['A', 'B']);
+    expect(result.totalUnits).toBe(300);
   });
 
   it('propagates includeSchedule=true to all cohorts', () => {

@@ -1,0 +1,762 @@
+{
+  "_meta": {
+    "generatedBy": "scripts/build-aforro-history-data.ts"
+  },
+  "rates": [
+    {
+      "month": "1986-07",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1986-08",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1986-09",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1986-10",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1986-11",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1986-12",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-01",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-02",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-03",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-04",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-05",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-06",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-07",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-08",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-09",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-10",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-11",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1987-12",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-01",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-02",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-03",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-04",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-05",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-06",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-07",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-08",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-09",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-10",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-11",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1988-12",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-01",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-02",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-03",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-04",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-05",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-06",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-07",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-08",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-09",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-10",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-11",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1989-12",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1990-01",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1990-02",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1990-03",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1990-04",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1990-05",
+      "tbaPct": "17.049",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1990-06",
+      "tbaPct": "16.871",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1990-07",
+      "tbaPct": "16.860",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1990-08",
+      "tbaPct": "17.500",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1990-09",
+      "tbaPct": "17.416",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1990-10",
+      "tbaPct": "17.435",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1990-11",
+      "tbaPct": "17.717",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1990-12",
+      "tbaPct": "17.606",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-01",
+      "tbaPct": "17.573",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-02",
+      "tbaPct": "17.855",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-03",
+      "tbaPct": "18.069",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-04",
+      "tbaPct": "18.080",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-05",
+      "tbaPct": "18.184",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-06",
+      "tbaPct": "18.144",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-07",
+      "tbaPct": "18.237",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-08",
+      "tbaPct": "18.220",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-09",
+      "tbaPct": "18.212",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-10",
+      "tbaPct": "18.124",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-11",
+      "tbaPct": "17.683",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1991-12",
+      "tbaPct": "17.546",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-01",
+      "tbaPct": "17.535",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-02",
+      "tbaPct": "17.267",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-03",
+      "tbaPct": "16.777",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-04",
+      "tbaPct": "16.183",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-05",
+      "tbaPct": "15.936",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-06",
+      "tbaPct": "16.045",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-07",
+      "tbaPct": "16.047",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-08",
+      "tbaPct": "15.608",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-09",
+      "tbaPct": "13.893",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-10",
+      "tbaPct": "14.812",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-11",
+      "tbaPct": "14.978",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1992-12",
+      "tbaPct": "15.409",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-01",
+      "tbaPct": "14.219",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-02",
+      "tbaPct": "13.370",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-03",
+      "tbaPct": "13.069",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-04",
+      "tbaPct": "13.511",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-05",
+      "tbaPct": "14.763",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-06",
+      "tbaPct": "12.428",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-07",
+      "tbaPct": "10.908",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-08",
+      "tbaPct": "10.753",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-09",
+      "tbaPct": "10.363",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-10",
+      "tbaPct": "10.259",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-11",
+      "tbaPct": "10.367",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1993-12",
+      "tbaPct": "10.520",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-01",
+      "tbaPct": "10.218",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-02",
+      "tbaPct": "9.773",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-03",
+      "tbaPct": "9.289",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-04",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1994-05",
+      "tbaPct": "10.753",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-06",
+      "tbaPct": "11.767",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-07",
+      "tbaPct": "12.372",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-08",
+      "tbaPct": "11.445",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-09",
+      "tbaPct": "10.744",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-10",
+      "tbaPct": "10.281",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-11",
+      "tbaPct": "10.121",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1994-12",
+      "tbaPct": "10.547",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-01",
+      "tbaPct": "10.903",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-02",
+      "tbaPct": "10.349",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-03",
+      "tbaPct": "10.919",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-04",
+      "tbaPct": "11.071",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-05",
+      "tbaPct": "10.478",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-06",
+      "tbaPct": "10.231",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-07",
+      "tbaPct": "9.685",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-08",
+      "tbaPct": "9.558",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-09",
+      "tbaPct": "9.434",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-10",
+      "tbaPct": "9.284",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-11",
+      "tbaPct": "9.045",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1995-12",
+      "tbaPct": "8.859",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-01",
+      "tbaPct": "8.202",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-02",
+      "tbaPct": "7.899",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-03",
+      "tbaPct": "7.779",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-04",
+      "tbaPct": "7.322",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-05",
+      "tbaPct": "6.903",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-06",
+      "tbaPct": "6.986",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-07",
+      "tbaPct": "7.135",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-08",
+      "tbaPct": "7.129",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-09",
+      "tbaPct": "7.015",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-10",
+      "tbaPct": "6.739",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-11",
+      "tbaPct": "6.584",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1996-12",
+      "tbaPct": "6.231",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-01",
+      "tbaPct": "5.630",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-02",
+      "tbaPct": "5.831",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-03",
+      "tbaPct": "6.022",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-04",
+      "tbaPct": "5.778",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-05",
+      "tbaPct": "5.470",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-06",
+      "tbaPct": "5.404",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-07",
+      "tbaPct": "5.330",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-08",
+      "tbaPct": "5.285",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-09",
+      "tbaPct": "5.178",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-10",
+      "tbaPct": "4.975",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-11",
+      "tbaPct": "4.995",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1997-12",
+      "tbaPct": "4.884",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-01",
+      "tbaPct": "4.506",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-02",
+      "tbaPct": "4.459",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-03",
+      "tbaPct": "4.212",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-04",
+      "tbaPct": "4.217",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-05",
+      "tbaPct": "4.220",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-06",
+      "tbaPct": "4.209",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-07",
+      "tbaPct": "4.160",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-08",
+      "tbaPct": "3.988",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-09",
+      "tbaPct": "3.876",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-10",
+      "tbaPct": "3.835",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-11",
+      "tbaPct": "3.705",
+      "source": "BPstat series 12504604 (TBA from Treasury bills, monthly)"
+    },
+    {
+      "month": "1998-12",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    },
+    {
+      "month": "1999-01",
+      "tbaPct": "17.410",
+      "source": "BPstat series 12504604 — constant extrapolation to 1990-04 (17.4105) pending archival months before 1990-04"
+    }
+  ]
+}

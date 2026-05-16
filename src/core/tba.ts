@@ -87,6 +87,8 @@ export interface TbaOptions {
   readonly observations3m: readonly RateEntry[];
   readonly observations12m: readonly RateEntry[];
   readonly strictWindowEnd?: boolean;
+  /** Defaults to EURIBOR labels (Lisbor-era callers pass LISBOR names). */
+  readonly indexLabels?: { readonly l3: string; readonly l12: string };
 }
 
 /**
@@ -101,14 +103,11 @@ export function computeTba(year: number, month: number, options: TbaOptions): Tb
   const targetMonth = formatIsoMonth(year, month);
   const strict = options.strictWindowEnd ?? true;
 
-  const l3 = movingAveragePct(options.observations3m, maEndDate, strict, 'EURIBOR 3M', targetMonth);
-  const l12 = movingAveragePct(
-    options.observations12m,
-    maEndDate,
-    strict,
-    'EURIBOR 12M',
-    targetMonth,
-  );
+  const l3Label = options.indexLabels?.l3 ?? 'EURIBOR 3M';
+  const l12Label = options.indexLabels?.l12 ?? 'EURIBOR 12M';
+
+  const l3 = movingAveragePct(options.observations3m, maEndDate, strict, l3Label, targetMonth);
+  const l12 = movingAveragePct(options.observations12m, maEndDate, strict, l12Label, targetMonth);
 
   const tbaRaw = toBig('0.52')
     .times(l3.avg)

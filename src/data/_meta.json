@@ -20,5 +20,45 @@
     "latestObservation": "2026-05-07",
     "observationCount": 7001,
     "license": "EMMI EURIBOR® data redistributed by Deutsche Bundesbank under non-commercial terms; commercial use requires an EMMI licence (https://www.emmi-benchmarks.eu/terms-of-use)."
+  },
+  "tbaHistory": {
+    "lastRefreshedAt": "2026-05-15T20:34:12Z",
+    "source": "Banco de Portugal BPstat",
+    "sourceUrl": "https://bpstat.bportugal.pt/data/v1/domains/22/datasets/471186a839daf97d9280419fc06c8579/?lang=EN&series_ids=12504604",
+    "seriesId": "12504604",
+    "earliestObservation": "1986-07",
+    "latestObservation": "1999-01",
+    "observationCount": 151,
+    "license": "Banco de Portugal statistical data (BPstat); see https://bpstat.bportugal.pt/"
+  },
+  "lisbor3m": {
+    "lastRefreshedAt": "2026-05-15T20:34:12Z",
+    "source": "Banco de Portugal BPstat — LISBOR 3 months monthly expanded to business-day series",
+    "sourceUrl": "https://bpstat.bportugal.pt/data/v1/domains/22/datasets/2829cb9155cb4f6ba6906db6b204c4bc/?lang=EN&series_ids=12504609",
+    "seriesId": "12504609",
+    "earliestObservation": "1999-02-01",
+    "latestObservation": "2002-03-28",
+    "observationCount": 810,
+    "license": "Banco de Portugal statistical data (BPstat)"
+  },
+  "lisbor12m": {
+    "lastRefreshedAt": "2026-05-15T20:34:12Z",
+    "source": "Banco de Portugal BPstat — LISBOR 1 year monthly expanded to business-day series (12M leg)",
+    "sourceUrl": "https://bpstat.bportugal.pt/data/v1/domains/22/datasets/2829cb9155cb4f6ba6906db6b204c4bc/?lang=EN&series_ids=12504612",
+    "seriesId": "12504612",
+    "earliestObservation": "1999-02-01",
+    "latestObservation": "2002-03-28",
+    "observationCount": 810,
+    "license": "Banco de Portugal statistical data (BPstat)"
+  },
+  "serieAAdminRates": {
+    "lastRefreshedAt": "2026-05-15T20:34:12Z",
+    "source": "Placeholder linear table (pending DR archival)",
+    "sourceUrl": "https://www.igcp.pt/pt/aforristas/produtos-de-aforro/certificados-de-aforro",
+    "seriesId": "serie-a-admin-placeholder",
+    "earliestObservation": "1961-01",
+    "latestObservation": "1986-06",
+    "observationCount": 306,
+    "license": "Placeholder data generated in-repo; replace with DR-sourced rows before compliance use."
   }
 }

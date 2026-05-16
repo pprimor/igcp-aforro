@@ -81,6 +81,36 @@ describe('getSeries', () => {
   });
 });
 
+describe('getSeries — Série A', () => {
+  it('registers perpetual Série A with €0.34916 face value per unit', () => {
+    expect(getSeries('A')).toMatchObject({
+      code: 'A',
+      unitFaceValueEur: '0.34916',
+      maturityYears: null,
+      subscriptionEndDate: '1986-06-30',
+    });
+  });
+});
+
+describe('getCurrentRate / getRateForCohort — Série A', () => {
+  it('matches Série B on the same as-of date in the Euribor TBA window', () => {
+    const asOf = '2024-04-15';
+    const a = getCurrentRate({ series: 'A', asOfDate: asOf });
+    const b = getCurrentRate({ series: 'B', asOfDate: asOf });
+    expect(a.basePct).toBe(b.basePct);
+    expect(a.fixingDate).toBe(b.fixingDate);
+  });
+
+  it('applies the maximum permanence premium for long-held Série A', () => {
+    const result = getRateForCohort({
+      series: 'A',
+      subscriptionDate: '1965-01-15',
+      asOfDate: '1985-01-20',
+    });
+    expect(result.premiumTier.ratePct).toBe('2.00');
+  });
+});
+
 describe('premiumTierForYear — Série C legacy vs Portaria 230-A/2009 tiers', () => {
   const serieC = getSeries('C');
 
@@ -345,7 +375,10 @@ describe('rates.json artifact', () => {
   it('includes series blocks with base rates and cohort rows', async () => {
     const artifact = await buildArtifact(() => {});
 
-    expect(Object.keys(artifact.series).sort()).toEqual(['B', 'C', 'D', 'E', 'F']);
+    expect(Object.keys(artifact.series).sort()).toEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    expect(artifact.series.A.metadata.code).toBe('A');
+    expect(artifact.series.A.monthlyBaseRates.length).toBeGreaterThan(0);
+    expect(artifact.series.A.cohortRates.length).toBeGreaterThan(0);
     expect(artifact.series.B.metadata.code).toBe('B');
     expect(artifact.series.B.monthlyBaseRates.length).toBeGreaterThan(0);
     expect(artifact.series.B.cohortRates.length).toBeGreaterThan(0);

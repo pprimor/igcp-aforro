@@ -52,12 +52,12 @@ const MAX_PERPETUAL_QUARTERS = 2000;
  *      to the series' configured quote precision (5 decimals for Séries D/E/F)
  *      using banker's rounding.
  *   4. Gross interest and IRS withholding are also booked in real EUR at the
- *      holding level each quarter: gross = `units × previousUnitQuote ×
+ *      holding level each quarter: gross = `units × unitFaceValueEur × previousUnitQuote ×
  *      quarterlyRate`, rounded to cents; IRS = `gross × irsRate`, rounded to
  *      cents; net = gross − IRS.
  *
  * The displayed booked value is derived from the rounded quote:
- * `currentValueNet = round(units × currentUnitQuote, 2)`. Because the
+ * `currentValueNet = round(units × unitFaceValueEur × currentUnitQuote, 2)`. Because the
  * headline total fields are sums of cent-quantized quarterly EUR amounts,
  * they reconcile exactly with the schedule rows.
  *
@@ -127,7 +127,7 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
   const irsRate = parsed.irsRate ?? Number(series.defaultIrsRate);
   const irsRateBig = toBig(irsRate);
 
-  const principal = toBig(parsed.units);
+  const principalEur = toBig(parsed.units).times(toBig(series.unitFaceValueEur));
   const maturityDate =
     series.maturityYears === null ? null : shiftMonths(subscriptionDate, series.maturityYears * 12);
   const maxQuarters =
@@ -165,7 +165,7 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
       .plus(netPerUnit)
       .round(series.unitQuoteDecimals, ROUND_HALF_EVEN);
 
-    const interestGross = quantizeCents(grossPerUnit.times(principal));
+    const interestGross = quantizeCents(grossPerUnit.times(principalEur));
     const irs = quantizeCents(interestGross.times(irsRateBig));
     const interestNet = interestGross.minus(irs);
 
@@ -182,7 +182,7 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
         interestGross: formatCents(interestGross),
         irsWithheld: formatCents(irs),
         interestNet: formatCents(interestNet),
-        balanceAfter: formatCents(quantizeCents(unitQuote.times(principal))),
+        balanceAfter: formatCents(quantizeCents(unitQuote.times(principalEur))),
         unitQuoteAfter: formatDecimal(unitQuote, series.unitQuoteDecimals),
         premiumTier: tier,
       });
@@ -203,12 +203,12 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
     if (totalDays > 0 && elapsedDays > 0 && elapsedDays < totalDays) {
       const { quarterlyRate } = rateForQuarter(series, subscriptionDate, quarterStart, options);
       const fraction = toBig(elapsedDays).div(totalDays);
-      accruedGross = unitQuote.times(quarterlyRate).times(fraction).times(principal);
+      accruedGross = unitQuote.times(quarterlyRate).times(fraction).times(principalEur);
     }
   }
 
-  const currentValueGross = principal.plus(totalInterestGross);
-  const currentValueNet = quantizeCents(unitQuote.times(principal));
+  const currentValueGross = principalEur.plus(totalInterestGross);
+  const currentValueNet = quantizeCents(unitQuote.times(principalEur));
 
   const result: SimulateResult = {
     series: series.code,

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Precompute a single, self-contained `rates.json` artifact covering
- * every series registered in {@link listSeries} (Séries C, D, E, and F),
+ * every series registered in {@link listSeries} (Séries A, B, C, D, E, and F),
  * with one block per series enumerating every published month
  * and every anchored-quarter cohort, then write it to
  * `public/rates.json` (the path published with the docs site).
@@ -9,7 +9,7 @@
  * The artifact exists so non-JS consumers (Python, Java, Excel,
  * spreadsheets) can use the same numbers the npm library returns
  * without re-implementing the IGCP methodology themselves: they fetch
- * one JSON file, pick the series block (`series.C`, `series.D`, `series.E`, or `series.F`),
+ * one JSON file, pick the series block (`series.A`, `series.B`, `series.C`, `series.D`, `series.E`, or `series.F`),
  * then look up `monthlyBaseRates[month]` for the monthly base rate or
  * `cohortRates` filtered by cohort and quarter for the composite
  * annual rate.

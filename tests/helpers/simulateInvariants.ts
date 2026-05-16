@@ -16,15 +16,17 @@ export function cents(amount: string): number {
  * Shared by golden loops and property-based tests to avoid assertion drift.
  */
 export function assertSimulateInvariants(result: SimulateResult, units: number): void {
-  expect(cents(result.currentValueGross)).toBe(units * 100 + cents(result.totalInterestGross));
+  const principalEur = toBig(units).times(toBig(result.seriesMetadata.unitFaceValueEur));
+  const principalCents = cents(formatCents(principalEur));
+  expect(cents(result.currentValueGross)).toBe(principalCents + cents(result.totalInterestGross));
   expect(cents(result.totalInterestNet)).toBe(
     cents(result.totalInterestGross) - cents(result.totalIrsWithheld),
   );
 
-  const unroundedNetValue = units * Number(result.currentUnitQuote);
-  expect(Math.abs(unroundedNetValue - Number(result.currentValueNet))).toBeLessThanOrEqual(
-    NET_VALUE_TOLERANCE_EUR,
-  );
+  const unroundedNetValue = principalEur.times(toBig(result.currentUnitQuote));
+  expect(
+    unroundedNetValue.minus(toBig(result.currentValueNet)).abs().toNumber(),
+  ).toBeLessThanOrEqual(NET_VALUE_TOLERANCE_EUR);
 
   const sched = result.schedule;
   if (!sched || sched.length === 0) return;
@@ -45,7 +47,7 @@ export function assertSimulateInvariants(result: SimulateResult, units: number):
   }
 
   for (const row of sched) {
-    const expectedBalance = quantizeCents(toBig(row.unitQuoteAfter).times(units));
+    const expectedBalance = quantizeCents(toBig(row.unitQuoteAfter).times(principalEur));
     expect(cents(row.balanceAfter)).toBe(cents(formatCents(expectedBalance)));
   }
 }

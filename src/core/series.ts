@@ -68,6 +68,38 @@ const SERIE_B_METADATA: SeriesMetadata = {
   subscriptionEndDate: '2008-01-25',
   minUnits: 100,
   maxUnits: 250_000,
+  unitFaceValueEur: '1',
+  baseRateClampMinPct: '0',
+  baseRateClampMaxPct: '100',
+  baseRateSpreadPct: '0',
+  baseRateDecimals: 3,
+  unitQuoteDecimals: 5,
+  euribor3mAveragingDays: 20,
+  capitalizationFrequency: 'quarterly',
+  defaultIrsRate: '0.28',
+  premiumTiers: SERIE_B_PREMIUM_TIERS,
+};
+
+/**
+ * Série A — IGCP-published parameters (legacy perpetual certificates).
+ *
+ * Created by Decreto n.º 43.454/1960; subscriptions closed 30 June 1986.
+ * Base rate uses bundled administrative rates before July 1986, then the same
+ * `0,60 × TBA` path as Série B (with Lisbor/Euribor-backed TBA where applicable).
+ * One certificate unit represents €0.34916 nominal principal. Permanence
+ * premiums follow Portaria n.º 1219/1991 — the ladder matches Série B.
+ */
+const SERIE_A_METADATA: SeriesMetadata = {
+  code: 'A',
+  name: 'Série A',
+  minimumHoldingMonths: 3,
+  maturityYears: null,
+  ratesJsonMaxContractYears: 50,
+  subscriptionStartDate: '1960-01-01',
+  subscriptionEndDate: '1986-06-30',
+  minUnits: 100,
+  maxUnits: 250_000,
+  unitFaceValueEur: '0.34916',
   baseRateClampMinPct: '0',
   baseRateClampMaxPct: '100',
   baseRateSpreadPct: '0',
@@ -88,6 +120,7 @@ const SERIE_C_METADATA: SeriesMetadata = {
   subscriptionEndDate: '2015-01-31',
   minUnits: 100,
   maxUnits: 250_000,
+  unitFaceValueEur: '1',
   baseRateClampMinPct: '0',
   baseRateClampMaxPct: '100',
   baseRateSpreadPct: '0',
@@ -130,6 +163,7 @@ const SERIE_D_METADATA: SeriesMetadata = {
   subscriptionEndDate: '2017-10-31',
   minUnits: 100,
   maxUnits: 250_000,
+  unitFaceValueEur: '1',
   baseRateClampMinPct: '0',
   baseRateClampMaxPct: '3.5',
   baseRateSpreadPct: '1',
@@ -169,6 +203,7 @@ const SERIE_F_METADATA: SeriesMetadata = {
   subscriptionStartDate: '2023-06-01',
   minUnits: 100,
   maxUnits: 100_000,
+  unitFaceValueEur: '1',
   baseRateClampMinPct: '0',
   baseRateClampMaxPct: '2.5',
   baseRateSpreadPct: '0',
@@ -207,6 +242,7 @@ const SERIE_E_METADATA: SeriesMetadata = {
   subscriptionEndDate: '2023-06-01',
   minUnits: 100,
   maxUnits: 250_000,
+  unitFaceValueEur: '1',
   baseRateClampMinPct: '0',
   baseRateClampMaxPct: '3.5',
   baseRateSpreadPct: '1',
@@ -224,6 +260,7 @@ const SERIE_E_METADATA: SeriesMetadata = {
  * it remains JSON-serializable and tree-shakable.
  */
 export const Series = {
+  A: 'A',
   B: 'B',
   C: 'C',
   D: 'D',
@@ -232,6 +269,7 @@ export const Series = {
 } as const satisfies Record<string, SeriesCode>;
 
 const SERIES_REGISTRY: Readonly<Partial<Record<SeriesCode, SeriesMetadata>>> = {
+  A: SERIE_A_METADATA,
   B: SERIE_B_METADATA,
   C: SERIE_C_METADATA,
   D: SERIE_D_METADATA,
@@ -239,7 +277,7 @@ const SERIES_REGISTRY: Readonly<Partial<Record<SeriesCode, SeriesMetadata>>> = {
   F: SERIE_F_METADATA,
 };
 
-const SERIES_LIST_ORDER: readonly SeriesCode[] = ['B', 'C', 'D', 'E', 'F'];
+const SERIES_LIST_ORDER: readonly SeriesCode[] = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 /** Returns metadata for every series supported by this build. */
 export function listSeries(): readonly SeriesMetadata[] {

@@ -1,9 +1,9 @@
 ---
 title: Metodologia
-description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Séries B, C, D, E e F, com referências às fichas técnicas do IGCP e ao Diário da República.
+description: Como esta biblioteca reproduz o cálculo dos Certificados de Aforro Séries A, B, C, D, E e F, com referências às fichas técnicas do IGCP e ao Diário da República.
 ---
 
-Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a passo, o cálculo da remuneração dos Certificados de Aforro **Série B** (encerrada a novas subscrições; sem maturidade contratual), **Série C** (encerrada), **Série D**, **Série E** e **Série F** publicado pelo [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Cada secção remete para as fichas técnicas oficiais e identifica o ficheiro do código onde a regra está implementada. Nota de pesquisa e arquivo PDF: [Série C — pesquisa e parâmetros](/serie-c-research/).
+Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a passo, o cálculo da remuneração dos Certificados de Aforro **Série A** (legado; perpétua; valor facial por unidade), **Série B** (encerrada a novas subscrições; sem maturidade contratual), **Série C** (encerrada), **Série D**, **Série E** e **Série F** publicado pelo [IGCP — Agência de Gestão da Tesouraria e da Dívida Pública](https://www.igcp.pt/). Cada secção remete para as fichas técnicas oficiais e identifica o ficheiro do código onde a regra está implementada. Notas de pesquisa: [Série C — pesquisa e parâmetros](/serie-c-research/), [Série A — pesquisa e parâmetros](/serie-a-research/).
 
 :::note[Fontes oficiais]
 - Portaria n.º 73-B/2008 (Série B — taxa-base em função da TBA) e Portaria n.º 1219/1991 (prémio de permanência, entre outros diplomas citados pelo IGCP).
@@ -13,7 +13,7 @@ Esta página descreve, em português, como o `igcp-aforro` reproduz, passo a pas
 - Portaria n.º 329-A/2017, que aprova as condições da Série E.
 - Portaria n.º 149-A/2023, que aprova as condições da Série F e encerra a subscrição da Série E.
 - [Fichas técnicas do IGCP](https://www.igcp.pt/) para os Certificados de Aforro.
-- Termos de uso da [EMMI](https://www.emmi-benchmarks.eu/) para a EURIBOR® (Séries C–F: Euribor 3M; Série B: Euribor 3M e 12M via TBA).
+- Termos de uso da [EMMI](https://www.emmi-benchmarks.eu/) para a EURIBOR® (Séries C–F: Euribor 3M; Séries A/B: Euribor 3M e 12M via TBA na era pós-2002-03). Dados **Lisbor** históricos: [Banco de Portugal BPstat](https://bpstat.bportugal.pt/).
 
 A presente biblioteca **não substitui** as comunicações oficiais do IGCP nem constitui aconselhamento financeiro. Em caso de divergência, prevalecem os valores publicados pelo IGCP.
 :::
@@ -22,7 +22,7 @@ A presente biblioteca **não substitui** as comunicações oficiais do IGCP nem 
 
 | Parâmetro | Série F | Séries D/E | Série C | Série B | Implementação |
 | --- | --- | --- | --- | --- | --- |
-| Maturidade | 15 anos | 10 anos | 10 anos | Sem data de maturidade (perpétuo até resgate) | `SeriesMetadata.maturityYears` (`null` na B) em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
+| Maturidade | 15 anos | 10 anos | 10 anos | Sem data de maturidade (perpétuo até resgate) | `SeriesMetadata.maturityYears` (`null` na A e B) em [`src/core/series.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/series.ts) |
 | Subscrição mínima | 100 unidades (1 unidade = €1) | 100 unidades | 100 unidades | 100 unidades | `SeriesMetadata.minUnits` |
 | Subscrição máxima | 100.000 unidades | 250.000 unidades | 250.000 unidades (pós-230-A/2009) | 250.000 unidades | `SeriesMetadata.maxUnits` |
 | Janela de subscrição | A partir de 1 de junho de 2023 | Série D: 1 de fevereiro de 2015 a 31 de outubro de 2017; Série E: 1 de novembro de 2017 a 1 de junho de 2023 | 26 de janeiro de 2008 a 31 de janeiro de 2015 | 1 de julho de 1986 a 25 de janeiro de 2008 | `SeriesMetadata.subscriptionStartDate` / `subscriptionEndDate` |
@@ -45,7 +45,11 @@ O passo final difere por série:
 - **Séries D e E** — à média já arredondada soma-se um *spread* fixo de **+1 ponto percentual** (`E3 + 1%`); o valor final é depois limitado ao intervalo `[0%, 3,5%]`. A ordem importa: o arredondamento aplica-se à média, **antes** de somar o *spread*, e o *clamp* aplica-se **depois**.
 - **Série C** — aplica-se **0,85 × E3 + *k***, em que E3 é a média **já** arredondada a 3 d.p.; *k* é **−0,25** para os meses de publicação até fevereiro de 2009 e **+0,25** a partir de março de 2009 (Portarias n.º 73-A/2008 e 230-A/2009). O produto é arredondado de novo a 3 d.p. antes de um *clamp* inferior a `0%` (sem teto superior à escala das outras séries).
 
-**Série B** — a taxa-base mensal é **0,60 × TBA** (Portaria n.º 73-B/2008). A **TBA** segue o Decreto-Lei n.º 11/1999: médias móveis simples de **20** dias úteis TARGET2 das séries **Euribor 3M e 12M**, com a **mesma** `fixingDate` (antepenúltimo dia útil de `M-1`). Os detalhes de composição, janela e arredondamento estão em [`src/core/tba.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/tba.ts); o ramo da Série B em [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts). As fixações 3M e 12M vêm de [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json) e [`src/data/euribor12m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor12m.json) (Deutsche Bundesbank / EMMI).
+**Série B** — a taxa-base mensal é **0,60 × TBA** (Portaria n.º 73-B/2008). A **TBA** segue o Decreto-Lei n.º 11/1999: médias móveis simples de **20** dias úteis TARGET2 das séries **Euribor 3M e 12M** (ou **Lisbor** 3M/12M no período congelado 1999-02…2002-03), com a **mesma** `fixingDate` (antepenúltimo dia útil de `M-1`). Os detalhes de composição, janela e arredondamento estão em [`src/core/tba.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/tba.ts); o ramo partilhado **Séries A/B** em [`src/core/baseRate.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/baseRate.ts). Para meses **≥ 2002-04**, as fixações 3M e 12M vêm de [`src/data/euribor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor3m.json) e [`src/data/euribor12m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/euribor12m.json) (Deutsche Bundesbank / EMMI). Para **1999-02 … 2002-03**, usam-se [`src/data/lisbor3m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/lisbor3m.json) e [`src/data/lisbor12m.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/lisbor12m.json). Para **1986-07 … 1999-01**, a TBA mensal vem de [`src/data/tba-history.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/tba-history.json).
+
+**Série A** — mesma fórmula **0,60 × TBA** que a Série B a partir de **1986-07**. Para meses **1961-01 … 1986-06**, a taxa-base mensal é a tabela administrativa em [`src/data/serie-a-admin-rates.json`](https://github.com/pprimor/igcp-aforro/blob/main/src/data/serie-a-admin-rates.json) (**sem** factor 0,60 — valores já publicáveis como taxa-base). Ver [Série A — pesquisa e parâmetros](/serie-a-research/) para a cascata completa e política de curadoria.
+
+**Valor nominal (Série A)** — uma unidade de certificado vale **€0,34916** (`SeriesMetadata.unitFaceValueEur`). O valor em carteira é `round(units × 0,34916 × cotação, 2)`; as Séries B–F mantêm `1` euro por unidade.
 
 A implementação das Séries C–F em `baseRate.ts` usa o calendário TARGET2 em [`src/core/calendar.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calendar.ts). Séries D/E/F parametrizam o *spread* em `SeriesMetadata.baseRateSpreadPct` (Série F: `'0'`, Séries D/E: `'1'`); a Série C usa `baseRateEuriborMultiplierPct` (`'0.85'`) e o calendário mensal `baseRatePostMeanOffsets`.
 
@@ -83,9 +87,9 @@ A correção contra os valores publicados pelo IGCP é assegurada pelos *golden 
 
 (Ano 1 = 0,00% em ambos.)
 
-**Série B** (escada em `SERIE_B_PREMIUM_TIERS`, alinhada ao quadro legal citado pelo IGCP — Portaria n.º 1219/1991 e diplomas posteriores):
+**Série B** (escada em `SERIE_B_PREMIUM_TIERS`, alinhada ao quadro legal citado pelo IGCP — Portaria n.º 1219/1991 e diplomas posteriores). **Série A** — reutiliza exactamente a mesma escada (`premiumTiers` partilhados no código).
 
-| Anos contratuais | Prémio (a somar à taxa-base) |
+| Anos contratuais (A e B) | Prémio (a somar à taxa-base) |
 | --- | --- |
 | 1 | 0,00% |
 | 2 | +0,25% |
@@ -114,7 +118,7 @@ A cada fim de trimestre `Q`, `simulate()` mantém a posição líquida como uma 
 O ciclo está em [`src/core/calculator.ts`](https://github.com/pprimor/igcp-aforro/blob/main/src/core/calculator.ts) e usa `big.js` (alias `Big`) para garantir aritmética decimal exata. A cotação inicial é `1.00000`; depois de cada capitalização concluída, `currentUnitQuote` transporta a cotação líquida arredondada. O valor líquido apresentado é sempre:
 
 ```
-currentValueNet = round(units × currentUnitQuote, 2)
+currentValueNet = round(units × unitFaceValueEur × currentUnitQuote, 2)
 ```
 
 Esta semântica reproduz o que o portal **aforro.net** apresenta para certificados em carteira, ao cêntimo, independentemente do número de unidades.
@@ -122,7 +126,7 @@ Esta semântica reproduz o que o portal **aforro.net** apresenta para certificad
 Em paralelo, os valores de juro bruto e IRS são contabilizados em euros reais ao nível da posição:
 
 ```
-interestGross = round(units × cotacao_anterior × taxa_trimestral, 2)
+interestGross = round(units × unitFaceValueEur × cotacao_anterior × taxa_trimestral, 2)
 irsWithheld = round(interestGross × irsRate, 2)
 interestNet = interestGross - irsWithheld
 ```
@@ -130,7 +134,7 @@ interestNet = interestGross - irsWithheld
 Isto reflete a retenção efetiva em euros e mantém `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet` reconciliáveis com o calendário (`schedule`).
 
 :::note[Snapshots do calendário]
-Cada linha do `schedule` expõe `unitQuoteAfter`, a cotação líquida depois dessa capitalização, já arredondada a 5 casas decimais. `balanceAfter` é `round(units × unitQuoteAfter, 2)`. Como `interestGross`, `irsWithheld` e `interestNet` são também arredondados a cêntimos no próprio trimestre, o somatório das linhas reconcilia exatamente com os totais `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet`.
+Cada linha do `schedule` expõe `unitQuoteAfter`, a cotação líquida depois dessa capitalização, já arredondada a 5 casas decimais. `balanceAfter` é `round(units × unitFaceValueEur × unitQuoteAfter, 2)`. Como `interestGross`, `irsWithheld` e `interestNet` são também arredondados a cêntimos no próprio trimestre, o somatório das linhas reconcilia exatamente com os totais `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet`.
 :::
 
 ## Trimestres ancorados ao dia da subscrição
@@ -155,7 +159,7 @@ Quando `asOfDate` cai estritamente dentro de um trimestre aberto, `simulate()` r
 accrued = saldo × taxa_trimestral × dias_decorridos / dias_totais
 ```
 
-em que `saldo` é `units × currentUnitQuote`, quantizado a cêntimos com arredondamento bancário. **Este número é uma convenção da biblioteca, não uma grandeza publicada pelo IGCP**: a retenção de IRS *não* é aplicada (só ocorre na capitalização). Quem quiser estimar um "valor de resgate hoje" deve subtrair `accrued × IRS` por sua conta.
+em que `saldo` é `units × unitFaceValueEur × currentUnitQuote`, quantizado a cêntimos com arredondamento bancário. **Este número é uma convenção da biblioteca, não uma grandeza publicada pelo IGCP**: a retenção de IRS *não* é aplicada (só ocorre na capitalização). Quem quiser estimar um "valor de resgate hoje" deve subtrair `accrued × IRS` por sua conta.
 
 ## Resgate antecipado
 
@@ -164,8 +168,8 @@ em que `saldo` é `units × currentUnitQuote`, quantizado a cêntimos com arredo
 Regras aplicadas:
 
 - **Período mínimo de detenção**: o resgate só é permitido a partir de `subscriptionDate + 3 meses` (`SeriesMetadata.minimumHoldingMonths`, atualmente `3` nas séries suportadas).
-- **Fronteira de maturidade**: para séries com `maturityYears` definido, `redemptionDate` em ou após a data de maturidade não é "resgate antecipado" e é rejeitado; nesse caso use `simulate()` para o valor em maturidade. A **Série B** é perpétua (`maturityYears: null`): não há este limite por maturidade em `simulateRedemption()`.
-- **Valor pago no resgate**: `redemptionValue = round(unitsToRedeem × currentUnitQuote, 2)`, em que `currentUnitQuote` é a cotação líquida depois da última capitalização concluída na data de resgate.
+- **Fronteira de maturidade**: para séries com `maturityYears` definido, `redemptionDate` em ou após a data de maturidade não é "resgate antecipado" e é rejeitado; nesse caso use `simulate()` para o valor em maturidade. As **Séries A e B** são perpétuas (`maturityYears: null`): não há este limite por maturidade em `simulateRedemption()`.
+- **Valor pago no resgate**: `redemptionValue = round(unitsToRedeem × unitFaceValueEur × currentUnitQuote, 2)`, em que `currentUnitQuote` é a cotação líquida depois da última capitalização concluída na data de resgate.
 - **Accrued entre capitalizações**: o `accruedSinceLastCapitalization` correspondente à fração resgatada é reportado como `forfeitedAccruedGross` e **não é pago** no resgate (juros só são pagos em datas de capitalização).
 - **Resgate parcial**: `unitsToRedeem` tem de estar em `[1, units]` e o remanescente tem de ser `0` (resgate total) ou pelo menos `minUnits` da série.
 
@@ -188,13 +192,14 @@ Como os totais são soma direta de valores já quantizados em cada coorte, `Port
 `simulate()` valida os *inputs* com Zod, lendo limites a partir do `SeriesMetadata` da série escolhida, antes de qualquer cálculo. Lança erro quando:
 
 - a `subscriptionDate` cai fora da janela de subscrição da série:
+  - **Série A** — entre `1960-01-01` (guarda de fixação) e `1986-06-30` (encerrada a novas subscrições);
   - **Série B** — entre `1986-07-01` e `2008-01-25` (encerrada a novas subscrições);
   - **Série F** — estritamente a partir de `2023-06-01`;
   - **Série D** — entre `2015-02-01` e `2017-10-31` (encerrada a novas subscrições);
   - **Série E** — entre `2017-11-01` e `2023-06-01` (encerrada a novas subscrições);
 - `units` cai fora do intervalo `[minUnits, maxUnits]` da série:
   - **Série F** — `[100, 100.000]`;
-  - **Séries B, D e E** — `[100, 250.000]`;
+  - **Séries B, D e E** — `[100, 250.000]` (e **Série A** no mesmo intervalo);
 - `asOfDate < subscriptionDate`.
 
-Para séries com maturidade finita, após `subscriptionDate + maturityYears` (15 anos para Série F, 10 anos para Séries C, D e E), o ciclo termina em maturidade e o resultado vem com `matured: true` e `maturityDate` preenchido. A **Série B** permanece ativa: `matured` permanece `false` e `maturityDate` é `null` (com um teto de segurança no número de trimestres simulados para evitar trabalho ilimitado).
+Para séries com maturidade finita, após `subscriptionDate + maturityYears` (15 anos para Série F, 10 anos para Séries C, D e E), o ciclo termina em maturidade e o resultado vem com `matured: true` e `maturityDate` preenchido. As **Séries A e B** permanecem activas: `matured` permanece `false` e `maturityDate` é `null` (com um teto de segurança no número de trimestres simulados para evitar trabalho ilimitado).

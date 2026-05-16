@@ -112,9 +112,9 @@ interface Scenario {
  * Subscription-month sweep lower bounds for series the IGCP
  * `/api/simulator-value/query` endpoint actually materializes.
  *
- * **Série C** is intentionally omitted: the public simulator (and aforro.net)
- * only cover Séries D/E/F in the comparison matrix, mirroring how Série A is
- * out of scope in IGCP's own client-side code paths.
+ * **Série C** and **Série A** are intentionally omitted: the public simulator (and
+ * aforro.net) only cover Séries D/E/F in this comparison matrix. The `igcp-aforro`
+ * library itself still models Séries A–F end-to-end.
  */
 const SERIES_WINDOW_START: Readonly<Partial<Record<SeriesCode, { year: number; month: number }>>> =
   {

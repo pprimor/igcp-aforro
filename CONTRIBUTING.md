@@ -2,7 +2,7 @@
 
 Thanks for helping improve `igcp-aforro`. This project is an independent,
 decimal-safe TypeScript library and CLI for simulating Portuguese IGCP Aforro
-Série B, Série C, Série D, Série E, and Série F Treasury Certificates.
+Série A, Série B, Série C, Série D, Série E, and Série F Treasury Certificates.
 
 This is not an official IGCP project and does not provide financial advice. The
 bundled Euribor 3M and 12M observations are redistributed from Deutsche Bundesbank under
@@ -43,8 +43,7 @@ pnpm install --ignore-workspace
 - [`src/core`](./src/core) contains the calculator, date math, rate lookup,
   series metadata, and decimal helpers.
 - [`src/cli`](./src/cli) contains the `aforro` CLI commands (`simulate`, `redeem`, `portfolio`, `current`, `rates`, `cohort`, …) and output helpers.
-- [`src/data`](./src/data) contains the bundled Euribor observations and refresh
-  metadata.
+- [`src/data`](./src/data) contains the bundled Euribor, Lisbor, TBA-history, and Série A admin observations plus refresh metadata.
 - [`scripts`](./scripts) contains data-fetching and artifact-generation commands.
 - [`tests`](./tests) contains Vitest coverage and data-source fixtures.
 - [`compare`](./compare) contains the manual IGCP parity harness.
@@ -273,12 +272,16 @@ refresh:
 ```bash
 pnpm fetch:euribor --mode incremental --dry-run
 pnpm fetch:igcp-base-rates --month current --dry-run
+pnpm fetch:lisbor
 ```
+
+`pnpm fetch:lisbor` runs [`scripts/build-aforro-history-data.ts`](./scripts/build-aforro-history-data.ts) (networked): refreshes BPstat-backed `tba-history.json`, Lisbor daily expansion, `_meta.json` blocks, and the placeholder `serie-a-admin-rates.json`. Curators replace placeholder admin rows with Diário da República–sourced rates in a normal PR review; `tba-history.json` rows should always carry a `source` string.
 
 A data refresh may intentionally touch:
 
 - `src/data/euribor3m.json`
 - `src/data/euribor12m.json`
+- `src/data/lisbor3m.json` / `src/data/lisbor12m.json` / `src/data/tba-history.json` / `src/data/serie-a-admin-rates.json` (when `pnpm fetch:lisbor` is run)
 - `src/data/_meta.json`
 - `raw/euribor/<YYYY-MM>-3m.csv` and `raw/euribor/<YYYY-MM>-12m.csv`
 - `tests/fixtures/igcpPublishedBaseRates.json`

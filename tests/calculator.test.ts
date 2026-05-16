@@ -3,6 +3,7 @@ import { simulate } from '../src/core/calculator.js';
 import type { SimulateInput, SimulateResult } from '../src/types/domain.js';
 import fixture from './fixtures/golden-simulations.json' with { type: 'json' };
 import { assertSimulateInvariants, cents } from './helpers/simulateInvariants.js';
+import { formatCents, quantizeCents, toBig } from '../src/core/money.js';
 import { syntheticEuriborFlat } from './helpers/syntheticEuribor.js';
 
 /** Long-run scenarios that exceed bundled Euribor — deterministic flat curve. */
@@ -300,6 +301,22 @@ describe('simulate — Série D smoke test', () => {
 
     expect(result.matured).toBe(true);
     expect(result.maturityDate).toBe('2027-10-01');
+  });
+});
+
+describe('simulate — Série A face value', () => {
+  it('books currentValueNet as units × €0.34916 × unit quote', () => {
+    const result = simulate({
+      series: 'A',
+      subscriptionDate: '1970-06-01',
+      units: 100,
+      asOfDate: '1971-06-01',
+    });
+    expect(result.seriesMetadata.unitFaceValueEur).toBe('0.34916');
+    assertSimulateInvariants(result, 100);
+    const principalEur = toBig(100).times(toBig('0.34916'));
+    const expected = formatCents(quantizeCents(principalEur.times(toBig(result.currentUnitQuote))));
+    expect(result.currentValueNet).toBe(expected);
   });
 });
 

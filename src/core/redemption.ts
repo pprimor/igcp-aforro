@@ -36,9 +36,12 @@ export function simulateRedemption(
   );
 
   const unitQuoteAtRedemption = simulation.currentUnitQuote;
-  const redemptionValue = quantizeCents(toBig(unitsToRedeem).times(unitQuoteAtRedemption));
+  const face = toBig(series.unitFaceValueEur);
+  const redemptionValue = quantizeCents(
+    toBig(unitsToRedeem).times(face).times(unitQuoteAtRedemption),
+  );
   const remainingValueAtRedemption = quantizeCents(
-    toBig(remainingUnits).times(unitQuoteAtRedemption),
+    toBig(remainingUnits).times(face).times(unitQuoteAtRedemption),
   );
   const forfeitedAccruedGross = toBig(simulation.accruedSinceLastCapitalization).times(
     toBig(unitsToRedeem).div(parsed.units),

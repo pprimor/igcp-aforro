@@ -1,7 +1,7 @@
 import type { SeriesCode } from './types/domain.js';
 
 /** URL params are strings; use Set<string> so `has()` accepts parsed query values. */
-const VALID_SERIES = new Set<string>(['B', 'C', 'D', 'E', 'F']);
+const VALID_SERIES = new Set<string>(['A', 'B', 'C', 'D', 'E', 'F']);
 
 export const PORTFOLIO_ROW_QUERY_KEY = 'row';
 

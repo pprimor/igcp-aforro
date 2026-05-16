@@ -1,9 +1,9 @@
 ---
 title: igcp-aforro
-description: Biblioteca TypeScript e CLI para simular Certificados de Aforro Séries B, C, D, E e F do IGCP.
+description: Biblioteca TypeScript e CLI para simular Certificados de Aforro Séries A, B, C, D, E e F do IGCP.
 template: splash
 hero:
-  tagline: Simulador determinístico e seguro em decimal para Certificados de Aforro Séries B, C, D, E e F. Integra-se em apps JS/TS; inclui CLI e um `rates.json` estático para todos os outros consumidores.
+  tagline: Simulador determinístico e seguro em decimal para Certificados de Aforro Séries A, B, C, D, E e F. Integra-se em apps JS/TS; inclui CLI e um `rates.json` estático para todos os outros consumidores.
   actions:
     - text: Início rápido
       link: /quickstart/
@@ -22,8 +22,9 @@ hero:
 
 ## O que faz
 
-`igcp-aforro` reproduz de ponta a ponta o cálculo dos [Certificados de Aforro do IGCP](https://www.igcp.pt/) para as **Séries B, C, D, E e F**:
+`igcp-aforro` reproduz de ponta a ponta o cálculo dos [Certificados de Aforro do IGCP](https://www.igcp.pt/) para as **Séries A, B, C, D, E e F**:
 
+- Para a **Série A** (legado; perpétua; **€0,34916** por unidade de certificado), a **taxa-base mensal** segue uma cascata histórica (taxas administrativas até 1986-06, TBA mensal arquivada 1986-07…1999-01, Lisbor 1999-02…2002-03, Euribor a partir de 2002-04) e **`0,60 × TBA`** onde aplicável, com a mesma escada de prémios que a Série B (ver [Série A — pesquisa e parâmetros](/serie-a-research/)).
 - Para a **Série B** (subscrições encerradas; sem maturidade contratual), a **taxa-base mensal** é **0,60 × TBA**, com a TBA a partir de médias móveis de 20 dias úteis TARGET2 da Euribor 3M e 12M na mesma data de fixação que nas outras séries (ver [Metodologia](/methodology/)).
 - Para as **Séries C, D, E e F**, resolve a **taxa-base mensal** a partir da média da Euribor 3M dos 10 dias úteis até ao antepenúltimo dia útil. A Série F limita a média arredondada a `[0%, 2,5%]`; as Séries D e E somam um *spread* de `+1pp` (`E3 + 1%`) e limitam a `[0%, 3,5%]`; a **Série C** usa `0,85×E3 − 0,25` até fevereiro de 2009 e `0,85×E3 + 0,25` a partir de março de 2009 (ver [Série C — pesquisa e parâmetros](/serie-c-research/)).
 - Soma o **prémio de permanência** aplicável ao ano contratual do grupo de subscrição, usando a tabela da série.
@@ -38,4 +39,4 @@ hero:
 
 ## Estado
 
-A biblioteca cobre de ponta a ponta a **Série B** (subscrições de 1 de julho de 1986 a 25 de janeiro de 2008; perpétua; taxa-base por TBA), a **Série C** (série encerrada, maturidade de 10 anos), a **Série D** (subscrições abertas de 1 de fevereiro de 2015 a 31 de outubro de 2017, maturidade de 10 anos), a **Série E** (subscrições abertas de 1 de novembro de 2017 a 1 de junho de 2023, maturidade de 10 anos) e a **Série F** (subscrições abertas desde 1 de junho de 2023, maturidade de 15 anos). A **Série A** (legado) permanece fora do âmbito. A [referência da API](/api/) é gerada a partir dos comentários TSDoc em inglês e permanece em inglês nesta fase.
+A biblioteca cobre de ponta a ponta a **Série A** (subscrições até 30 de junho de 1986; perpétua; cascata de taxa-base histórica; valor facial por unidade), a **Série B** (subscrições de 1 de julho de 1986 a 25 de janeiro de 2008; perpétua; taxa-base por TBA), a **Série C** (série encerrada, maturidade de 10 anos), a **Série D** (subscrições abertas de 1 de fevereiro de 2015 a 31 de outubro de 2017, maturidade de 10 anos), a **Série E** (subscrições abertas de 1 de novembro de 2017 a 1 de junho de 2023, maturidade de 10 anos) e a **Série F** (subscrições abertas desde 1 de junho de 2023, maturidade de 15 anos). A [referência da API](/api/) é gerada a partir dos comentários TSDoc em inglês e permanece em inglês nesta fase.

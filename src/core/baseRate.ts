@@ -1,5 +1,9 @@
 import euribor12mObservations from '../data/euribor12m.json' with { type: 'json' };
 import euribor3mObservations from '../data/euribor3m.json' with { type: 'json' };
+import lisbor12mObservations from '../data/lisbor12m.json' with { type: 'json' };
+import lisbor3mObservations from '../data/lisbor3m.json' with { type: 'json' };
+import serieAAdminBundle from '../data/serie-a-admin-rates.json' with { type: 'json' };
+import tbaHistoryBundle from '../data/tba-history.json' with { type: 'json' };
 import type { IsoDate, IsoMonth, RateEntry, SeriesMetadata } from '../types/domain.js';
 import { antepenultimateBusinessDay, previousBusinessDay } from './calendar.js';
 import { formatIsoMonth } from './dateMath.js';
@@ -69,6 +73,46 @@ const BUNDLED_OBSERVATIONS_12M: readonly RateEntry[] = (
   ratePct: String(row.ratePct),
 }));
 
+const LISBOR_3M_BUNDLED: readonly RateEntry[] = (
+  lisbor3mObservations as readonly { date: string; ratePct: number }[]
+).map((row) => ({
+  date: row.date,
+  ratePct: String(row.ratePct),
+}));
+
+const LISBOR_12M_BUNDLED: readonly RateEntry[] = (
+  lisbor12mObservations as readonly { date: string; ratePct: number }[]
+).map((row) => ({
+  date: row.date,
+  ratePct: String(row.ratePct),
+}));
+
+interface TbaHistoryMonthRow {
+  readonly month: string;
+  readonly tbaPct: string;
+  readonly source: string;
+}
+
+interface SerieAAdminMonthRow {
+  readonly month: string;
+  readonly basePct: string;
+  readonly source: string;
+}
+
+const TBA_BY_MONTH = new Map<string, TbaHistoryMonthRow>(
+  (tbaHistoryBundle as { readonly rates: readonly TbaHistoryMonthRow[] }).rates.map((r) => [
+    r.month,
+    r,
+  ]),
+);
+
+const ADMIN_BY_MONTH = new Map<string, SerieAAdminMonthRow>(
+  (serieAAdminBundle as { readonly rates: readonly SerieAAdminMonthRow[] }).rates.map((r) => [
+    r.month,
+    r,
+  ]),
+);
+
 export interface BaseRateOptions {
   /**
    * Override the bundled Euribor 3M dataset. Must be sorted ascending by date
@@ -76,8 +120,8 @@ export interface BaseRateOptions {
    */
   readonly observations?: readonly RateEntry[];
   /**
-   * Override the bundled Euribor 12M dataset (Série B TBA only). Same shape as
-   * 3M observations.
+   * Override the bundled 12M dataset used for TBA (`0,52×L3 + 0,47×L12 − 0,12`)
+   * on Séries A/B. Same shape as 3M observations.
    */
   readonly observations12m?: readonly RateEntry[];
   /**
@@ -93,6 +137,9 @@ export interface BaseRateOptions {
    */
   readonly strictWindowEnd?: boolean;
 }
+
+/** Which historical path supplied TBA (or the administrative base) for Séries A/B. */
+export type PerpetualBaseRateTier = 'admin' | 'tbaHistory' | 'lisbor' | 'euribor';
 
 /** Rich result of a base-rate computation, useful for audit and diagnostics. */
 export interface BaseRateResult {
@@ -123,12 +170,24 @@ export interface BaseRateResult {
   readonly basePct: string;
   /** Whether the clamp altered {@link roundedPlusSpreadPct}. */
   readonly clamped: boolean;
-  /** Populated for Série B (`0,60 × TBA`). */
+  /** Populated for Séries A/B when TBA comes from Lisbor/Euribor moving averages (`0,60 × TBA`). */
   readonly serieB?: {
     readonly maEndDate: IsoDate;
     readonly l3MovingAveragePct: string;
     readonly l12MovingAveragePct: string;
     readonly tbaPct: string;
+  };
+  /** Populated for perpetual Séries A/B base-rate resolution. */
+  readonly perpetualBaseRateTier?: PerpetualBaseRateTier;
+  readonly tbaHistoryLookup?: {
+    readonly month: IsoMonth;
+    readonly tbaPct: string;
+    readonly source: string;
+  };
+  readonly serieAAdminLookup?: {
+    readonly month: IsoMonth;
+    readonly basePct: string;
+    readonly source: string;
   };
 }
 
@@ -144,10 +203,8 @@ function previousMonth(year: number, month: number): { year: number; month: numb
 }
 
 /**
- * Returns the index in `observations` of the last entry with `date <= cutoff`,
- * or `-1` when no such entry exists. `observations` must be sorted ascending
- * by `date`. Implemented as a binary search because the dataset grows daily
- * and `baseRate()` is called once per quarter per cohort by `simulate()`.
+ * Resolves the additive offset after the scaled Euribor mean for series with
+ * piecewise schedules (Série C) or {@link SeriesMetadata.baseRateSpreadPct}.
  */
 function postMeanOffsetPct(series: SeriesMetadata, targetMonth: IsoMonth): string {
   const schedule = series.baseRatePostMeanOffsets;
@@ -166,6 +223,12 @@ function postMeanOffsetPct(series: SeriesMetadata, targetMonth: IsoMonth): strin
   return series.baseRateSpreadPct;
 }
 
+/**
+ * Returns the index in `observations` of the last entry with `date <= cutoff`,
+ * or `-1` when no such entry exists. `observations` must be sorted ascending
+ * by `date`. Implemented as a binary search because the dataset grows daily
+ * and `baseRate()` is called once per quarter per cohort by `simulate()`.
+ */
 function findLastIndexAtOrBefore(observations: readonly RateEntry[], cutoff: IsoDate): number {
   let lo = 0;
   let hi = observations.length - 1;
@@ -183,34 +246,10 @@ function findLastIndexAtOrBefore(observations: readonly RateEntry[], cutoff: Iso
   return result;
 }
 
-function computeSerieBBaseRate(
-  year: number,
-  month: number,
+function clampToSeriesWindow(
   series: SeriesMetadata,
-  options: BaseRateOptions,
-): BaseRateResult {
-  const obs3m = options.observations ?? BUNDLED_OBSERVATIONS;
-  const obs12m = options.observations12m ?? BUNDLED_OBSERVATIONS_12M;
-  const { year: fixingYear, month: fixingMonth } = previousMonth(year, month);
-  const fixingDate = antepenultimateBusinessDay(fixingYear, fixingMonth);
-
-  if (fixingDate < series.subscriptionStartDate) {
-    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
-    throw new Error(
-      `No base rate available for ${targetMonth}: fixing date ${fixingDate} precedes ` +
-        `${series.name} subscription start ${series.subscriptionStartDate}`,
-    );
-  }
-
-  const tba = computeTba(year, month, {
-    observations3m: obs3m,
-    observations12m: obs12m,
-    strictWindowEnd: options.strictWindowEnd,
-  });
-
-  const tbaBig = toBig(tba.tbaPct);
-  const preClamp = tbaBig.times(toBig('0.6')).round(series.baseRateDecimals, ROUND_HALF_EVEN);
-
+  preClamp: Big,
+): { final: Big; clamped: boolean } {
   const min = toBig(series.baseRateClampMinPct);
   const max = toBig(series.baseRateClampMaxPct);
   let clamped = false;
@@ -222,6 +261,98 @@ function computeSerieBBaseRate(
     final = max;
     clamped = true;
   }
+  return { final, clamped };
+}
+
+function computePerpetualAbBaseRate(
+  year: number,
+  month: number,
+  series: SeriesMetadata,
+  options: BaseRateOptions,
+): BaseRateResult {
+  const { year: fixingYear, month: fixingMonth } = previousMonth(year, month);
+  const fixingDate = antepenultimateBusinessDay(fixingYear, fixingMonth);
+
+  if (fixingDate < series.subscriptionStartDate) {
+    const targetMonth = `${year}-${String(month).padStart(2, '0')}`;
+    throw new Error(
+      `No base rate available for ${targetMonth}: fixing date ${fixingDate} precedes ` +
+        `${series.name} subscription start ${series.subscriptionStartDate}`,
+    );
+  }
+
+  const targetIso = formatIsoMonth(year, month) as IsoMonth;
+
+  if (series.code === 'A' && targetIso < '1986-07') {
+    const row = ADMIN_BY_MONTH.get(targetIso);
+    if (!row) {
+      throw new Error(`Missing Série A administrative base rate for ${targetIso}`);
+    }
+    const preClamp = toBig(row.basePct);
+    const { final, clamped } = clampToSeriesWindow(series, preClamp);
+    return {
+      year,
+      month,
+      fixingDate,
+      observations: [],
+      rawAveragePct: row.basePct,
+      roundedAveragePct: row.basePct,
+      roundedPlusSpreadPct: formatPercent(preClamp, series.baseRateDecimals),
+      basePct: formatPercent(final, series.baseRateDecimals),
+      clamped,
+      perpetualBaseRateTier: 'admin',
+      serieAAdminLookup: {
+        month: targetIso,
+        basePct: row.basePct,
+        source: row.source,
+      },
+    };
+  }
+
+  if (targetIso >= '1986-07' && targetIso <= '1999-01') {
+    const row = TBA_BY_MONTH.get(targetIso);
+    if (!row) {
+      throw new Error(`Missing Treasury-bill TBA history for ${targetIso}`);
+    }
+    const tbaBig = toBig(row.tbaPct);
+    const preClamp = tbaBig.times(toBig('0.6')).round(series.baseRateDecimals, ROUND_HALF_EVEN);
+    const { final, clamped } = clampToSeriesWindow(series, preClamp);
+    return {
+      year,
+      month,
+      fixingDate,
+      observations: [],
+      rawAveragePct: row.tbaPct,
+      roundedAveragePct: row.tbaPct,
+      roundedPlusSpreadPct: formatPercent(preClamp, series.baseRateDecimals),
+      basePct: formatPercent(final, series.baseRateDecimals),
+      clamped,
+      perpetualBaseRateTier: 'tbaHistory',
+      tbaHistoryLookup: {
+        month: targetIso,
+        tbaPct: row.tbaPct,
+        source: row.source,
+      },
+    };
+  }
+
+  const useLisbor = targetIso >= '1999-02' && targetIso <= '2002-03';
+  const perpetualBaseRateTier: PerpetualBaseRateTier = useLisbor ? 'lisbor' : 'euribor';
+
+  const obs3m = options.observations ?? (useLisbor ? LISBOR_3M_BUNDLED : BUNDLED_OBSERVATIONS);
+  const obs12m =
+    options.observations12m ?? (useLisbor ? LISBOR_12M_BUNDLED : BUNDLED_OBSERVATIONS_12M);
+
+  const tba = computeTba(year, month, {
+    observations3m: obs3m,
+    observations12m: obs12m,
+    strictWindowEnd: options.strictWindowEnd,
+    indexLabels: useLisbor ? { l3: 'LISBOR 3M', l12: 'LISBOR 12M' } : undefined,
+  });
+
+  const tbaBig = toBig(tba.tbaPct);
+  const preClamp = tbaBig.times(toBig('0.6')).round(series.baseRateDecimals, ROUND_HALF_EVEN);
+  const { final, clamped } = clampToSeriesWindow(series, preClamp);
 
   let l3Sum = new Big(0);
   for (const e of tba.l3Window) {
@@ -239,6 +370,7 @@ function computeSerieBBaseRate(
     roundedPlusSpreadPct: formatPercent(preClamp, series.baseRateDecimals),
     basePct: formatPercent(final, series.baseRateDecimals),
     clamped,
+    perpetualBaseRateTier,
     serieB: {
       maEndDate: tba.maEndDate,
       l3MovingAveragePct: tba.l3MovingAveragePct,
@@ -272,8 +404,8 @@ export function computeBaseRate(
   }
 
   const series = options.series ?? getSeries(DEFAULT_SERIES);
-  if (series.code === 'B') {
-    return computeSerieBBaseRate(year, month, series, options);
+  if (series.code === 'A' || series.code === 'B') {
+    return computePerpetualAbBaseRate(year, month, series, options);
   }
 
   const observations = options.observations ?? BUNDLED_OBSERVATIONS;

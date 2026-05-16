@@ -21,11 +21,11 @@ export type IsoDate = string;
 export type IsoMonth = string;
 
 /**
- * Identifier for a Treasury Certificate series. In scope: `'B'` (legacy,
- * subscriptions closed), `'C'` (closed), `'D'`, `'E'` (both closed to new
- * subscriptions) and `'F'` (currently open).
+ * Identifier for a Treasury Certificate series. In scope: `'A'` and `'B'`
+ * (legacy perpetual, subscriptions closed), `'C'` (closed), `'D'`, `'E'`
+ * (both closed to new subscriptions) and `'F'` (currently open).
  */
-export type SeriesCode = 'B' | 'C' | 'D' | 'E' | 'F';
+export type SeriesCode = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
 
 /**
  * One permanence-premium tier. Tiers are 1-indexed and inclusive on both ends:
@@ -72,6 +72,12 @@ export interface SeriesMetadata {
   readonly subscriptionEndDate?: IsoDate;
   readonly minUnits: number;
   readonly maxUnits: number;
+  /**
+   * Nominal EUR represented by one whole certificate unit (`units` input).
+   * Séries B–F use `1` (one unit = €1). Série A uses `0.34916` per Decreto
+   * 43.454/1960 (face value of one certificate).
+   */
+  readonly unitFaceValueEur: string;
   readonly baseRateClampMinPct: string;
   readonly baseRateClampMaxPct: string;
   /**
@@ -141,11 +147,11 @@ export interface RateEntry {
  *
  * `simulate()` maintains a per-unit net quote and rounds it to the series'
  * {@link SeriesMetadata.unitQuoteDecimals} after each completed quarter. The
- * holding's booked net value is then `round(units × unitQuoteAfter, 2)`.
+ * holding's booked net value is then `round(units × unitFaceValueEur × unitQuoteAfter, 2)`.
  *
  * Gross interest, IRS withholding, and net interest are booked in real EUR at
  * the holding level each quarter: `interestGross` is cent-rounded from
- * `units × previousUnitQuote × quarterlyRate`, `irsWithheld` is cent-rounded
+ * `units × unitFaceValueEur × previousUnitQuote × quarterlyRate`, `irsWithheld` is cent-rounded
  * from `interestGross × irsRate`, and `interestNet = interestGross −
  * irsWithheld`. As a consequence, schedule rows reconcile exactly with the
  * matching `totalInterest*` headline fields.
@@ -168,8 +174,9 @@ export interface ScheduleRow {
  * - `series` — series identifier; see {@link SeriesCode}.
  * - `subscriptionDate` — the ISO-8601 date the certificate was subscribed.
  *   Must be on or after the series' `subscriptionStartDate`.
- * - `units` — principal in EUR (1 unit = €1). Must respect the series'
- *   `[minUnits, maxUnits]` window.
+ * - `units` — whole certificate count. Nominal EUR principal is
+ *   `units × series.unitFaceValueEur` (Série A: €0.34916 per unit). Must respect
+ *   the series' `[minUnits, maxUnits]` window.
  * - `asOfDate` — optional ISO-8601 date the simulation should report against;
  *   defaults to today (UTC).
  * - `includeSchedule` — when `true`, populates
@@ -263,7 +270,7 @@ export interface SimulateResult {
   readonly currentUnitQuote: string;
   /**
    * Booked net value for the holding, computed as
-   * `round(units × currentUnitQuote, 2)`, matching what aforro.net displays
+   * `round(units × unitFaceValueEur × currentUnitQuote, 2)`, matching what aforro.net displays
    * for an already-booked cohort on the as-of date. Excludes accrued.
    */
   readonly currentValueNet: string;
@@ -287,14 +294,14 @@ export interface SimulateResult {
    */
   readonly totalIrsWithheld: string;
   readonly matured: boolean;
-  /** `null` when the series is perpetual (Série B). */
+  /** `null` when the series is perpetual (Série A or B). */
   readonly maturityDate: IsoDate | null;
   /**
    * Gross interest accumulated since the last capitalization, when
    * `asOfDate` falls strictly inside an open quarter; `"0.00"` otherwise.
    *
    * **This is a library convention, not an IGCP-published number.** It is
-   * computed as `balance × quarterlyRate × elapsedDays / totalDays`
+   * computed as `unitQuote × quarterlyRate × elapsedDays / totalDays × (units × unitFaceValueEur)`
    * (calendar-day pro-rata of the would-be quarterly interest) at full
    * precision, and rounded to cents only here at serialization. IRS is
    * **not** withheld on this amount — withholding only occurs at

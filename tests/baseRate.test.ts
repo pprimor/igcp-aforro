@@ -36,6 +36,37 @@ function parseYearMonth(isoMonth: string): { year: number; month: number } {
   return { year: Number(match[1]), month: Number(match[2]) };
 }
 
+describe('computeBaseRate — Série A/B historical tiers', () => {
+  const serieA = getSeries('A');
+  const serieB = getSeries('B');
+
+  it('uses the administrative table for Série A before 1986-07', () => {
+    const r = computeBaseRate(1965, 3, { series: serieA });
+    expect(r.perpetualBaseRateTier).toBe('admin');
+    expect(r.serieAAdminLookup?.month).toBe('1965-03');
+    expect(r.basePct).toBe('6.557');
+  });
+
+  it('uses bundled TBA history for 1986-07 .. 1999-01 (A and B aligned)', () => {
+    const a = computeBaseRate(1990, 1, { series: serieA });
+    const b = computeBaseRate(1990, 1, { series: serieB });
+    expect(a.perpetualBaseRateTier).toBe('tbaHistory');
+    expect(b.perpetualBaseRateTier).toBe('tbaHistory');
+    expect(a.basePct).toBe(b.basePct);
+  });
+
+  it('uses Lisbor-backed TBA for 1999-02 .. 2002-03', () => {
+    const r = computeBaseRate(2000, 6, { series: serieA });
+    expect(r.perpetualBaseRateTier).toBe('lisbor');
+    expect(r.serieB?.tbaPct).toMatch(/^\d+\.\d{3}$/);
+  });
+
+  it('uses Euribor-backed TBA from 2002-04 onward', () => {
+    const r = computeBaseRate(2020, 6, { series: serieA });
+    expect(r.perpetualBaseRateTier).toBe('euribor');
+  });
+});
+
 describe('computeBaseRate vs IGCP-published monthly base rates', () => {
   it('fixture covers every Série C month from 2008-02 onwards without gaps', () => {
     const serieC = publishedRates
