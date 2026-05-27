@@ -6,9 +6,10 @@ name: Data refresh
 # Cron schedule rationale (see igcp-aforro_euribor_followups_c8d4f1a2.plan.md):
 # GitHub Actions interprets `cron:` in UTC and ignores `TZ`. To stay at
 # 08:00 Lisbon all year despite Portugal's DST shift between WET (UTC+0,
-# winter) and WEST (UTC+1, summer), we register both. The job body is a
-# no-op when Bundesbank has not republished, so firing twice on
-# shoulder-season days is harmless.
+# winter) and WEST (UTC+1, summer), we register both UTC hours; a gate
+# step below skips the wrong one so only a single run fetches and pushes.
+# Without that gate, both crons would update the same PR branch and the
+# second `git push --force-with-lease` can fail on GitHub's side.
 #
 # Job logic:
 # 1. Run fetch-euribor.ts in incremental mode (always-full-series fetch,
@@ -44,9 +45,10 @@ on:
         type: boolean
         default: false
 
+# One refresh at a time — cancel a queued/in-flight run when another starts.
 concurrency:
   group: data-refresh
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -61,6 +63,17 @@ jobs:
     env:
       TZ: Europe/Lisbon
     steps:
+      - name: Skip duplicate DST cron
+        if: github.event_name == 'schedule'
+        run: |
+          set -euo pipefail
+          hour=$(TZ=Europe/Lisbon date +%H)
+          if [ "${hour}" != "08" ]; then
+            echo "Skipping: ${hour}:xx Europe/Lisbon (only 08:00 runs the refresh)."
+            exit 0
+          fi
+          echo "08:xx Europe/Lisbon — proceeding with scheduled refresh."
+
       - name: Checkout
         uses: actions/checkout@v5
 
