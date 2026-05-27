@@ -1,6 +1,6 @@
 {
   "name": "igcp-aforro",
-  "version": "2026.515.0",
+  "version": "2026.527.0",
   "description": "TypeScript library and CLI for simulating Portuguese IGCP Aforro Séries A, B, C, D, E, and F Treasury Certificates: deterministic quarterly compounding with IGCP-aligned monthly base rates (Série A/B hybrid TBA path; Euribor 3M for Séries C–F) and permanence-tier premiums.",
   "license": "MIT",
   "author": "Pedro Primor <pedro.primor@pm.me>",
