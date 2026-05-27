@@ -86,14 +86,43 @@ jobs:
       - name: Stage Pages artifact (docs + rates.json)
         env:
           DEPLOY_REF: ${{ inputs.ref }}
+          # Cloudflare Pages rejects static assets above 25 MiB per file.
+          PAGES_MAX_FILE_BYTES: 26214400
         run: |
           set -euo pipefail
-          cp public/rates.json docs/dist/rates.json
+
+          stage_gzipped_rates() {
+            local src="$1"
+            local dest="$2"
+            mkdir -p "$(dirname "$dest")"
+            gzip -9 -c "$src" > "$dest"
+            local size
+            size="$(wc -c < "$dest")"
+            if (( size > PAGES_MAX_FILE_BYTES )); then
+              echo "::error::${dest} is ${size} bytes after gzip (Pages limit ${PAGES_MAX_FILE_BYTES}). Split the artifact or host it off Pages."
+              exit 1
+            fi
+            echo "Staged ${dest} ($(numfmt --to=iec "$size") gzip)"
+          }
+
+          stage_gzipped_rates public/rates.json docs/dist/rates.json
           if [[ "${DEPLOY_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-.+)?$ ]]; then
             version="${DEPLOY_REF#v}"
-            mkdir -p "docs/dist/v/${version}"
-            cp public/rates.json "docs/dist/v/${version}/rates.json"
+            stage_gzipped_rates public/rates.json "docs/dist/v/${version}/rates.json"
           fi
+
+          # Pre-compressed body; clients decompress via Content-Encoding.
+          {
+            printf '%s\n' '/rates.json' \
+              '  Content-Type: application/json' \
+              '  Content-Encoding: gzip' \
+              '  Cache-Control: public, max-age=0, must-revalidate, no-transform' \
+              '' \
+              '/v/*/rates.json' \
+              '  Content-Type: application/json' \
+              '  Content-Encoding: gzip' \
+              '  Cache-Control: public, max-age=31536000, immutable, no-transform'
+          } >> docs/dist/_headers
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
@@ -107,5 +136,5 @@ jobs:
           # `--branch=main` makes this a production deployment (any other
           # branch name would produce a preview URL). `--commit-dirty=true`
           # silences the "uncommitted changes" warning since the staging step
-          # above writes rates.json into docs/dist.
+          # above writes gzip-compressed rates.json and _headers into docs/dist.
           command: pages deploy ../docs/dist --project-name=igcp-aforro --branch=main --commit-dirty=true

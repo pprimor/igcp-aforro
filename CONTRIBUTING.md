@@ -305,7 +305,8 @@ pnpm build:rates-json
 
 By default this writes the ignored root file `public/rates.json`. Do not commit
 that generated root `public` output. The docs deployment workflow rebuilds
-`rates.json` from the release tag and stages both:
+`rates.json` from the release tag, gzip-compresses it for the Pages 25 MiB asset limit
+(`Content-Encoding: gzip` via `_headers`), and stages both:
 
 - `https://igcp-aforro.primor.me/rates.json`
 - `https://igcp-aforro.primor.me/v/<calver>/rates.json`
