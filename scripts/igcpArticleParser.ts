@@ -57,10 +57,7 @@ export interface ParsedIgcpArticle {
  * are concatenated so a rate published only in the lead paragraph still
  * parses when `.content_body` omits the sentence.
  */
-const SCOPE_SELECTORS = [
-  '.field--name-field-news-description',
-  '.content_body',
-] as const;
+const SCOPE_SELECTORS = ['.field--name-field-news-description', '.content_body'] as const;
 
 function extractScopedText(root: ReturnType<typeof parse>): string {
   const chunks: string[] = [];
