@@ -73,7 +73,22 @@ describe('parseArticle', () => {
     expect(parseArticle(html).basePct).toBe('2.138');
   });
 
-  it('scopes the regex to .content_body / <article>, ignoring percentages elsewhere', () => {
+  it('extracts the rate when IGCP publishes it only in field-news-description', () => {
+    const html = `
+      <html><body>
+        <div class="field field--name-field-news-description field__item">
+          A taxa de juro bruta para novas subscrições de Certificados de Aforro,
+          Série F, em junho de 2026 foi fixada em 2,215%.
+        </div>
+        <div class="content_body alignwide">
+          <p>A taxa de juro anual em vigor no trimestre corrente pode ser consultada nos quadros seguintes.</p>
+        </div>
+      </body></html>
+    `;
+    expect(parseArticle(html).basePct).toBe('2.215');
+  });
+
+  it('scopes the regex to news-description / content_body / <article>, ignoring percentages elsewhere', () => {
     // A bogus 9.999% percentage in the page <head> / sidebar must not be
     // matched: only the Série F value inside the article body counts.
     const html = `

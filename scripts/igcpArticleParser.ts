@@ -18,10 +18,14 @@
  * fail loud at this boundary rather than silently regressing the
  * fixture. The contract is:
  *
- *   - Scope to the news body (`.content_body`, falling back to
- *     `<article>`, then to the whole document) before scanning so
- *     mentions in the page <title>, breadcrumb, related-news sidebar,
- *     or `<meta name="description">` cannot inject ambiguity.
+ *   - Scope to the IGCP news lead + body (`.field--name-field-news-
+ *     description` and `.content_body`, falling back to `<article>`,
+ *     then to the whole document) before scanning so mentions in the
+ *     page <title>, breadcrumb, related-news sidebar, or `<meta
+ *     name="description">` cannot inject ambiguity. From mid-2026 IGCP
+ *     sometimes publishes the canonical Série F sentence only in the
+ *     news-description field while `.content_body` carries the PDF
+ *     tables alone.
  *   - Match `Série F` followed within ~400 chars by a `X,YYY%` token.
  *   - Throw {@link IgcpParseError} when zero matches are found, or
  *     when multiple matches disagree on the value.
@@ -49,12 +53,31 @@ export interface ParsedIgcpArticle {
 }
 
 /**
- * Selectors tried in order to scope the regex to the article body. The
- * first match wins; if none match the parser falls back to the full
- * document text rather than refusing to parse a slightly restructured
- * page.
+ * Drupal fields that carry the monthly notice text. All matching nodes
+ * are concatenated so a rate published only in the lead paragraph still
+ * parses when `.content_body` omits the sentence.
  */
-const SCOPE_SELECTORS = ['.content_body', 'article'] as const;
+const SCOPE_SELECTORS = [
+  '.field--name-field-news-description',
+  '.content_body',
+] as const;
+
+function extractScopedText(root: ReturnType<typeof parse>): string {
+  const chunks: string[] = [];
+  for (const selector of SCOPE_SELECTORS) {
+    for (const node of root.querySelectorAll(selector)) {
+      chunks.push(node.text);
+    }
+  }
+  if (chunks.length > 0) {
+    return chunks.join(' ');
+  }
+  const article = root.querySelector('article');
+  if (article) {
+    return article.text;
+  }
+  return root.text;
+}
 
 /**
  * Matches `Série F` (singular, accent required so `Séries ... e F` in
@@ -75,18 +98,7 @@ const SERIE_F_RATE_PATTERN = /Série\s+F\b[^%]{0,400}?(\d{1,2}),(\d{3})\s*%/gi;
  */
 export function parseArticle(html: string): ParsedIgcpArticle {
   const root = parse(html);
-
-  let scopeText: string | null = null;
-  for (const selector of SCOPE_SELECTORS) {
-    const node = root.querySelector(selector);
-    if (node) {
-      scopeText = node.text;
-      break;
-    }
-  }
-  if (scopeText === null) {
-    scopeText = root.text;
-  }
+  const scopeText = extractScopedText(root);
 
   // Drupal mixes `&nbsp;` and stray double spaces between "abril" and
   // "de 2026" in the published markup; collapsing whitespace keeps the
