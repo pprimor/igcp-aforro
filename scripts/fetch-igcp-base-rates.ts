@@ -404,9 +404,7 @@ async function fetchOneMonth(
       `[fetch-igcp-base-rates] inserted new rate for ${month}; fixture now has ${merge.fixture.rates.length} rows`,
     );
   } else {
-    log(
-      `[fetch-igcp-base-rates] no-op: ${month} already at ${parsed.basePct}; fixture unchanged`,
-    );
+    log(`[fetch-igcp-base-rates] no-op: ${month} already at ${parsed.basePct}; fixture unchanged`);
   }
 
   return { month, url, parsed, merge, html };
@@ -437,7 +435,9 @@ export async function runFetchBatch(
   let fixture = await readFixture();
   const months = resolveMonthsToFetch(args, fixture);
   if (months.length === 0) {
-    log(`[fetch-igcp-base-rates] Série F fixture is complete through ${args.month}; nothing to fetch`);
+    log(
+      `[fetch-igcp-base-rates] Série F fixture is complete through ${args.month}; nothing to fetch`,
+    );
     return { results: [], fixture, changed: false };
   }
   if (months.length > 1) {

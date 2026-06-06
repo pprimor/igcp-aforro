@@ -4,7 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { buildIgcpUrl, findMissingSerieFMonths, mergeFixture, runFetch } from '../scripts/fetch-igcp-base-rates.js';
+import {
+  buildIgcpUrl,
+  findMissingSerieFMonths,
+  mergeFixture,
+  runFetch,
+} from '../scripts/fetch-igcp-base-rates.js';
 import { IgcpParseError, parseArticle } from '../scripts/igcpArticleParser.js';
 
 /**
@@ -332,10 +337,7 @@ describe('runFetch (msw-mocked HTTP)', () => {
     );
 
     await expect(
-      runFetch(
-        { month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: true },
-        () => {},
-      ),
+      runFetch({ month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: true }, () => {}),
     ).rejects.toThrow(/HTTP 404 Not Found/);
   });
 
@@ -352,10 +354,7 @@ describe('runFetch (msw-mocked HTTP)', () => {
     );
 
     await expect(
-      runFetch(
-        { month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: true },
-        () => {},
-      ),
+      runFetch({ month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: true }, () => {}),
     ).rejects.toThrow(IgcpParseError);
   });
 
@@ -363,9 +362,8 @@ describe('runFetch (msw-mocked HTTP)', () => {
     server.use(http.get(APRIL_2026_URL, () => new HttpResponse(SNAPSHOT_HTML, { status: 200 })));
 
     const logs: string[] = [];
-    await runFetch(
-      { month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: false },
-      (msg) => logs.push(msg),
+    await runFetch({ month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: false }, (msg) =>
+      logs.push(msg),
     );
 
     expect(logs.some((line) => line.includes('month=2026-04'))).toBe(true);
