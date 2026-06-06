@@ -51,6 +51,7 @@ import { dirname, resolve } from 'node:path';
 import { argv, exit } from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import type { SeriesCode } from '../src/types/domain.js';
 import { type ParsedIgcpArticle, parseArticle } from './igcpArticleParser.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -246,7 +247,7 @@ export function buildIgcpUrl(month: string): string {
 }
 
 interface FixtureRate {
-  readonly series: 'F';
+  readonly series: SeriesCode;
   readonly month: string;
   readonly basePct: string;
 }
