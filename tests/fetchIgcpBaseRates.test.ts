@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { buildIgcpUrl, mergeFixture, runFetch } from '../scripts/fetch-igcp-base-rates.js';
+import { buildIgcpUrl, findMissingSerieFMonths, mergeFixture, runFetch } from '../scripts/fetch-igcp-base-rates.js';
 import { IgcpParseError, parseArticle } from '../scripts/igcpArticleParser.js';
 
 /**
@@ -230,6 +230,47 @@ describe('mergeFixture', () => {
   });
 });
 
+describe('findMissingSerieFMonths', () => {
+  const sampleFixture = {
+    _meta: {
+      source: 'igcp.pt',
+      sourceUrl: 'https://www.igcp.pt/',
+      channel: 'press release',
+      lastVerifiedAt: '2026-04-01',
+      notes: 'test',
+    },
+    rates: [
+      { series: 'F', month: '2026-03', basePct: '2.012' },
+      { series: 'F', month: '2026-04', basePct: '2.138' },
+      { series: 'C', month: '2026-05', basePct: '2.116' },
+    ],
+  } as const;
+
+  it('returns every missing Série F month through the target month', () => {
+    expect(findMissingSerieFMonths(sampleFixture, '2026-06', '2026-03')).toEqual([
+      '2026-05',
+      '2026-06',
+    ]);
+  });
+
+  it('returns an empty list when the fixture is complete through the target month', () => {
+    expect(
+      findMissingSerieFMonths(
+        {
+          ...sampleFixture,
+          rates: [
+            ...sampleFixture.rates,
+            { series: 'F', month: '2026-05', basePct: '2.195' },
+            { series: 'F', month: '2026-06', basePct: '2.215' },
+          ],
+        },
+        '2026-06',
+        '2026-03',
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe('runFetch (msw-mocked HTTP)', () => {
   const APRIL_2026_URL = buildIgcpUrl('2026-04');
 
@@ -245,7 +286,10 @@ describe('runFetch (msw-mocked HTTP)', () => {
       }),
     );
 
-    const result = await runFetch({ month: '2026-04', dryRun: true, quiet: true }, () => {});
+    const result = await runFetch(
+      { month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: true },
+      () => {},
+    );
 
     expect(requestedUrl).toBe(APRIL_2026_URL);
     expect(result.url).toBe(APRIL_2026_URL);
@@ -270,7 +314,7 @@ describe('runFetch (msw-mocked HTTP)', () => {
     );
 
     const result = await runFetch(
-      { month: '2026-04', url: overrideUrl, dryRun: true, quiet: true },
+      { month: '2026-04', monthIsCurrent: false, url: overrideUrl, dryRun: true, quiet: true },
       () => {},
     );
 
@@ -288,7 +332,10 @@ describe('runFetch (msw-mocked HTTP)', () => {
     );
 
     await expect(
-      runFetch({ month: '2026-04', dryRun: true, quiet: true }, () => {}),
+      runFetch(
+        { month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: true },
+        () => {},
+      ),
     ).rejects.toThrow(/HTTP 404 Not Found/);
   });
 
@@ -305,7 +352,10 @@ describe('runFetch (msw-mocked HTTP)', () => {
     );
 
     await expect(
-      runFetch({ month: '2026-04', dryRun: true, quiet: true }, () => {}),
+      runFetch(
+        { month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: true },
+        () => {},
+      ),
     ).rejects.toThrow(IgcpParseError);
   });
 
@@ -313,7 +363,10 @@ describe('runFetch (msw-mocked HTTP)', () => {
     server.use(http.get(APRIL_2026_URL, () => new HttpResponse(SNAPSHOT_HTML, { status: 200 })));
 
     const logs: string[] = [];
-    await runFetch({ month: '2026-04', dryRun: true, quiet: false }, (msg) => logs.push(msg));
+    await runFetch(
+      { month: '2026-04', monthIsCurrent: false, dryRun: true, quiet: false },
+      (msg) => logs.push(msg),
+    );
 
     expect(logs.some((line) => line.includes('month=2026-04'))).toBe(true);
     expect(logs.some((line) => line.includes('basePct=2.138'))).toBe(true);

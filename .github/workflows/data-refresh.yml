@@ -307,9 +307,9 @@ jobs:
             console.log(`Auto-merge eligible: ${files.join(', ')}`);
           EOF
 
-      # Use --auto always: mergeStateStatus CLEAN only means no merge conflicts,
-      # not that required PR checks (e.g. ci.yml) have finished. Immediate merge
-      # fails with exit 1 while CI is still queued/running.
+      # Squash-merge immediately: golden tests already ran in this job.
+      # `--auto` waits for ci.yml, but PRs opened via GITHUB_TOKEN do not
+      # trigger other workflows, so auto-merge would stall indefinitely.
       - name: Merge eligible data-refresh PR
         if: ${{ steps.automerge.outputs.eligible == 'true' }}
         env:
@@ -317,7 +317,7 @@ jobs:
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         run: |
           set -euo pipefail
-          gh pr merge "${PR_NUMBER}" --squash --auto --delete-branch
+          gh pr merge "${PR_NUMBER}" --squash --delete-branch
 
       - name: Fail job if tests failed
         if: ${{ steps.diff.outputs.pr_eligible == 'true' && steps.tests.outcome == 'failure' }}

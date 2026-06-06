@@ -1,24 +1,24 @@
 {
   "euribor": {
-    "lastRefreshedAt": "2026-05-10T10:07:38Z",
+    "lastRefreshedAt": "2026-06-06T13:25:52Z",
     "source": "Deutsche Bundesbank time-series (BBIG1) — EMMI EURIBOR® 3-month daily fixings",
     "sourceUrl": "https://api.statistiken.bundesbank.de/rest/download/BBIG1/D.D0.EUR.MMKT.EURIBOR.M03.BID._Z?format=csv&lang=en",
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M03.BID._Z",
-    "upstreamLastUpdate": "2026-05-08 12:58:53",
+    "upstreamLastUpdate": "2026-06-05 13:29:42",
     "earliestObservation": "1999-01-04",
-    "latestObservation": "2026-05-07",
-    "observationCount": 7001,
+    "latestObservation": "2026-06-04",
+    "observationCount": 7021,
     "license": "EMMI EURIBOR® data redistributed by Deutsche Bundesbank under non-commercial terms; commercial use requires an EMMI licence (https://www.emmi-benchmarks.eu/terms-of-use)."
   },
   "euribor12m": {
-    "lastRefreshedAt": "2026-05-10T10:07:38Z",
+    "lastRefreshedAt": "2026-06-06T13:25:52Z",
     "source": "Deutsche Bundesbank time-series (BBIG1) — EMMI EURIBOR® 12-month daily fixings",
     "sourceUrl": "https://api.statistiken.bundesbank.de/rest/download/BBIG1/D.D0.EUR.MMKT.EURIBOR.M12.BID._Z?format=csv&lang=en",
     "seriesId": "BBIG1.D.D0.EUR.MMKT.EURIBOR.M12.BID._Z",
-    "upstreamLastUpdate": "2026-05-08 12:58:53",
+    "upstreamLastUpdate": "2026-06-05 13:29:42",
     "earliestObservation": "1999-01-04",
-    "latestObservation": "2026-05-07",
-    "observationCount": 7001,
+    "latestObservation": "2026-06-04",
+    "observationCount": 7021,
     "license": "EMMI EURIBOR® data redistributed by Deutsche Bundesbank under non-commercial terms; commercial use requires an EMMI licence (https://www.emmi-benchmarks.eu/terms-of-use)."
   },
   "tbaHistory": {

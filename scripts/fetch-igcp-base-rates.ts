@@ -12,8 +12,9 @@
  * Behavioural contract (per the data-sourcing subplan and the
  * `igcp_base_rates_fetcher_*` plan):
  *
- *   - `--month current` resolves to the current UTC month. `--month
- *     YYYY-MM` targets a specific month; only one month per run.
+ *   - `--month current` resolves to the current UTC month and backfills
+ *     every missing Série F row from 2023-06 through that month before
+ *     writing the fixture. `--month YYYY-MM` targets a single month only.
  *   - The slug is built from the month's Portuguese name (no accents,
  *     `marco` not `março`) and year, matching IGCP's canonical URL
  *     pattern: `taxas-de-juro-dos-certificados-de-aforro-das-series-b-
@@ -87,6 +88,8 @@ const PT_MONTH_SLUGS = [
 interface CliArgs {
   /** Resolved `YYYY-MM` (after `current` -> today). */
   readonly month: string;
+  /** True when the caller passed `--month current` (enables gap backfill). */
+  readonly monthIsCurrent: boolean;
   /** Optional explicit URL; bypasses slug building. */
   readonly url?: string;
   readonly dryRun: boolean;
@@ -157,7 +160,7 @@ function parseArgs(rawArgs: readonly string[]): CliArgs {
     throw new Error(`--month must be "current" or YYYY-MM, got "${monthRaw}"`);
   }
 
-  return { month, url, dryRun, quiet };
+  return { month, monthIsCurrent: monthRaw === 'current', url, dryRun, quiet };
 }
 
 function expectValue(flag: string, value: string | undefined): string {
@@ -171,6 +174,47 @@ function expectValue(flag: string, value: string | undefined): string {
 function currentUtcMonth(): string {
   const now = new Date();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** First Série F month tracked in the golden fixture (see baseRate.test.ts). */
+export const SERIE_F_FIXTURE_START = '2023-06';
+
+/** Advance a `YYYY-MM` string by one calendar month. */
+export function nextIsoMonth(month: string): string {
+  const match = MONTH_PATTERN.exec(month);
+  if (!match) {
+    throw new Error(`nextIsoMonth: invalid month "${month}", expected YYYY-MM`);
+  }
+  const year = Number(month.slice(0, 4));
+  const monthNum = Number(month.slice(5, 7));
+  if (monthNum === 12) {
+    return `${year + 1}-01`;
+  }
+  return `${year}-${String(monthNum + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Série F months from `fromMonth` through `upToMonth` that are absent
+ * from the fixture. Used by `--month current` to heal gaps when an
+ * earlier data-refresh PR never merged.
+ */
+export function findMissingSerieFMonths(
+  fixture: FixtureFile,
+  upToMonth: string,
+  fromMonth: string = SERIE_F_FIXTURE_START,
+): string[] {
+  const existing = new Set(
+    fixture.rates.filter((row) => row.series === 'F').map((row) => row.month),
+  );
+  const missing: string[] = [];
+  let cursor = fromMonth;
+  while (cursor <= upToMonth) {
+    if (!existing.has(cursor)) {
+      missing.push(cursor);
+    }
+    cursor = nextIsoMonth(cursor);
+  }
+  return missing;
 }
 
 /** UTC-stable `YYYY-MM-DD` for today. */
@@ -306,19 +350,37 @@ interface RunResult {
   readonly html: string;
 }
 
+interface FetchBatchResult {
+  readonly results: readonly RunResult[];
+  readonly fixture: FixtureFile;
+  readonly changed: boolean;
+}
+
+function resolveMonthsToFetch(args: CliArgs, fixture: FixtureFile): readonly string[] {
+  if (args.url !== undefined) {
+    return [args.month];
+  }
+  if (args.monthIsCurrent) {
+    return findMissingSerieFMonths(fixture, args.month);
+  }
+  return [args.month];
+}
+
 /**
  * Core orchestration: resolve URL -> fetch -> parse -> merge against
  * the on-disk fixture. File writes are deferred to {@link writeOutputs}
  * so this function is trivially testable and `--dry-run` short-circuits
  * cleanly without hitting the filesystem.
  */
-export async function runFetch(
-  args: CliArgs,
+async function fetchOneMonth(
+  month: string,
+  fixture: FixtureFile,
+  urlOverride: string | undefined,
   log: Logger,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch,
 ): Promise<RunResult> {
-  const url = args.url ?? buildIgcpUrl(args.month);
-  log(`[fetch-igcp-base-rates] month=${args.month} url=${url}`);
+  const url = urlOverride ?? buildIgcpUrl(month);
+  log(`[fetch-igcp-base-rates] month=${month} url=${url}`);
 
   const response = await fetchImpl(url);
   if (!response.ok) {
@@ -330,24 +392,71 @@ export async function runFetch(
   const parsed = parseArticle(html);
   log(`[fetch-igcp-base-rates] parsed Série F basePct=${parsed.basePct}`);
 
-  const fixture = await readFixture();
   const merge = mergeFixture(fixture, {
     series: 'F',
-    month: args.month,
+    month,
     basePct: parsed.basePct,
   });
 
   if (merge.changed) {
     log(
-      `[fetch-igcp-base-rates] inserted new rate for ${args.month}; fixture now has ${merge.fixture.rates.length} rows`,
+      `[fetch-igcp-base-rates] inserted new rate for ${month}; fixture now has ${merge.fixture.rates.length} rows`,
     );
   } else {
     log(
-      `[fetch-igcp-base-rates] no-op: ${args.month} already at ${parsed.basePct}; fixture unchanged`,
+      `[fetch-igcp-base-rates] no-op: ${month} already at ${parsed.basePct}; fixture unchanged`,
     );
   }
 
-  return { month: args.month, url, parsed, merge, html };
+  return { month, url, parsed, merge, html };
+}
+
+/**
+ * Fetch one or more months. With `--month current`, backfills every
+ * missing Série F month from {@link SERIE_F_FIXTURE_START} through today.
+ */
+export async function runFetch(
+  args: CliArgs,
+  log: Logger,
+  fetchImpl: typeof fetch = fetch,
+): Promise<RunResult> {
+  const batch = await runFetchBatch(args, log, fetchImpl);
+  const last = batch.results.at(-1);
+  if (last === undefined) {
+    throw new Error(`No months resolved for fetch (month=${args.month})`);
+  }
+  return last;
+}
+
+export async function runFetchBatch(
+  args: CliArgs,
+  log: Logger,
+  fetchImpl: typeof fetch = fetch,
+): Promise<FetchBatchResult> {
+  let fixture = await readFixture();
+  const months = resolveMonthsToFetch(args, fixture);
+  if (months.length === 0) {
+    log(`[fetch-igcp-base-rates] Série F fixture is complete through ${args.month}; nothing to fetch`);
+    return { results: [], fixture, changed: false };
+  }
+  if (months.length > 1) {
+    log(`[fetch-igcp-base-rates] backfilling missing Série F months: ${months.join(', ')}`);
+  }
+
+  const results: RunResult[] = [];
+  for (const month of months) {
+    const result = await fetchOneMonth(month, fixture, args.url, log, fetchImpl);
+    if (result.merge.changed) {
+      fixture = result.merge.fixture;
+    }
+    results.push(result);
+  }
+
+  return {
+    results,
+    fixture,
+    changed: results.some((result) => result.merge.changed),
+  };
 }
 
 /**
@@ -357,8 +466,8 @@ export async function runFetch(
  * `lastVerifiedAt` diff in every cron PR even when IGCP hasn't
  * republished.
  */
-async function writeOutputs(result: RunResult, log: Logger): Promise<void> {
-  if (!result.merge.changed) {
+async function writeBatchOutputs(batch: FetchBatchResult, log: Logger): Promise<void> {
+  if (!batch.changed) {
     log('[fetch-igcp-base-rates] nothing to write (no-op merge)');
     return;
   }
@@ -366,26 +475,31 @@ async function writeOutputs(result: RunResult, log: Logger): Promise<void> {
   await mkdir(dirname(FIXTURE_FILE), { recursive: true });
   await mkdir(RAW_DIR, { recursive: true });
 
-  await writeFile(FIXTURE_FILE, serializeFixture(result.merge.fixture));
+  await writeFile(FIXTURE_FILE, serializeFixture(batch.fixture));
   log(`[fetch-igcp-base-rates] wrote ${FIXTURE_FILE}`);
 
-  const rawPath = resolve(RAW_DIR, `${result.month}.html`);
-  await writeFile(rawPath, result.html);
-  log(`[fetch-igcp-base-rates] wrote ${rawPath}`);
+  for (const result of batch.results) {
+    if (!result.merge.changed) {
+      continue;
+    }
+    const rawPath = resolve(RAW_DIR, `${result.month}.html`);
+    await writeFile(rawPath, result.html);
+    log(`[fetch-igcp-base-rates] wrote ${rawPath}`);
+  }
 }
 
 async function main(): Promise<void> {
   const args = parseArgs(argv.slice(2));
   const log: Logger = args.quiet ? () => {} : (msg) => process.stderr.write(`${msg}\n`);
 
-  const result = await runFetch(args, log);
+  const batch = await runFetchBatch(args, log);
 
   if (args.dryRun) {
     log('[fetch-igcp-base-rates] --dry-run: not writing any files');
     return;
   }
 
-  await writeOutputs(result, log);
+  await writeBatchOutputs(batch, log);
   log('[fetch-igcp-base-rates] done');
 }
 
