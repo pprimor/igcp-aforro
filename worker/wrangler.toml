@@ -2,15 +2,15 @@ name = "igcp-aforro-api"
 main = "src/index.ts"
 compatibility_date = "2025-05-15"
 
-# Production route. A DNS record for api.igcp-aforro.primor.me already exists in
-# the primor.me zone, so we bind the Worker with a zone route rather than
-# `custom_domain = true` (which refuses to adopt a hostname that already has
-# externally-managed DNS records — Cloudflare error 100117). The zone route
-# coexists with the existing (proxied) record and routes its traffic to this
-# Worker. This is the hostname the /health smoke test in deploy-api.yml checks;
-# the route was previously commented out, so the domain never reached the Worker
-# and the smoke test failed the SSL handshake on every deploy.
-routes = [{ pattern = "api.igcp-aforro.primor.me/*", zone_name = "primor.me" }]
+# Production custom domain. A plain zone route can't get a valid cert here:
+# api.igcp-aforro.primor.me is two labels under the apex, so the free Universal
+# SSL wildcard (*.primor.me) doesn't cover it and the TLS handshake fails. A
+# Workers Custom Domain sidesteps that — it generates a per-hostname certificate
+# automatically (no paid Advanced Certificate Manager subscription) and creates
+# the DNS record itself. Prerequisite: no pre-existing DNS record for this
+# hostname, or wrangler fails with Cloudflare error 100117; delete the old
+# record in the dashboard before the first deploy with this config.
+routes = [{ pattern = "api.igcp-aforro.primor.me", custom_domain = true }]
 
 [observability]
 enabled = true
