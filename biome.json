@@ -13,6 +13,7 @@
       "coverage",
       "raw",
       "src/data/euribor3m.json",
+      "src/data/euribor12m.json",
       "src/data/_meta.json",
       "tests/fixtures/**",
       "docs/.astro",
