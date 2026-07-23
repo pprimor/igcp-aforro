@@ -2,13 +2,15 @@ name = "igcp-aforro-api"
 main = "src/index.ts"
 compatibility_date = "2025-05-15"
 
-# Production custom domain. `custom_domain = true` has wrangler provision the
-# DNS record and TLS certificate for api.igcp-aforro.primor.me on deploy — the
-# primor.me zone must be on the same Cloudflare account (it is, per the docs
-# site). This is the hostname the /health smoke test in deploy-api.yml checks;
-# it was previously commented out, so the custom domain never resolved and the
-# smoke test failed the SSL handshake on every deploy.
-routes = [{ pattern = "api.igcp-aforro.primor.me", custom_domain = true }]
+# Production route. A DNS record for api.igcp-aforro.primor.me already exists in
+# the primor.me zone, so we bind the Worker with a zone route rather than
+# `custom_domain = true` (which refuses to adopt a hostname that already has
+# externally-managed DNS records — Cloudflare error 100117). The zone route
+# coexists with the existing (proxied) record and routes its traffic to this
+# Worker. This is the hostname the /health smoke test in deploy-api.yml checks;
+# the route was previously commented out, so the domain never reached the Worker
+# and the smoke test failed the SSL handshake on every deploy.
+routes = [{ pattern = "api.igcp-aforro.primor.me/*", zone_name = "primor.me" }]
 
 [observability]
 enabled = true
