@@ -57,6 +57,9 @@ permissions:
   # Needed to self-certify the required CI status check on the PR head
   # commit (see the "Report required status check" step below).
   statuses: write
+  # Needed to dispatch the "Deploy docs" workflow after a merge so the live
+  # docs site picks up the refreshed data (see the redeploy step below).
+  actions: write
 
 jobs:
   refresh:
@@ -362,6 +365,20 @@ jobs:
           done
           echo "::error title=Auto-merge failed::PR #${PR_NUMBER} still blocked after posting the required status check."
           exit 1
+
+      # The live docs site only picks up refreshed data when "Deploy docs" runs,
+      # and that workflow is manual/release-triggered — so kick it off here now
+      # that the fresh data is on main. workflow_dispatch is exempt from the
+      # GITHUB_TOKEN "no recursive trigger" rule, so this dispatch does start it.
+      # Reached only after a successful merge (a failed merge stops the job).
+      - name: Redeploy docs with the refreshed data
+        if: ${{ steps.automerge.outputs.eligible == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh workflow run "Deploy docs" --ref main -f ref=main
+          echo "Dispatched Deploy docs against main."
 
       - name: Fail job if tests failed
         if: ${{ steps.diff.outputs.pr_eligible == 'true' && steps.tests.outcome == 'failure' }}
