@@ -123,18 +123,24 @@ currentValueNet = round(units × unitFaceValueEur × currentUnitQuote, 2)
 
 Esta semântica reproduz o que o portal **aforro.net** apresenta para certificados em carteira, ao cêntimo, independentemente do número de unidades.
 
-Em paralelo, os valores de juro bruto e IRS são contabilizados em euros reais ao nível da posição:
+Os valores de juro bruto e IRS são então contabilizados em euros reais ao nível da posição. O IGCP não credita um montante — move a cotação — pelo que **o juro líquido é a variação do valor contabilizado**:
 
 ```
+interestNet = balanceAfter - balanceAfter_anterior
 interestGross = round(units × unitFaceValueEur × cotacao_anterior × taxa_trimestral, 2)
-irsWithheld = round(interestGross × irsRate, 2)
-interestNet = interestGross - irsWithheld
+irsWithheld = interestGross - interestNet
 ```
 
-Isto reflete a retenção efetiva em euros e mantém `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet` reconciliáveis com o calendário (`schedule`).
+A retenção é o bruto menos o que chegou ao titular, e **não** `round(interestGross × irsRate, 2)`. Uma declaração do IGCP emitida ao abrigo do n.º 3 do Artigo 119º do CIRS reporta 55,95 EUR de IRS retido sobre 199,75 EUR de rendimento no ano de 2025, quando 28% desse bruto seriam 55,93 — logo a retenção não resulta da aplicação da taxa ao bruto declarado.
+
+Isto mantém `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet` reconciliáveis com o calendário (`schedule`) **e** com `currentValueNet`.
 
 :::note[Snapshots do calendário]
-Cada linha do `schedule` expõe `unitQuoteAfter`, a cotação líquida depois dessa capitalização, já arredondada a 5 casas decimais. `balanceAfter` é `round(units × unitFaceValueEur × unitQuoteAfter, 2)`. Como `interestGross`, `irsWithheld` e `interestNet` são também arredondados a cêntimos no próprio trimestre, o somatório das linhas reconcilia exatamente com os totais `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet`.
+Cada linha do `schedule` expõe `unitQuoteAfter`, a cotação líquida depois dessa capitalização, já arredondada a 5 casas decimais. `balanceAfter` é `round(units × unitFaceValueEur × unitQuoteAfter, 2)`. Como `interestNet` é a variação de `balanceAfter`, o somatório das linhas reconcilia exatamente com os totais `totalInterestGross`, `totalIrsWithheld` e `totalInterestNet`, e o líquido acumulado nunca se afasta de `currentValueNet`.
+:::
+
+:::caution[Uma ressalva, só alcançável com `irsRate` alterado]
+A cotação é arredondada por unidade a 5 casas decimais e o bruto a cêntimos sobre a posição inteira, pelo que os dois carregam um resíduo proporcional ao número de unidades. Uma retenção real de 28% absorve-o sem se notar. Uma taxa suficientemente baixa tornaria `irsWithheld` negativo, o que não pode acontecer: nesse caso é o bruto que cede e iguala `interestNet` — sem retenção, o bruto é o que foi creditado.
 :::
 
 ## Trimestres ancorados ao dia da subscrição
