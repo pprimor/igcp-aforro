@@ -4,7 +4,13 @@ name: Release
 # (YYYY.MMDD.PATCH) version and opens a temporary release PR. Publishing,
 # tagging, and docs deployment happen after that PR is merged to `main`.
 #
-# `bumpKind` semantics (see igcp-aforro_library_e6bcf217.plan.md):
+# This is the path for **code** releases and hot-fixes. The monthly rate
+# refresh does not come through here: data-refresh.yml bumps the version inside
+# its own PR and dispatches "Publish release" directly after merging, so fresh
+# IGCP rates reach npm without anyone remembering to run this workflow.
+#
+# `bumpKind` semantics (implemented in scripts/compute-next-version.ts, shared
+# with data-refresh.yml; see igcp-aforro_library_e6bcf217.plan.md):
 #   - today      -> `<UTC year>.<MMDD-as-int>.0` (e.g. 2026-04-20 -> 2026.420.0).
 #                   Use this for the regular monthly Euribor refresh release.
 #   - patch      -> Same date segment as the current package.json version,
@@ -81,62 +87,27 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Compute next version
+      - name: Compute and apply next version
+        # Shared with data-refresh.yml so the two release paths can never
+        # disagree on the CalVer arithmetic. Emits version/tag/npmTag as step
+        # outputs via GITHUB_OUTPUT.
+        #
+        # Computing and writing in a single invocation is deliberate: a second
+        # call could straddle UTC midnight and derive a different date segment
+        # than the one this step reported, leaving the branch name and tag
+        # disagreeing with the version actually written to package.json.
+        #
+        # `src/index.ts` exports a hardcoded VERSION used by the static
+        # rates.json artifact, and publish-release.yml refuses to publish when
+        # it disagrees with package.json, so both files are written together.
+        # The script edits only the version line in each, which leaves Biome's
+        # formatting intact — no follow-up formatter step needed.
         id: version
-        env:
-          BUMP_KIND: ${{ inputs.bumpKind }}
-        run: |
-          set -euo pipefail
-          # Heredoc is single-quoted ('EOF') so bash performs no expansion;
-          # node sees the script verbatim, which keeps JS template literals
-          # and regex backslashes readable.
-          node --input-type=module <<'EOF'
-            import { readFileSync, appendFileSync } from 'node:fs';
-
-            const bumpKind = process.env.BUMP_KIND;
-            const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-            const current = pkg.version;
-
-            const now = new Date();
-            const y = now.getUTCFullYear();
-            const mmdd = (now.getUTCMonth() + 1) * 100 + now.getUTCDate();
-            const todayBase = `${y}.${mmdd}`;
-
-            const stableCurrent = current.split('-')[0];
-            const [cy, cmd, cp] = stableCurrent.split('.');
-            const currentBase = `${cy}.${cmd}`;
-            const currentPatch = Number(cp);
-
-            let next;
-            let npmTag = 'latest';
-            if (bumpKind === 'today') {
-              if (currentBase === todayBase && !current.includes('-')) {
-                next = `${todayBase}.${currentPatch + 1}`;
-              } else {
-                next = `${todayBase}.0`;
-              }
-            } else if (bumpKind === 'patch') {
-              next = `${currentBase}.${currentPatch + 1}`;
-            } else if (bumpKind === 'prerelease') {
-              let rc = 0;
-              const m = current.match(/-rc\.(\d+)$/);
-              if (m && stableCurrent === `${todayBase}.0`) {
-                rc = Number(m[1]) + 1;
-              }
-              next = `${todayBase}.0-rc.${rc}`;
-              npmTag = 'next';
-            } else {
-              throw new Error(`unknown bumpKind: ${bumpKind}`);
-            }
-
-            const tag = `v${next}`;
-            appendFileSync(process.env.GITHUB_OUTPUT, `version=${next}\n`);
-            appendFileSync(process.env.GITHUB_OUTPUT, `tag=${tag}\n`);
-            appendFileSync(process.env.GITHUB_OUTPUT, `npmTag=${npmTag}\n`);
-            console.log(`current=${current} -> next=${next} (tag=${tag}, npm=${npmTag})`);
-          EOF
+        run: pnpm version:next --bump "${{ inputs.bumpKind }}" --write
 
       - name: Validate release target
+        # Runs after the bump because nothing is pushed until the PR step
+        # below, so an invalid target still costs only a failed runner.
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -150,40 +121,6 @@ jobs:
             echo "::error::Branch release/${VERSION} already exists."
             exit 1
           fi
-
-      - name: Bump package.json
-        run: |
-          set -euo pipefail
-          pnpm version "${{ steps.version.outputs.version }}" --no-git-tag-version
-
-      - name: Sync VERSION constant in src/index.ts
-        # `src/index.ts` exports a hardcoded VERSION used by the static
-        # rates.json artifact. Keep it in lockstep with package.json so the
-        # published library and the Pages-served rates.json agree.
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'EOF'
-            import { readFileSync, writeFileSync } from 'node:fs';
-            const path = 'src/index.ts';
-            const next = process.env.VERSION;
-            const before = readFileSync(path, 'utf8');
-            const after = before.replace(
-              /export const VERSION = '[^']+';/,
-              `export const VERSION = '${next}';`,
-            );
-            if (before === after) {
-              throw new Error(`Failed to update VERSION in ${path}; pattern did not match.`);
-            }
-            writeFileSync(path, after);
-          EOF
-
-      - name: Reformat bumped files
-        # `pnpm version` rewrites package.json with multi-line arrays, which
-        # Biome's formatter rejects. Run Biome's formatter on the touched
-        # files so the release PR starts from a clean formatter state.
-        run: pnpm exec biome format --write package.json src/index.ts
 
       - name: Show dry-run diff
         if: ${{ inputs.dryRun }}
