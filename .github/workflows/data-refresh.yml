@@ -17,16 +17,21 @@ name: Data refresh
 #    startPeriod/endPeriod on this dataflow).
 # 2. Run fetch-igcp-base-rates.ts for the current month (idempotent;
 #    no-op when the value already matches the fixture).
-# 3. When the current month's IGCP rate is published, run `pnpm test`
+# 3. Bump the CalVer version (package.json + src/index.ts) so this PR is
+#    also the release PR. Rate data is compiled into `dist`, so refreshed
+#    rates only reach npm consumers via a new published version.
+# 4. When the current month's IGCP rate is published, run `pnpm test`
 #    so a drift between our formula and the freshly-published IGCP base
 #    rate fails the workflow loudly (the resulting PR is still opened,
 #    but with `needs-review` so a human inspects).
-# 4. Open / update a PR via peter-evans/create-pull-request only when
+# 5. Open / update a PR via peter-evans/create-pull-request only when
 #    the current-month IGCP publication is present or a maintainer forced
 #    a PR; log and skip Euribor-only diffs otherwise.
-# 5. Auto-merge clean data-refresh PRs only when the current month's
+# 6. Auto-merge clean data-refresh PRs only when the current month's
 #    IGCP-published rate was fetched and all guard checks pass.
-# 6. Freshness gate (independent of the diff): fail the job if the
+# 7. Dispatch "Publish release", which tags, publishes to npm, cuts the
+#    GitHub Release, and redeploys the docs and the REST API.
+# 8. Freshness gate (independent of the diff): fail the job if the
 #    latest Euribor observation is older than today - 5 calendar days.
 #    That tolerates a Friday + long weekend + a German holiday; longer
 #    silences are real upstream problems worth a human eyeball.
@@ -57,8 +62,9 @@ permissions:
   # Needed to self-certify the required CI status check on the PR head
   # commit (see the "Report required status check" step below).
   statuses: write
-  # Needed to dispatch the "Deploy docs" workflow after a merge so the live
-  # docs site picks up the refreshed data (see the redeploy step below).
+  # Needed to dispatch the "Publish release" workflow after a merge so the
+  # refreshed data reaches npm, the docs, and the API (see the publish step
+  # below).
   actions: write
 
 jobs:
@@ -188,6 +194,21 @@ jobs:
         run: |
           echo "::notice title=Skipping data-refresh PR::Data files changed, but the current-month IGCP publication was not fetched yet. Euribor-only diffs are left on the runner and no PR is opened until IGCP publishes the monthly base rate."
 
+      # The whole point of this workflow is that refreshed rates reach
+      # consumers, and for the npm package that means a new version: the rate
+      # data is bundled into `dist` at build time, so a published tarball is
+      # frozen at whatever `src/data` held when it was built. Bumping here means
+      # the data PR *is* the release PR — merging it publishes.
+      #
+      # Runs before the CI checks below so the bumped files go through the same
+      # lint/typecheck/test/build gate that self-certifies the required status
+      # check, and gated on `pr_eligible` so a Euribor-only day (no PR) never
+      # burns a version number.
+      - name: Bump version for the monthly release
+        if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
+        id: version
+        run: pnpm version:next --bump today --write
+
       - name: Run CI checks (lint, typecheck, test, build)
         # Mirrors ci.yml so this job can self-certify the required
         # "Lint, typecheck, test, build" status check further down. PRs opened
@@ -230,18 +251,23 @@ jobs:
           commit-message: |
             data: refresh Euribor + IGCP for ${{ steps.meta.outputs.month }}
 
+            Release ${{ steps.version.outputs.version }}.
+
             Latest Euribor observation: ${{ steps.meta.outputs.latest }}
             Upstream last update: ${{ steps.meta.outputs.upstream }}
             Tests: ${{ steps.tests.outcome }}
-          title: 'data: refresh Euribor + IGCP for ${{ steps.meta.outputs.month }}'
+          title: 'data: refresh Euribor + IGCP for ${{ steps.meta.outputs.month }} (release ${{ steps.version.outputs.version }})'
           labels: ${{ steps.labels.outputs.labels }}
           body: |
-            Automated daily data refresh.
+            Automated daily data refresh. Merging this PR publishes
+            `${{ steps.version.outputs.version }}` to npm and redeploys the docs
+            and the REST API.
 
             **Latest Euribor observation:** `${{ steps.meta.outputs.latest }}`
             **Bundesbank `last update`:** `${{ steps.meta.outputs.upstream }}`
             **Today (UTC):** `${{ steps.meta.outputs.today }}`
             **Golden test outcome:** `${{ steps.tests.outcome }}`
+            **Release version:** `${{ steps.version.outputs.version }}`
 
             Files this PR may touch:
             - `src/data/euribor3m.json`
@@ -250,11 +276,12 @@ jobs:
             - `raw/euribor/<YYYY-MM>.csv`
             - `tests/fixtures/igcpPublishedBaseRates.json`
             - `raw/igcp/<YYYY-MM>.html`
+            - `package.json` and `src/index.ts` (CalVer bump)
 
             If the `needs-review` label is present, `pnpm test` failed against
             the refreshed data — typically the IGCP-published base rate
             disagrees with what `computeBaseRate()` derives from Euribor.
-            Investigate before merging.
+            Investigate before merging — and note that merging releases.
 
       - name: Check auto-merge eligibility
         id: automerge
@@ -289,12 +316,17 @@ jobs:
 
             const labels = new Set(pr.labels.map((label) => label.name));
             const files = pr.files.map((file) => file.path);
+            // `package.json` and `src/index.ts` carry the version bump from the
+            // "Bump version for the monthly release" step — this PR doubles as
+            // the release PR, so they are expected members of the diff.
             const allowedFiles = files.filter((path) =>
               path === 'src/data/euribor3m.json' ||
               path === 'src/data/euribor12m.json' ||
               path === 'src/data/_meta.json' ||
               path === 'tests/fixtures/igcpPublishedBaseRates.json' ||
               path === expectedIgcpRaw ||
+              path === 'package.json' ||
+              path === 'src/index.ts' ||
               (path.startsWith('raw/euribor/') && path.endsWith('.csv')),
             );
             const disallowedFiles = files.filter((path) => !allowedFiles.includes(path));
@@ -317,6 +349,14 @@ jobs:
             }
             if (!files.includes(expectedIgcpRaw)) {
               ineligible(`missing current-month IGCP raw HTML: ${expectedIgcpRaw}`);
+            }
+            // Without the bump this PR would merge as an unreleasable no-op:
+            // "Publish release" would find the version already on npm and fail
+            // after the fact. Catch it here instead.
+            for (const versionFile of ['package.json', 'src/index.ts']) {
+              if (!files.includes(versionFile)) {
+                ineligible(`missing version bump in ${versionFile}`);
+              }
             }
 
             writeOutput('eligible', 'true');
@@ -366,19 +406,26 @@ jobs:
           echo "::error title=Auto-merge failed::PR #${PR_NUMBER} still blocked after posting the required status check."
           exit 1
 
-      # The live docs site only picks up refreshed data when "Deploy docs" runs,
-      # and that workflow is manual/release-triggered — so kick it off here now
-      # that the fresh data is on main. workflow_dispatch is exempt from the
-      # GITHUB_TOKEN "no recursive trigger" rule, so this dispatch does start it.
+      # Publish the version this PR just bumped. "Publish release" tags, pushes
+      # to npm, cuts the GitHub Release, and then deploys both the docs and the
+      # REST API — so this single dispatch covers every consumer of the data.
+      #
+      # It has to be an explicit dispatch rather than the workflow's
+      # `pull_request: closed` trigger: the merge above uses GITHUB_TOKEN, and
+      # GitHub never fires workflows from token-authored events (the same reason
+      # the required status check is self-certified above). workflow_dispatch is
+      # exempt from that rule.
+      #
       # Reached only after a successful merge (a failed merge stops the job).
-      - name: Redeploy docs with the refreshed data
+      - name: Publish the refreshed data
         if: ${{ steps.automerge.outputs.eligible == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          gh workflow run "Deploy docs" --ref main -f ref=main
-          echo "Dispatched Deploy docs against main."
+          gh workflow run "Publish release" --ref main -f ref=main
+          echo "Dispatched Publish release against main for ${VERSION}."
 
       - name: Fail job if tests failed
         if: ${{ steps.diff.outputs.pr_eligible == 'true' && steps.tests.outcome == 'failure' }}

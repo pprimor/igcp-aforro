@@ -3,6 +3,18 @@ name: Publish release
 # Publishes only after a temporary release PR is merged into `main`.
 # This keeps branch protection intact: the version bump goes through PR CI,
 # then the accepted `main` commit is tagged and published.
+#
+# Two entry points:
+#   - `pull_request: closed` on a merged `release/*` branch — the manual code
+#     release path driven by release.yml.
+#   - `workflow_dispatch` — used by data-refresh.yml, which bumps the version
+#     inside its own PR and dispatches this workflow after self-merging. That
+#     merge is authored by GITHUB_TOKEN, and GitHub does not fire workflows from
+#     token-authored events, so the `pull_request` trigger would never see it.
+#
+# The dispatch path skips only the release-branch-name assertion below (HEAD_REF
+# is empty). The substantive guards still apply: package.json must agree with
+# src/index.ts, and neither the tag nor the npm version may already exist.
 
 on:
   pull_request:
@@ -140,6 +152,19 @@ jobs:
     needs: publish
     if: ${{ needs.publish.result == 'success' }}
     uses: ./.github/workflows/deploy-docs.yml
+    with:
+      ref: ${{ needs.publish.outputs.tag }}
+    secrets: inherit
+
+  # The Worker bundles `src/data` at build time exactly like the npm package
+  # does, so it serves stale rates until it is redeployed. Deploying from the
+  # release tag (not `main`) keeps the API, the docs, and the published package
+  # on identical data.
+  deploy-api:
+    name: Deploy API
+    needs: publish
+    if: ${{ needs.publish.result == 'success' }}
+    uses: ./.github/workflows/deploy-api.yml
     with:
       ref: ${{ needs.publish.outputs.tag }}
     secrets: inherit
