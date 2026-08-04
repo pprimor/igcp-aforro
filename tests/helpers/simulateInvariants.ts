@@ -32,6 +32,12 @@ export function assertSimulateInvariants(result: SimulateResult, units: number):
   expect(cents(result.totalInterestNet)).toBe(
     cents(result.totalInterestGross) - cents(result.totalIrsWithheld),
   );
+  // Net interest is the movement in the booked value, so it must sum to the value
+  // this same result reports. Nothing held this until the net was derived from the
+  // quote rather than computed beside it, which is how the two came to disagree by
+  // the quote's own rounding multiplied by the unit count.
+  expect(cents(result.totalInterestNet)).toBe(cents(result.currentValueNet) - principalCents);
+
   const unroundedNetValue = principalEur.times(toBig(result.currentUnitQuote));
   expect(
     unroundedNetValue.minus(toBig(result.currentValueNet)).abs().toNumber(),

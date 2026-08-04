@@ -134,6 +134,9 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
     series.maturityYears === null ? MAX_PERPETUAL_QUARTERS : series.maturityYears * 4;
 
   let unitQuote = new Big(1);
+  // The booked value each quarter's net interest is measured against. Opens at
+  // the principal, the quote being 1 before any capitalization.
+  let previousBalance = quantizeCents(principalEur);
   let totalInterestGross = new Big(0);
   let totalInterestNet = new Big(0);
   let totalIrsWithheld = new Big(0);
@@ -165,14 +168,39 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
       .plus(netPerUnit)
       .round(series.unitQuoteDecimals, ROUND_HALF_EVEN);
 
-    const interestGross = quantizeCents(grossPerUnit.times(principalEur));
-    const irs = quantizeCents(interestGross.times(irsRateBig));
-    const interestNet = interestGross.minus(irs);
+    // The booked value is what IGCP pays and what aforro.net displays, and it
+    // comes from the rounded per-unit quote. So the net interest of a quarter is
+    // the movement in that value — not a second, separately rounded reckoning of
+    // the same thing. Computing it independently let the two drift apart by the
+    // quote's own rounding, half a unit in the fifth decimal multiplied by the
+    // unit count, which is euros rather than cents at a large holding.
+    const balanceAfter = quantizeCents(nextUnitQuote.times(principalEur));
+    const interestNet = balanceAfter.minus(previousBalance);
+
+    // The gross is IGCP's own figure, matched exactly against a declaration
+    // issued under CIRS Article 119º nº 3. The withholding is what it kept back,
+    // which is the gross less what reached the holder — and demonstrably not the
+    // rate applied to the gross: that declaration reports 55,95 EUR withheld on
+    // 199,75 EUR of income, where 28% of the gross would be 55,93.
+    const grossAtRate = quantizeCents(grossPerUnit.times(principalEur));
+    const withheld = grossAtRate.minus(interestNet);
+
+    // The quote rounds per unit at five decimals while the gross rounds to cents
+    // over the whole holding, so the two carry a residue at every rate. A real
+    // withholding is tens of euros and absorbs it without noticing, which is what
+    // the declaration confirms. But an `irsRate` low enough — 0, for a holder who
+    // pays nothing — leaves the residue larger than the withholding itself, and a
+    // negative amount withheld is not a thing that can happen. There the gross
+    // gives way instead: with nothing withheld the gross *is* what was credited.
+    const noWithholding = withheld.lt(0);
+    const irs = noWithholding ? new Big(0) : withheld;
+    const interestGross = noWithholding ? interestNet : grossAtRate;
 
     totalInterestGross = totalInterestGross.plus(interestGross);
     totalInterestNet = totalInterestNet.plus(interestNet);
     totalIrsWithheld = totalIrsWithheld.plus(irs);
     unitQuote = nextUnitQuote;
+    previousBalance = balanceAfter;
 
     if (includeSchedule) {
       schedule.push({
@@ -182,7 +210,7 @@ export function simulate(input: SimulateInput, options: SimulateOptions = {}): S
         interestGross: formatCents(interestGross),
         irsWithheld: formatCents(irs),
         interestNet: formatCents(interestNet),
-        balanceAfter: formatCents(quantizeCents(unitQuote.times(principalEur))),
+        balanceAfter: formatCents(balanceAfter),
         unitQuoteAfter: formatDecimal(unitQuote, series.unitQuoteDecimals),
         premiumTier: tier,
       });

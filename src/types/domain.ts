@@ -150,11 +150,30 @@ export interface RateEntry {
  * holding's booked net value is then `round(units × unitFaceValueEur × unitQuoteAfter, 2)`.
  *
  * Gross interest, IRS withholding, and net interest are booked in real EUR at
- * the holding level each quarter: `interestGross` is cent-rounded from
- * `units × unitFaceValueEur × previousUnitQuote × quarterlyRate`, `irsWithheld` is cent-rounded
- * from `interestGross × irsRate`, and `interestNet = interestGross −
- * irsWithheld`. As a consequence, schedule rows reconcile exactly with the
- * matching `totalInterest*` headline fields.
+ * the holding level each quarter:
+ *
+ * - `interestNet` is the movement in the booked value, `balanceAfter` less the
+ *   previous quarter's. IGCP credits nothing directly — it moves the quote — so
+ *   the value's movement *is* what was credited, and net interest computed any
+ *   other way would not sum to the value the same result reports.
+ * - `interestGross` is cent-rounded from
+ *   `units × unitFaceValueEur × previousUnitQuote × quarterlyRate`.
+ * - `irsWithheld` is `interestGross − interestNet`: the gross less what reached
+ *   the holder. It is deliberately **not** `irsRate × interestGross`. An IGCP
+ *   declaration under CIRS Article 119º nº 3 reports 55,95 EUR withheld against
+ *   199,75 EUR of gross income for a 2025 tax year, where 28% of that gross is
+ *   55,93 — so the rate is not what IGCP applies to arrive at the withholding.
+ *
+ * As a consequence, schedule rows reconcile exactly with the matching
+ * `totalInterest*` headline fields **and** with `currentValueNet`.
+ *
+ * One caveat, reachable only through an `irsRate` override: the quote is rounded
+ * per unit at five decimals while the gross is rounded to cents over the whole
+ * holding, so the two carry a residue that scales with the unit count. A real
+ * 28% withholding absorbs it invisibly. A rate low enough for the residue to
+ * exceed the withholding would make `irsWithheld` negative, which cannot happen,
+ * so there the gross gives way instead and equals `interestNet` — with nothing
+ * withheld, the gross is what was credited.
  */
 export interface ScheduleRow {
   readonly quarterEndDate: IsoDate;

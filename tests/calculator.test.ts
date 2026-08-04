@@ -67,6 +67,93 @@ describe('simulate — invariants beyond the locked fixtures', () => {
   });
 });
 
+describe('simulate — interest reconciles with the booked value', () => {
+  /**
+   * The booked value is what IGCP pays and what aforro.net displays, derived
+   * from the per-unit quote. Net interest is therefore the movement in that
+   * value and nothing else, so it must sum to the value the same result
+   * reports. Computing it separately from the quote lets the two drift apart by
+   * the quote's own rounding — half a unit in the fifth decimal, multiplied by
+   * the unit count, so euros rather than cents at a large holding.
+   */
+  it('totalInterestNet is the movement in the booked value', () => {
+    const result = simulate({
+      series: 'F',
+      subscriptionDate: '2023-07-03',
+      units: 5000,
+      asOfDate: '2026-08-04',
+      includeSchedule: true,
+    });
+
+    const principal = quantizeCents(
+      toBig(5000).times(toBig(result.seriesMetadata.unitFaceValueEur)),
+    );
+
+    expect(cents(result.totalInterestNet)).toBe(
+      cents(result.currentValueNet) - cents(formatCents(principal)),
+    );
+  });
+
+  it('each quarter’s net interest is that quarter’s movement in balanceAfter', () => {
+    const result = simulate({
+      series: 'F',
+      subscriptionDate: '2023-07-03',
+      units: 5000,
+      asOfDate: '2026-08-04',
+      includeSchedule: true,
+    });
+    const schedule = result.schedule;
+    if (!schedule) {
+      throw new Error('expected schedule');
+    }
+
+    let previous = cents(
+      formatCents(quantizeCents(toBig(5000).times(toBig(result.seriesMetadata.unitFaceValueEur)))),
+    );
+
+    for (const row of schedule) {
+      const balanceAfter = cents(row.balanceAfter);
+      expect(cents(row.interestNet)).toBe(balanceAfter - previous);
+      previous = balanceAfter;
+    }
+  });
+
+  /**
+   * IGCP's own englobamento declaration for the 2025 tax year, issued under
+   * Article 119º nº 3 of the CIRS for a Série E cohort of 5 000 units
+   * subscribed 2023-03-29: gross 199,75 EUR, IRS withheld 55,95 EUR.
+   *
+   * The only figures in this repository that IGCP has stated in writing, and so
+   * the one test that checks the withholding against an outside authority
+   * rather than against our own arithmetic. Note that 55,95 is not 28% of
+   * 199,75 — which is 55,93 — so the withholding cannot be the rate applied to
+   * the declared gross. It is the gross less what was actually credited.
+   */
+  it('matches the IGCP englobamento declaration for 2025', () => {
+    const result = simulate({
+      series: 'E',
+      subscriptionDate: '2023-03-29',
+      units: 5000,
+      asOfDate: '2026-08-01',
+      includeSchedule: true,
+    });
+    const schedule = result.schedule;
+    if (!schedule) {
+      throw new Error('expected schedule');
+    }
+
+    const rows = schedule.filter((row) => row.quarterEndDate.startsWith('2025-'));
+    expect(rows).toHaveLength(4);
+
+    const sum = (pick: (row: (typeof rows)[number]) => string) =>
+      rows.reduce((total, row) => total + cents(pick(row)), 0);
+
+    expect(sum((row) => row.interestGross)).toBe(cents('199.75'));
+    expect(sum((row) => row.interestNet)).toBe(cents('143.80'));
+    expect(sum((row) => row.irsWithheld)).toBe(cents('55.95'));
+  });
+});
+
 describe('simulate — input validation', () => {
   it('rejects subscriptionDate before Série F open date (2023-06-01)', () => {
     expect(() => simulate({ series: 'F', subscriptionDate: '2023-05-31', units: 1000 })).toThrow();
