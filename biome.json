@@ -12,6 +12,7 @@
       "node_modules",
       "coverage",
       "raw",
+      ".remember",
       "src/data/euribor3m.json",
       "src/data/euribor12m.json",
       "src/data/_meta.json",
