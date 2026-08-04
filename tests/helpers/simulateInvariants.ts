@@ -5,10 +5,20 @@ import type { SimulateResult } from '../../src/types/domain.js';
 /** Cent-level slack when comparing `units × quote` to booked net value (float noise). */
 const NET_VALUE_TOLERANCE_EUR = 0.005 + 1e-9;
 
-/** Parses a banker's-rounded EUR string into integer cents. */
+/**
+ * Parses a banker's-rounded EUR string into integer cents.
+ *
+ * The sign is taken off the front and reapplied at the end rather than left to
+ * `Number(euros) * 100`, which loses it whenever the euro part is `-0` and
+ * subtracts the cents from the euros for every other negative amount: `-1.25`
+ * came back as -75.
+ */
 export function cents(amount: string): number {
-  const [euros, centsPart = ''] = amount.split('.');
-  return Number(euros) * 100 + Number(centsPart.padEnd(2, '0').slice(0, 2));
+  const negative = amount.startsWith('-');
+  const [euros = '0', centsPart = ''] = (negative ? amount.slice(1) : amount).split('.');
+  const magnitude = Number(euros) * 100 + Number(centsPart.padEnd(2, '0').slice(0, 2));
+
+  return negative ? -magnitude : magnitude;
 }
 
 /**
@@ -22,7 +32,6 @@ export function assertSimulateInvariants(result: SimulateResult, units: number):
   expect(cents(result.totalInterestNet)).toBe(
     cents(result.totalInterestGross) - cents(result.totalIrsWithheld),
   );
-
   const unroundedNetValue = principalEur.times(toBig(result.currentUnitQuote));
   expect(
     unroundedNetValue.minus(toBig(result.currentValueNet)).abs().toNumber(),
