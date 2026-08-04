@@ -27,7 +27,7 @@ This package reproduces that math end-to-end, with all monetary fields returned 
 
 - **Pure calculator** — no network, no state, no globals. Euribor **3M** and **12M** datasets are bundled (12M is required for Série A/B TBA in the Euribor era); Lisbor daily expansion and TBA history JSON cover earlier A/B windows.
 - **Decimal-safe** — every money/rate field is a `big.js`-quantized decimal string, banker's-rounded at each cent.
-- **aforro.net parity** — booked values are derived from the same per-unit quote cadence aforro.net displays: quote rounded to 5 decimals each quarter, then `round(units × unitFaceValueEur × quote, 2)` (Série A: `unitFaceValueEur = 0.34916`; other series: `1`).
+- **aforro.net parity** — booked values are derived from the same per-unit quote cadence aforro.net displays: quote rounded to 5 decimals each quarter, then `round(units × unitFaceValueEur × quote, 2)` (Série A: `unitFaceValueEur = 0.34916`; other series: `1`). Net interest is the movement in that value, so the schedule and the booked value can never disagree.
 - **Validated inputs** — Zod-checked at the public boundary; the library throws on out-of-window subscriptions, invalid units, or impossible as-of dates.
 - **Cohort-aware rate lookup** — resolve the annual rate that applies to a given subscription on a given quarter, with the base + premium components surfaced for auditability.
 - **CLI included** — `aforro simulate | redeem | portfolio | current | rates | cohort` with stable `--json` output for scripting.
@@ -172,13 +172,13 @@ const { schedule } = simulate({
 for (const row of schedule ?? []) {
   console.log(
     row.quarterEndDate,
-    row.annualRate,         // "0.02750"
-    row.interestGross,      // "6.88"
-    row.irsWithheld,        // "1.93"
-    row.interestNet,        // "4.95"
-    row.balanceAfter,       // "1004.95"
-    row.unitQuoteAfter,     // "1.00495"
-    row.premiumTier.ratePct // "0.25"
+    row.annualRate,         // "0.02500"
+    row.interestGross,      // "6.25"
+    row.irsWithheld,        // "1.75"
+    row.interestNet,        // "4.50"
+    row.balanceAfter,       // "1004.50"
+    row.unitQuoteAfter,     // "1.00450"
+    row.premiumTier.ratePct // "0.00" — year 1 carries no premium
   );
 }
 ```
@@ -390,7 +390,7 @@ The library reproduces the IGCP technical sheets for **Certificados de Aforro S�
 2. The **annual rate** for a cohort × quarter is `baseRate(quarterStartMonth) + premium(contractYear)`, where `premium` follows the IGCP-published tier table:
    - **Série F** — year 1: 0.00%, years 2–5: +0.25%, 6–9: +0.50%, 10–11: +1.00%, 12–13: +1.50%, 14–15: +1.75%.
    - **Séries D and E** — year 1: 0.00%, years 2–5: +0.50%, 6–10: +1.00%.
-3. **Quarterly capitalization**: the booked net state is a per-unit quote, starting at `1.00000`. Each quarter computes `grossPerUnit = unitQuote × annualRate / 4`, applies IRS to get `netPerUnit`, then stores the next quote rounded to the series' quote precision (`5` decimals for Séries D, E, and F). The headline booked value is `currentValueNet = round(units × currentUnitQuote, 2)`, matching aforro.net to the cent for booked certificates regardless of holding size. Gross interest and IRS withholding are booked separately in real EUR at the holding level each quarter: `interestGross = round(units × previousUnitQuote × annualRate / 4, 2)`, `irsWithheld = round(interestGross × 28%, 2)`, and `interestNet = interestGross − irsWithheld`. Those cent-rounded quarterly rows reconcile exactly with the headline `totalInterest*` fields.
+3. **Quarterly capitalization**: the booked net state is a per-unit quote, starting at `1.00000`. Each quarter computes `grossPerUnit = unitQuote × annualRate / 4`, applies IRS to get `netPerUnit`, then stores the next quote rounded to the series' quote precision (`5` decimals for Séries D, E, and F). The headline booked value is `currentValueNet = round(units × currentUnitQuote, 2)`, matching aforro.net to the cent for booked certificates regardless of holding size. Interest is then booked in real EUR at the holding level each quarter. IGCP credits nothing directly — it moves the quote — so **net interest is the movement in the booked value**: `interestNet = balanceAfter − previousBalanceAfter`. The gross is the rate applied to the quote, `interestGross = round(units × previousUnitQuote × annualRate / 4, 2)`, and the withholding is what IGCP kept back, `irsWithheld = interestGross − interestNet`. It is deliberately **not** `round(interestGross × 28%, 2)`: an IGCP declaration under CIRS Article 119º nº 3 reports 55,95 EUR withheld against 199,75 EUR of gross income for a 2025 tax year, where 28% of that gross would be 55,93. Those quarterly rows reconcile exactly with the headline `totalInterest*` fields **and** with `currentValueNet`.
 4. **Quarter anchoring**: quarters start on the subscription's day-of-month, shifted by 3-month multiples. When the day doesn't exist in the target month (e.g. subscription on 31 Jan → next quarter would land on 31 Apr), the date rolls forward to the first day of the following month per the IGCP spec.
 5. **Validations** (per series, read from `SeriesMetadata`):
    - **Série D** — subscriptions in `[2015-02-01, 2017-10-31]` (closed to new subscriptions); units in `[100, 250000]`; matures at `subscriptionDate + 10 years`.
