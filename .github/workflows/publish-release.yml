@@ -183,3 +183,20 @@ jobs:
     with:
       ref: ${{ needs.publish.outputs.tag }}
     secrets: inherit
+
+  # Surfaces a failed publish or deploy as a GitHub issue. This workflow is
+  # usually dispatched by the daily data refresh, so nobody is watching the run.
+  # `failure()` is true when any needed job failed; when `publish` fails the
+  # deploy jobs are skipped, which still counts. A run where nothing failed
+  # (including a closed-unmerged PR, where every job is skipped) reports nothing.
+  report-failure:
+    name: Report failure
+    needs: [publish, deploy-docs, deploy-api]
+    if: ${{ failure() }}
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/report-failure.yml
+    with:
+      title: Publish release failed
+      details: "Release version: ${{ needs.publish.outputs.version || 'unknown (failed before version was resolved)' }}"

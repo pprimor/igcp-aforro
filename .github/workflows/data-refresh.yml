@@ -432,3 +432,17 @@ jobs:
         run: |
           echo "::error title=Golden tests failed against refreshed data::See the create-pull-request step for the PR with the needs-review label."
           exit 1
+
+  # Surfaces a failed refresh (stale upstream data, golden-test drift, a blocked
+  # auto-merge, a failed dispatch) as a GitHub issue; the cron run is unattended.
+  # Repeat failures comment on the one open issue instead of opening new ones.
+  report-failure:
+    name: Report failure
+    needs: [refresh]
+    if: ${{ failure() }}
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/report-failure.yml
+    with:
+      title: Data refresh failed
