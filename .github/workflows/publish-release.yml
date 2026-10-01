@@ -2,7 +2,8 @@ name: Publish release
 
 # Publishes only after a temporary release PR is merged into `main`.
 # This keeps branch protection intact: the version bump goes through PR CI,
-# then the accepted `main` commit is tagged and published.
+# then the accepted `main` commit is published to npm and, only once that
+# succeeds, tagged and released.
 #
 # Two entry points:
 #   - `pull_request: closed` on a merged `release/*` branch — the manual code
@@ -42,7 +43,7 @@ permissions:
 
 jobs:
   publish:
-    name: Tag, publish, release
+    name: Publish, tag, release
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -124,6 +125,19 @@ jobs:
             exit 1
           fi
 
+      # `npm publish` rather than `pnpm publish`: npm's OIDC exchange is the
+      # documented trusted-publishing path. The root package has no
+      # `workspace:` dependencies, so pnpm's publish-time rewriting isn't needed.
+      - name: Publish to npm
+        run: |
+          set -euo pipefail
+          npm publish --access public --tag "${{ steps.version.outputs.npmTag }}"
+
+      # Tagged only after the publish succeeds: a failed publish must not leave
+      # an orphan tag, because "Ensure release is new" would refuse every rerun.
+      # Residual case: if the publish succeeds but this push fails, a rerun is
+      # refused because the version is already on npm. Recovery is to push the
+      # tag manually and create the GitHub Release.
       - name: Create and push tag
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -134,14 +148,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git tag -a "${TAG}" -m "Release ${VERSION}"
           git push origin "${TAG}"
-
-      # `npm publish` rather than `pnpm publish`: npm's OIDC exchange is the
-      # documented trusted-publishing path. The root package has no
-      # `workspace:` dependencies, so pnpm's publish-time rewriting isn't needed.
-      - name: Publish to npm
-        run: |
-          set -euo pipefail
-          npm publish --access public --tag "${{ steps.version.outputs.npmTag }}"
 
       - name: Create GitHub Release
         env:
