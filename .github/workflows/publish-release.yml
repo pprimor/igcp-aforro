@@ -15,6 +15,10 @@ name: Publish release
 # The dispatch path skips only the release-branch-name assertion below (HEAD_REF
 # is empty). The substantive guards still apply: package.json must agree with
 # src/index.ts, and neither the tag nor the npm version may already exist.
+#
+# npm auth is trusted publishing (OIDC): npmjs.com trusts this workflow file
+# (`publish-release.yml` in pprimor/igcp-aforro), so no token secret is used
+# and nothing expires. Provenance is attached automatically.
 
 on:
   pull_request:
@@ -34,7 +38,7 @@ concurrency:
 
 permissions:
   contents: write       # tag + GitHub Release
-  id-token: write       # npm provenance
+  id-token: write       # npm trusted publishing (OIDC) + provenance
 
 jobs:
   publish:
@@ -62,6 +66,10 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.
+      - name: Upgrade npm
+        run: npm install -g npm@^11.5.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -127,12 +135,13 @@ jobs:
           git tag -a "${TAG}" -m "Release ${VERSION}"
           git push origin "${TAG}"
 
+      # `npm publish` rather than `pnpm publish`: npm's OIDC exchange is the
+      # documented trusted-publishing path. The root package has no
+      # `workspace:` dependencies, so pnpm's publish-time rewriting isn't needed.
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
-          pnpm publish --access public --no-git-checks --tag "${{ steps.version.outputs.npmTag }}" --provenance
+          npm publish --access public --tag "${{ steps.version.outputs.npmTag }}"
 
       - name: Create GitHub Release
         env:
