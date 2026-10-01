@@ -28,6 +28,16 @@ function fakeAssets(files: Record<string, Uint8Array>) {
             headers: { 'Content-Type': 'text/html' },
           });
         }
+        // Like the real asset server: honour Range with a truncated 206.
+        if (input.headers.has('Range')) {
+          return new Response(file.slice(0, 4), {
+            status: 206,
+            headers: {
+              'Content-Type': 'application/gzip',
+              'Content-Range': `bytes 0-3/${file.length}`,
+            },
+          });
+        }
         if (input.headers.get('If-None-Match') === '"abc"') {
           return new Response(null, { status: 304, headers: { ETag: '"abc"' } });
         }
@@ -87,6 +97,16 @@ describe('Pages Function: gzipped rates.json', () => {
     expect(res.headers.get('ETag')).toBe('"abc"');
     expect(res.headers.get('Cache-Control')).toBe(LATEST_CACHE_CONTROL);
     expect(res.body).toBeNull();
+  });
+
+  it('does not forward Range to ASSETS: always a full 200 body, never a truncated 206', async () => {
+    const assets = fakeAssets({ '/rates.json.gz': GZ });
+    const res = await latest(ctx('/rates.json', assets, { headers: { Range: 'bytes=0-3' } }));
+
+    expect(assets.requests[0]?.headers.has('Range')).toBe(false);
+    expect(res.status).toBe(200);
+    const body = Buffer.from(await res.arrayBuffer());
+    expect(gunzipSync(body).toString('utf8')).toBe(JSON_BODY);
   });
 
   it('rejects non-GET/HEAD methods with 405', async () => {

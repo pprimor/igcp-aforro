@@ -7,9 +7,14 @@ name: Data refresh
 # GitHub Actions interprets `cron:` in UTC and ignores `TZ`. To stay at
 # 08:00 Lisbon all year despite Portugal's DST shift between WET (UTC+0,
 # winter) and WEST (UTC+1, summer), we register both UTC hours; a gate
-# step below skips the wrong one so only a single run fetches and pushes.
-# Without that gate, both crons would update the same PR branch and the
-# second `git push --force-with-lease` can fail on GitHub's side.
+# step (`id: gate`) below skips the wrong one so only a single run fetches
+# and pushes. `exit 0` only ends the gate step itself, so the gate writes
+# `skip=true|false` to $GITHUB_OUTPUT and every later step in the job is
+# guarded by `steps.gate.outputs.skip != 'true'`. A skipped run still ends
+# successfully (so report-failure does not fire). workflow_dispatch never
+# skips. Without the gate, both crons would run the full refresh, overlap
+# on the same PR branch (`git push --force-with-lease` can fail, and
+# cancel-in-progress could cancel a run between merge and dispatch).
 #
 # Job logic:
 # 1. Run fetch-euribor.ts in incremental mode (always-full-series fetch,
@@ -75,43 +80,61 @@ jobs:
     env:
       TZ: Europe/Lisbon
     steps:
+      # `exit 0` only ends this step, not the job, so the gate publishes its
+      # verdict as an output and every later step is guarded on it.
       - name: Skip duplicate DST cron
-        if: github.event_name == 'schedule'
+        id: gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
+          if [ "${EVENT_NAME}" != "schedule" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch — proceeding with refresh."
+            exit 0
+          fi
           hour=$(TZ=Europe/Lisbon date +%H)
           if [ "${hour}" != "08" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Skipping: ${hour}:xx Europe/Lisbon (only 08:00 runs the refresh)."
             exit 0
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "08:xx Europe/Lisbon — proceeding with scheduled refresh."
 
       - name: Checkout
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         uses: actions/checkout@v5
 
       - name: Setup pnpm
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Fetch Euribor (incremental)
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         # pnpm 10 forwards trailing args directly to the script, so no
         # `--` separator is needed (and including one would be passed
         # through verbatim and rejected by parseArgs in fetch-euribor.ts).
         run: pnpm fetch:euribor --mode incremental
 
       - name: Fetch IGCP base rate (current month)
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         run: pnpm fetch:igcp-base-rates --month current
 
       - name: Read refresh metadata
         id: meta
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         run: |
           set -euo pipefail
           if [ ! -f src/data/_meta.json ]; then
@@ -130,6 +153,7 @@ jobs:
           echo "Latest observation: ${latest} (upstream last update: ${upstream}, today: ${today})"
 
       - name: Freshness gate (latest observation must be within 5 days)
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         env:
           LATEST: ${{ steps.meta.outputs.latest }}
           TODAY: ${{ steps.meta.outputs.today }}
@@ -147,6 +171,7 @@ jobs:
 
       - name: Detect data file changes
         id: diff
+        if: ${{ steps.gate.outputs.skip != 'true' }}
         env:
           FORCE_PR: ${{ inputs.forcePr }}
         run: |
@@ -190,7 +215,7 @@ jobs:
           fi
 
       - name: Log skipped Euribor-only changes
-        if: ${{ steps.diff.outputs.changed == 'true' && steps.diff.outputs.igcp_published != 'true' && !inputs.forcePr }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.diff.outputs.changed == 'true' && steps.diff.outputs.igcp_published != 'true' && !inputs.forcePr) }}
         run: |
           echo "::notice title=Skipping data-refresh PR::Data files changed, but the current-month IGCP publication was not fetched yet. Euribor-only diffs are left on the runner and no PR is opened until IGCP publishes the monthly base rate."
 
@@ -205,7 +230,7 @@ jobs:
       # check, and gated on `pr_eligible` so a Euribor-only day (no PR) never
       # burns a version number.
       - name: Bump version for the monthly release
-        if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.diff.outputs.pr_eligible == 'true') }}
         id: version
         run: pnpm version:next --bump today --write
 
@@ -217,7 +242,7 @@ jobs:
         # continue-on-error keeps the job going on failure so the PR is still
         # opened, labelled `needs-review`, and left unmerged for a human.
         id: tests
-        if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.diff.outputs.pr_eligible == 'true') }}
         continue-on-error: true
         run: |
           set -euo pipefail
@@ -227,7 +252,7 @@ jobs:
           pnpm build
 
       - name: Pick PR labels
-        if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.diff.outputs.pr_eligible == 'true') }}
         id: labels
         env:
           TESTS_OUTCOME: ${{ steps.tests.outcome }}
@@ -241,7 +266,7 @@ jobs:
 
       - name: Create or update PR
         id: cpr
-        if: ${{ steps.diff.outputs.pr_eligible == 'true' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.diff.outputs.pr_eligible == 'true') }}
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -285,7 +310,7 @@ jobs:
 
       - name: Check auto-merge eligibility
         id: automerge
-        if: ${{ steps.cpr.outputs.pull-request-number != '' && steps.diff.outputs.igcp_published == 'true' && steps.tests.outcome == 'success' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.cpr.outputs.pull-request-number != '' && steps.diff.outputs.igcp_published == 'true' && steps.tests.outcome == 'success') }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
@@ -372,7 +397,7 @@ jobs:
       # created by the GitHub Actions app (integration 15368) — exactly what the
       # ruleset pins the check to — so it satisfies the requirement.
       - name: Report required status check on PR head
-        if: ${{ steps.automerge.outputs.eligible == 'true' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.automerge.outputs.eligible == 'true') }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -389,7 +414,7 @@ jobs:
       # the PR is still blocked so a broken guard never merges (or stalls)
       # silently.
       - name: Merge eligible data-refresh PR
-        if: ${{ steps.automerge.outputs.eligible == 'true' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.automerge.outputs.eligible == 'true') }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
@@ -418,7 +443,7 @@ jobs:
       #
       # Reached only after a successful merge (a failed merge stops the job).
       - name: Publish the refreshed data
-        if: ${{ steps.automerge.outputs.eligible == 'true' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.automerge.outputs.eligible == 'true') }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -428,7 +453,7 @@ jobs:
           echo "Dispatched Publish release against main for ${VERSION}."
 
       - name: Fail job if tests failed
-        if: ${{ steps.diff.outputs.pr_eligible == 'true' && steps.tests.outcome == 'failure' }}
+        if: ${{ steps.gate.outputs.skip != 'true' && (steps.diff.outputs.pr_eligible == 'true' && steps.tests.outcome == 'failure') }}
         run: |
           echo "::error title=Golden tests failed against refreshed data::See the create-pull-request step for the PR with the needs-review label."
           exit 1

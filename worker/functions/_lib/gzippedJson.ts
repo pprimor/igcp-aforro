@@ -40,7 +40,11 @@ export async function serveGzippedJson(
   assetUrl.pathname = `${assetUrl.pathname}.gz`;
   // Reuse the incoming request so conditional headers (If-None-Match) reach
   // the asset server and a 304 can short-circuit the 20 MB transfer.
-  const asset = await env.ASSETS.fetch(new Request(assetUrl, request));
+  const assetRequest = new Request(assetUrl, request);
+  // Full bodies only: a forwarded Range yields a 206 slice of the gzip bytes,
+  // which would go out below as a 200 with a truncated body and no Content-Range.
+  assetRequest.headers.delete('Range');
+  const asset = await env.ASSETS.fetch(assetRequest);
 
   const headers = new Headers({ 'Cache-Control': cacheControl, Vary: 'Accept-Encoding' });
   const etag = asset.headers.get('ETag');

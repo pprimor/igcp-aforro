@@ -137,7 +137,10 @@ jobs:
       # an orphan tag, because "Ensure release is new" would refuse every rerun.
       # Residual case: if the publish succeeds but this push fails, a rerun is
       # refused because the version is already on npm. Recovery is to push the
-      # tag manually and create the GitHub Release.
+      # tag manually and create the GitHub Release. Likewise, if the tag is
+      # pushed but `gh release create` fails, a rerun is refused because the tag
+      # exists; recover with `gh release create <tag>`, then dispatch deploy-docs
+      # and deploy-api manually.
       - name: Create and push tag
         env:
           VERSION: ${{ steps.version.outputs.version }}

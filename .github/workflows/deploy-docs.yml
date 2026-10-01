@@ -6,7 +6,9 @@ name: Deploy docs
 #
 # Triggered two ways:
 #   - workflow_call from Release (immediately after a new version is published)
-#   - workflow_dispatch (deploy any branch, SHA, or past tag without publishing npm)
+#   - workflow_dispatch (deploy any branch, SHA, or tag without publishing npm;
+#     the ref must include the rates.json Pages Functions in worker/functions/,
+#     otherwise staging fails rather than shipping a site whose /rates.json 404s)
 
 on:
   workflow_call:
@@ -96,6 +98,10 @@ jobs:
           PAGES_MAX_FILE_BYTES: 26214400
         run: |
           set -euo pipefail
+
+          # Refs that predate the Functions would stage only rates.json.gz and
+          # leave /rates.json as a hard 404 once deployed.
+          [[ -f worker/functions/rates.json.ts ]] || { echo "::error::deploy ref predates the rates.json Pages Functions; cannot serve /rates.json"; exit 1; }
 
           stage_gzipped_rates() {
             local src="$1"
