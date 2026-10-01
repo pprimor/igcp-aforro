@@ -9,6 +9,7 @@ import {
   findMissingSerieFMonths,
   mergeFixture,
   runFetch,
+  runFetchBatch,
 } from '../scripts/fetch-igcp-base-rates.js';
 import { IgcpParseError, parseArticle } from '../scripts/igcpArticleParser.js';
 
@@ -276,6 +277,20 @@ describe('findMissingSerieFMonths', () => {
   });
 });
 
+/** First Série F month absent from the on-disk fixture (a real backfill month). */
+function batchFirstMissingMonth(): string {
+  const fixturePath = resolve(
+    fileURLToPath(import.meta.url),
+    '../fixtures/igcpPublishedBaseRates.json',
+  );
+  const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'));
+  const first = findMissingSerieFMonths(fixture, '2030-01')[0];
+  if (first === undefined) {
+    throw new Error('expected at least one missing month before 2030-01');
+  }
+  return first;
+}
+
 describe('runFetch (msw-mocked HTTP)', () => {
   const APRIL_2026_URL = buildIgcpUrl('2026-04');
 
@@ -369,5 +384,82 @@ describe('runFetch (msw-mocked HTTP)', () => {
     expect(logs.some((line) => line.includes('month=2026-04'))).toBe(true);
     expect(logs.some((line) => line.includes('basePct=2.138'))).toBe(true);
     expect(logs.some((line) => line.includes('no-op: 2026-04'))).toBe(true);
+  });
+
+  describe('current-month notice not yet published', () => {
+    // Far-future target so the backfill window (every Série F month
+    // missing from the on-disk fixture) is non-empty regardless of how
+    // far the daily refresh job has advanced the fixture.
+    const TARGET = '2030-01';
+    const TARGET_URL = buildIgcpUrl(TARGET);
+    const NEWS_WILDCARD = TARGET_URL.replace(/[^/]+$/, '*');
+
+    /** Every IGCP notice returns the snapshot, except the given overrides. */
+    function mockNotices(overrides: Record<string, number>): void {
+      server.use(
+        ...Object.entries(overrides).map(([url, status]) =>
+          http.get(url, () => new HttpResponse('nope', { status, statusText: 'Nope' })),
+        ),
+        http.get(NEWS_WILDCARD, () => new HttpResponse(SNAPSHOT_HTML, { status: 200 })),
+      );
+    }
+
+    it('skips the current month on HTTP 404 and still returns earlier backfill months', async () => {
+      mockNotices({ [TARGET_URL]: 404 });
+      const logs: string[] = [];
+
+      const batch = await runFetchBatch(
+        { month: TARGET, monthIsCurrent: true, dryRun: true, quiet: false },
+        (msg) => logs.push(msg),
+      );
+
+      expect(batch.skippedMonths).toEqual([TARGET]);
+      expect(batch.results.length).toBeGreaterThan(0);
+      expect(batch.results.some((r) => r.month === TARGET)).toBe(false);
+      expect(batch.changed).toBe(true);
+      expect(
+        logs.some((l) => l.includes(`${TARGET} notice not published yet (HTTP 404); skipping`)),
+      ).toBe(true);
+    });
+
+    it('still throws on a 404 for a backfill month (not the current month)', async () => {
+      const backfill = batchFirstMissingMonth();
+      mockNotices({ [buildIgcpUrl(backfill)]: 404 });
+
+      await expect(
+        runFetchBatch({ month: TARGET, monthIsCurrent: true, dryRun: true, quiet: true }, () => {}),
+      ).rejects.toThrow(/HTTP 404/);
+    });
+
+    it('still throws on a 404 when an explicit --month YYYY-MM was requested', async () => {
+      mockNotices({ [TARGET_URL]: 404 });
+
+      await expect(
+        runFetchBatch(
+          { month: TARGET, monthIsCurrent: false, dryRun: true, quiet: true },
+          () => {},
+        ),
+      ).rejects.toThrow(/HTTP 404/);
+    });
+
+    it('still throws on a 404 when --url is given, even with --month current', async () => {
+      const overrideUrl = 'https://staging.example.test/missing.html';
+      server.use(http.get(overrideUrl, () => new HttpResponse('nope', { status: 404 })));
+
+      await expect(
+        runFetchBatch(
+          { month: TARGET, monthIsCurrent: true, url: overrideUrl, dryRun: true, quiet: true },
+          () => {},
+        ),
+      ).rejects.toThrow(/HTTP 404/);
+    });
+
+    it('still throws on a non-404 error (HTTP 500) for the current month', async () => {
+      mockNotices({ [TARGET_URL]: 500 });
+
+      await expect(
+        runFetchBatch({ month: TARGET, monthIsCurrent: true, dryRun: true, quiet: true }, () => {}),
+      ).rejects.toThrow(/HTTP 500/);
+    });
   });
 });
