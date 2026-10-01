@@ -10,7 +10,7 @@ description: Artefacto JSON autónomo com taxas-base mensais e taxas anuais por 
 - **Última versão**: `https://igcp-aforro.primor.me/rates.json`
 - **Snapshot por release**: `https://igcp-aforro.primor.me/v/<calver>/rates.json` (por exemplo, `v/2026.420.0/rates.json`)
 
-O URL serve JSON com `Content-Encoding: gzip` (o corpo em disco está comprimido para respeitar o limite de 25 MiB do Cloudflare Pages). Clientes HTTP normais (`curl`, `urllib.request`, `fetch`) descomprimem automaticamente; com `curl` use `--compressed` se desactivar a descompressão por omissão.
+O URL serve JSON com `Content-Encoding: gzip` (o corpo em disco está comprimido para respeitar o limite de 25 MiB do Cloudflare Pages). Browsers, `fetch` e `requests` (Python) descomprimem automaticamente. O `curl` não descomprime por omissão: use `--compressed`, ou recebe os bytes gzip em bruto.
 
 O ficheiro é regenerado:
 

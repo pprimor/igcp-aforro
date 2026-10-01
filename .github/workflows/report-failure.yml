@@ -1,0 +1,75 @@
+name: Report failure
+
+# Reusable: opens (or comments on) a GitHub issue when a release or data-refresh
+# workflow fails, so a failure in a run nobody is watching (the daily cron, or
+# the "Publish release" run dispatched by data-refresh.yml) does not go unseen.
+#
+# The title is the dedup key. While an issue with the same title is open, each
+# further failure is appended as a comment instead of opening a new issue, so a
+# daily failure accumulates on one thread. Closing the issue re-arms reporting.
+#
+# `github.*` here is the caller's context (workflow, run id, event, ref), so the
+# issue links to the failed run rather than to this helper.
+
+on:
+  workflow_call:
+    inputs:
+      title:
+        description: Issue title; also the key used to find an already-open issue
+        required: true
+        type: string
+      details:
+        description: Extra context to include in the issue body or comment
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  report:
+    name: Report failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      # Every value reaches the shell through `env:`, never inline in `run:`,
+      # so nothing in the inputs can be interpreted as shell syntax.
+      - name: Open or update failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: ${{ inputs.title }}
+          DETAILS: ${{ inputs.details }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+
+          # Idempotent; --force updates the colour/description if it exists.
+          gh label create ci-failure \
+            --color B60205 \
+            --description "Automated: a release or data-refresh workflow failed" \
+            --force
+
+          body="Workflow: ${WORKFLOW}"$'\n'"Run: ${RUN_URL}"$'\n'"Event: ${EVENT}"$'\n'"Ref: ${REF}"
+          if [[ -n "${DETAILS}" ]]; then
+            body+=$'\n\n'"${DETAILS}"
+          fi
+
+          # Exact-title match done in jq (gh's --search is fuzzy). The label
+          # filter keeps the candidate list small; 100 is ample for it.
+          existing=$(gh issue list \
+            --label ci-failure \
+            --state open \
+            --limit 100 \
+            --json number,title |
+            jq -r --arg t "${TITLE}" '[.[] | select(.title == $t)][0].number // empty')
+
+          if [[ -n "${existing}" ]]; then
+            gh issue comment "${existing}" --body "${body}"
+            echo "Commented on #${existing}."
+          else
+            gh issue create --title "${TITLE}" --label ci-failure --body "${body}"
+          fi

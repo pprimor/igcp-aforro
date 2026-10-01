@@ -355,6 +355,23 @@ interface FetchBatchResult {
   readonly results: readonly RunResult[];
   readonly fixture: FixtureFile;
   readonly changed: boolean;
+  /**
+   * Months skipped because IGCP had not published the notice yet (see
+   * {@link runFetchBatch}). Always empty unless `--month current` hit a 404
+   * on the current month itself.
+   */
+  readonly skippedMonths: readonly string[];
+}
+
+/** Thrown by {@link fetchOneMonth} on a non-2xx response; carries the status. */
+class IgcpHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'IgcpHttpError';
+  }
 }
 
 function resolveMonthsToFetch(args: CliArgs, fixture: FixtureFile): readonly string[] {
@@ -385,7 +402,8 @@ async function fetchOneMonth(
 
   const response = await fetchImpl(url);
   if (!response.ok) {
-    throw new Error(
+    throw new IgcpHttpError(
+      response.status,
       `IGCP notice fetch failed: HTTP ${response.status} ${response.statusText} (url=${url})`,
     );
   }
@@ -422,6 +440,8 @@ export async function runFetch(
   const batch = await runFetchBatch(args, log, fetchImpl);
   const last = batch.results.at(-1);
   if (last === undefined) {
+    // Also reached when the only month was skipped as not yet published;
+    // callers that tolerate that should use `runFetchBatch` (as `main` does).
     throw new Error(`No months resolved for fetch (month=${args.month})`);
   }
   return last;
@@ -438,15 +458,40 @@ export async function runFetchBatch(
     log(
       `[fetch-igcp-base-rates] Série F fixture is complete through ${args.month}; nothing to fetch`,
     );
-    return { results: [], fixture, changed: false };
+    return { results: [], fixture, changed: false, skippedMonths: [] };
   }
   if (months.length > 1) {
     log(`[fetch-igcp-base-rates] backfilling missing Série F months: ${months.join(', ')}`);
   }
 
   const results: RunResult[] = [];
-  for (const month of months) {
-    const result = await fetchOneMonth(month, fixture, args.url, log, fetchImpl);
+  const skippedMonths: string[] = [];
+  for (const [index, month] of months.entries()) {
+    let result: RunResult;
+    try {
+      result = await fetchOneMonth(month, fixture, args.url, log, fetchImpl);
+    } catch (err) {
+      // IGCP typically posts a month's notice a few days into that month,
+      // so on the 1st the current month's URL 404s. That is "not yet", not
+      // a failure: skip it and let the next daily run pick it up. Scoped
+      // narrowly so real breakage still fails loudly: only `--month
+      // current`, no `--url`, only the current month (the last one; earlier
+      // backfill months are long published, so a 404 there is a real gap),
+      // and only HTTP 404 (5xx etc. are genuine upstream errors).
+      const isCurrentMonth = index === months.length - 1;
+      if (
+        err instanceof IgcpHttpError &&
+        err.status === 404 &&
+        args.monthIsCurrent &&
+        args.url === undefined &&
+        isCurrentMonth
+      ) {
+        log(`[fetch-igcp-base-rates] ${month} notice not published yet (HTTP 404); skipping`);
+        skippedMonths.push(month);
+        continue;
+      }
+      throw err;
+    }
     if (result.merge.changed) {
       fixture = result.merge.fixture;
     }
@@ -457,6 +502,7 @@ export async function runFetchBatch(
     results,
     fixture,
     changed: results.some((result) => result.merge.changed),
+    skippedMonths,
   };
 }
 
