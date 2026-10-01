@@ -10,7 +10,7 @@ description: Self-contained JSON artifact with monthly base rates and cohort-anc
 - **Latest**: `https://igcp-aforro.primor.me/rates.json`
 - **Per-release snapshot**: `https://igcp-aforro.primor.me/v/<calver>/rates.json` (e.g. `v/2026.420.0/rates.json`)
 
-The URL serves JSON with `Content-Encoding: gzip` (the on-disk asset is pre-compressed to stay under Cloudflare Pages’ 25 MiB per-file limit). Normal HTTP clients (`curl`, `urllib.request`, `fetch`) decompress automatically; with `curl`, pass `--compressed` if you disabled default decompression.
+The URL serves JSON with `Content-Encoding: gzip` (the on-disk asset is pre-compressed to stay under Cloudflare Pages’ 25 MiB per-file limit). Browsers, `fetch`, and Python `requests` decompress it automatically. `curl` does not decompress by default: pass `--compressed`, or you get the raw gzip bytes.
 
 The file is regenerated:
 
